@@ -1,0 +1,107 @@
+# ==============================================================================
+# Polyglot & AI Agent .gitignore
+# ==============================================================================
+
+# OS Metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+
+# Environment & Secrets (NEVER COMMIT SECRETS)
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.cert
+*.p12
+
+# AI Coding Agents & IDE Scratchpads
+.gemini/
+.antigravity/
+scratch/
+brain/
+*.tmp
+*.log
+.agent-scratch/
+
+# Graphify Transcripts & Preflight Cache
+.graphify/transcripts/
+.graphify/converted/
+.graphify/.graphify_*.json
+.graphify/.graphify_*.txt
+# Keep persistent graph artifacts
+!.graphify/graph.json
+!.graphify/GRAPH_REPORT.md
+!.graphify/studio/
+
+# Node / TypeScript / JavaScript
+node_modules/
+dist/
+dist-*/
+build/
+.npm/
+.pnpm-store/
+coverage/
+*.tsbuildinfo
+.eslintcache
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Go
+bin/
+pkg/
+*.test
+*.prof
+
+# Java / JVM
+*.class
+*.jar
+*.war
+*.ear
+.gradle/
+build/
+target/
+
+# C / C++
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.exe
+build/
+cmake-build-*/
