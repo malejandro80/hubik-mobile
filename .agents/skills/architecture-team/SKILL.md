@@ -38,12 +38,26 @@ flowchart TD
 
 ---
 
+## Automated Orchestrator (`scripts/architecture-team/`)
+
+The team executes via a deterministic TypeScript LangGraph pipeline:
+```bash
+npm run arch-team -- "<mobile-feature-or-system-goal>"
+```
+- **CLI / StateGraph**: [`scripts/architecture-team/index.ts`](file:///Users/miguel/Desktop/programacion/hubik-mobile/scripts/architecture-team/index.ts)
+- **Role Nodes**: [`scripts/architecture-team/agents.ts`](file:///Users/miguel/Desktop/programacion/hubik-mobile/scripts/architecture-team/agents.ts)
+- **Quality Gatekeeper**: [`scripts/architecture-team/gatekeeper.ts`](file:///Users/miguel/Desktop/programacion/hubik-mobile/scripts/architecture-team/gatekeeper.ts)
+- **Artifact Writer**: [`scripts/architecture-team/artifacts.ts`](file:///Users/miguel/Desktop/programacion/hubik-mobile/scripts/architecture-team/artifacts.ts)
+- **Model Provider**: [`scripts/architecture-team/llm.ts`](file:///Users/miguel/Desktop/programacion/hubik-mobile/scripts/architecture-team/llm.ts)
+
+---
+
 ## Step-by-Step Execution Protocol
 
 1. **Intake & Mobile Scope**:
    - Decompose feature into: Target Screen / Component, Platform Support (iOS / Android / Web), and Mobile Performance Targets.
 2. **Topology Inspection**:
-   - Inspect Expo Router structure in `app/` and shared hooks/components in `src/`. Ensure navigation flows are predictable and avoid unnecessary global states.
+   - Inspect Expo Router structure in `src/app/` and shared hooks/components in `src/`. Ensure navigation flows are predictable and avoid unnecessary global states.
 3. **Draft Specification (`specs/XXX-feature.md`)**:
    - Create RFC following `specs/000-spec-template.md`. Detail screen states (loading, empty, error, offline), accessibility properties, and typed props.
 4. **Security & Threat Model**:

@@ -30,9 +30,23 @@ The `.agents/` directory is the authoritative core governing all autonomous oper
 │   ├── verify-and-ship/         # 4-target toolchain verification runner
 │   ├── supabase/                # Supabase SDK, Auth, Storage, Edge Functions
 │   └── supabase-postgres-best-practices/ # Postgres RLS, schemas, indexing
-└── state/                  # Persistent memory and tracking
-    ├── current-milestone.md     # Active sprint milestones and backlog status
-    └── session-log.md           # Permanent log of all agent runs and handoffs
+├── state/                  # Persistent memory and tracking
+│   ├── current-milestone.md     # Active sprint milestones and backlog status
+│   └── session-log.md           # Permanent log of all agent runs and handoffs
+
+scripts/
+├── architecture-team/       # TypeScript LangGraph multi-agent architecture pipeline (npm run arch-team)
+│   ├── index.ts             # StateGraph workflow compiler & CLI runner
+│   ├── agents.ts            # Squad roles (lead, systems, spec, security, qa)
+│   ├── gatekeeper.ts        # DoD & mobile rules evaluator with feedback loop
+│   ├── artifacts.ts         # Automated writer for specs/ RFCs & docs/adr/ ADRs
+│   ├── llm.ts               # Gemini role provider with offline heuristic fallback
+│   ├── types.ts             # State & status type contracts
+│   └── __tests__/           # Jest test suites for workflow, gatekeeper, artifacts, llm
+├── verify.sh                # Universal 4-target toolchain runner (check-all)
+├── pre-commit-hook.sh       # Secret scanner & hygiene gate
+├── seed-properties.ts       # Database property seeder
+└── mockProperties.ts        # Mock dataset for seeding
 ```
 
 ---
@@ -73,14 +87,24 @@ flowchart TD
   4. Never guess API signatures or create duplicate utility functions.
 
 ### Phase 2: Architecture & Squad Review (`architecture-team`)
-- **Objective**: Ensure structural alignment across mobile disciplines.
-- **Actions**:
-  1. Consult multi-agent perspectives:
-     - **Mobile Lead**: Ensures adherence to clean Expo Router architecture in `app/` and reusable hooks in `src/hooks/`.
-     - **Expo Specialist**: Verifies SDK compatibility, native modules, and config plugins in `app.json`.
-     - **Security Specialist**: Audits token storage and API exposure.
-     - **QA Engineer**: Plans test topology (unit, component, integration).
-  2. For major architectural decisions or schema overhauls, draft an ADR in `docs/adr/`.
+- **Objective**: Ensure structural alignment across mobile disciplines before code is written.
+- **Automated Squad Orchestrator (`scripts/architecture-team/`)**:
+  - The squad is implemented as a deterministic **LangGraph StateGraph** located at [`scripts/architecture-team/`](file:///Users/miguel/Desktop/programacion/hubik-mobile/scripts/architecture-team).
+  - Can be triggered autonomously or via CLI:
+    ```bash
+    npm run arch-team -- "<mobile-feature-or-system-goal>"
+    ```
+  - **Graph Topology**: `START` → `lead` → `systems` → `spec` → `security` → `qa` → `gatekeeper` → (`writeArtifacts` | `escalate`) → `END`.
+  - **Squad Roles & Modules**:
+    - **Mobile Lead** (`lead` in `agents.ts`): Defines mobile boundaries, resolves platform trade-offs (iOS/Android), and ensures adherence to Expo Router navigation in `src/app/`.
+    - **Systems & Modularity Architect** (`systems` in `agents.ts`): Enforces component/hook boundaries in `src/`, code reuse, and the Ponytail 7-rung YAGNI ladder.
+    - **Spec Architect** (`spec` in `agents.ts`): Generates technical specification draft with screen states, typed props, and API contracts.
+    - **Mobile Security Specialist** (`security` in `agents.ts`): Audits token storage (`expo-secure-store`), secret quarantine, and network/RLS boundaries.
+    - **QA & Verification Engineer** (`qa` in `agents.ts`): Designs `@testing-library/react-native` and Jest test topology, formulating failing assertions for TDD.
+    - **Quality Gatekeeper** (`gatekeeper.ts`): Deterministically checks outputs against `03-definition-of-done.md` and `06-mobile-development.md`. Permits a maximum of 1 revision loop before escalating to human lead.
+    - **Artifact Writer** (`artifacts.ts`): Automatically writes output to `specs/00X-<feature>.md` (RFC) and `docs/adr/XXXX-<title>.md` (ADR).
+    - **LLM Provider** (`llm.ts`): Uses Google Gemini (`gemini-2.5-flash`) when configured, with seamless offline heuristic fallback.
+  - **Next Step After Squad Approval**: Human lead reviews generated `specs/` RFC and `docs/adr/` ADR before moving to Phase 3 / Phase 5.
 
 ### Phase 3: Formal Specification First (`spec-driven-design`)
 - **Objective**: Establish the technical contract before writing code.
