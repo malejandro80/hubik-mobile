@@ -11,10 +11,12 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "build": "tsc --noEmit",
-    "seed": "tsx scripts/seed-properties.ts"
+    "seed": "tsx scripts/seed-properties.ts",
+    "arch-team": "tsx scripts/architecture-team/index.ts"
   },
   "dependencies": {
     "@google/genai": "^2.22.0",
+    "@langchain/langgraph": "^1.4.15",
     "@supabase/supabase-js": "^2.116.0",
     "dotenv": "^17.4.2",
     "expo": "~51.0.0",
@@ -37,6 +39,7 @@
     "@testing-library/jest-native": "^5.4.3",
     "@testing-library/react-native": "^12.4.0",
     "@types/jest": "^29.5.12",
+    "@types/node": "^26.6.0",
     "@types/react": "~18.2.45",
     "@types/react-test-renderer": "^18.0.7",
     "eslint": "^8.57.0",
