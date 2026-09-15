@@ -497,5 +497,35 @@ This file records the chronological record of agent sessions to ensure continuit
     - Secret Scanner: Clean.
 - **Next Actions**: Ready for human review and commit.
 
+---
+
+### [Session 023] Voice Property Registration Screen (Mock for Don Carlos)
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Implemented the initial property registration mock view based on the user's design mockup and voice instructions (`src/app/register.tsx`):
+    - Added editorial title: *"Vamos a registrar su vivienda, Don Carlos."*
+    - Added tranquil subtitle: *"Es tan fácil como contármelo con sus propias palabras, sin tecnicismos ni prisas."*
+    - Added guide card with `#D2F3EA` emerald badge (`sparkles` icon), title *"Puede decir algo como:"*, subtitle *"Un ejemplo sencillo y natural"*, and tappable quote box with example phrase: *“Quiero poner a la venta mi piso en Chamberí de 3 habitaciones por 420.000 euros con ascensor.”*
+    - Integrated standard uniform `ChatInputBar` (56px pill capsule + `#163931` pine green mic/send button) at the bottom dock, fulfilling the user's audio request: *"puedes usar el mismo campo de texto y el botón de micrófono en vez del que está en la imagen"*.
+    - Connected `Header` with back navigation (`router.back()`) and slide-in `BurgerMenu`.
+  - Updated `BurgerMenu` (`src/components/BurgerMenu.tsx`):
+    - Added `Registrar Vivienda` menu item (`key: 'register'`, `badge: 'Nuevo'`).
+    - Handled routing in `src/app/index.tsx`, `src/app/property/[id].tsx`, and `src/app/register.tsx`.
+    - Updated `src/components/__tests__/BurgerMenu.test.tsx` to verify the new menu item.
+  - Added unit test suite `src/app/__tests__/register.test.tsx`:
+    - Tests rendering of header, title, subtitle, guide card, quote box, and input bar.
+    - Tests tapping quote box to populate input text.
+    - Tests microphone modal and example insertion.
+    - Tests sending description with confirmation alert.
+    - Tests back navigation and burger menu selection.
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 16 test suites passed, 65/65 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+- **Next Actions**: Ready for human review and commit.
+
+
 
 

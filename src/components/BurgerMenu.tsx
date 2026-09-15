@@ -33,6 +33,12 @@ const MENU_ITEMS: BurgerMenuItem[] = [
     icon: 'search-outline',
   },
   {
+    key: 'register',
+    title: 'Registrar Vivienda',
+    icon: 'add-circle-outline',
+    badge: 'Nuevo',
+  },
+  {
     key: 'new_chat',
     title: 'Reiniciar Chat',
     icon: 'refresh-outline',

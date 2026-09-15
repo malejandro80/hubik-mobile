@@ -131,7 +131,9 @@ export default function HomeScreen() {
   };
 
   const handleMenuItemSelect = (key: string) => {
-    if (key === 'new_chat') {
+    if (key === 'register') {
+      router.push('/register');
+    } else if (key === 'new_chat') {
       setMessages(INITIAL_MESSAGES);
       setInputText('');
     } else if (key === 'saved') {

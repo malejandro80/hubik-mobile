@@ -134,7 +134,9 @@ export default function PropertyDetailScreen() {
 
   const handleMenuItemSelect = (key: string) => {
     setIsMenuOpen(false);
-    if (key === 'new_chat' || key === 'search') {
+    if (key === 'register') {
+      router.push('/register');
+    } else if (key === 'new_chat' || key === 'search') {
       router.push('/');
     } else if (key === 'saved') {
       Alert.alert(

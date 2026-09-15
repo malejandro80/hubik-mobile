@@ -18,6 +18,7 @@ describe('BurgerMenu Component', () => {
     // Profile & Header
     expect(getByText('Don Carlos')).toBeTruthy();
     expect(getByText('Buscar Propiedades')).toBeTruthy();
+    expect(getByText('Registrar Vivienda')).toBeTruthy();
     expect(getByText('Reiniciar Chat')).toBeTruthy();
     expect(getByText('Propiedades Guardadas')).toBeTruthy();
     expect(getByText('Ajustes y Accesibilidad')).toBeTruthy();
