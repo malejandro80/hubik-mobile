@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ChatMessageItem } from '../components/ChatMessageItem';
+import { Header } from '../components/Header';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { sendChatQuery } from '../services/chatApi';
 import { colors, shapes, spacing, typography } from '../theme/colors';
@@ -107,6 +108,14 @@ export default function HomeScreen() {
     }
   };
 
+  const handleBack = () => {
+    Alert.alert('Navegación', 'Regresar a la pantalla anterior.');
+  };
+
+  const handleMenu = () => {
+    Alert.alert('Menú Hubik', 'Opciones de cuenta y configuración.');
+  };
+
   const renderMessageItem: ListRenderItem<ChatMessage> = useCallback(
     ({ item }) => <ChatMessageItem message={item} />,
     []
@@ -115,9 +124,6 @@ export default function HomeScreen() {
   const renderListHeader = useCallback(
     () => (
       <View style={styles.listHeader}>
-        <Text accessibilityRole="header" style={styles.accessibleHeader}>
-          Hubik Real Estate AI
-        </Text>
         <View
           style={[
             styles.dateCapsule,
@@ -140,6 +146,13 @@ export default function HomeScreen() {
       style={[styles.safeArea, { backgroundColor: theme.background }]}
       edges={['top', 'left', 'right', 'bottom']}
     >
+      {/* Serene Hearth Architectural Header */}
+      <Header
+        title="Hubik"
+        onBackPress={handleBack}
+        onMenuPress={handleMenu}
+      />
+
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -234,12 +247,6 @@ const styles = StyleSheet.create({
   listHeader: {
     alignItems: 'center',
     marginBottom: 8,
-  },
-  accessibleHeader: {
-    position: 'absolute',
-    width: 1,
-    height: 1,
-    opacity: 0,
   },
   dateCapsule: {
     paddingHorizontal: 16,
