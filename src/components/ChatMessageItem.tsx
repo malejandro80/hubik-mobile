@@ -16,6 +16,11 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = React.memo(
     const theme = colors[colorScheme];
     const isUser = message.sender === 'user';
 
+    const hasProperties = Boolean(message.properties && message.properties.length > 0);
+    const hasText = Boolean(
+      message.title || (message.text && message.text.trim().length > 0)
+    );
+
     const renderBodyContent = () => {
       const paragraphs = message.text.split('\n\n');
       return paragraphs.map((para, pIndex) => {
@@ -52,52 +57,84 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = React.memo(
       });
     };
 
+    if (isUser) {
+      return (
+        <View style={[styles.messageRow, styles.messageRowUser]}>
+          <View
+            style={[
+              styles.bubble,
+              styles.bubbleUser,
+              {
+                backgroundColor: theme.userBubble,
+                borderColor: theme.userBubbleBorder,
+              },
+            ]}
+          >
+            {renderBodyContent()}
+            {message.timestamp ? (
+              <Text
+                style={[
+                  styles.timestampText,
+                  { color: theme.textSecondary },
+                ]}
+              >
+                {message.timestamp}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      );
+    }
+
     return (
-      <View
-        style={[
-          styles.messageRow,
-          isUser ? styles.messageRowUser : styles.messageRowAssistant,
-        ]}
-      >
-        <View
-          style={[
-            styles.bubble,
-            isUser
-              ? [
-                  styles.bubbleUser,
-                  {
-                    backgroundColor: theme.userBubble,
-                    borderColor: theme.userBubbleBorder,
-                  },
-                ]
-              : [
-                  styles.bubbleAssistant,
-                  {
-                    backgroundColor: theme.assistantBubble,
-                    borderColor: theme.assistantBubbleBorder,
-                  },
-                ],
-          ]}
-        >
-          {/* Editorial Title for Featured / Welcome Assistant Messages */}
-          {!isUser && message.title && (
-            <Text style={[styles.editorialTitle, { color: theme.primary }]}>
-              {message.title}
-            </Text>
+      <View style={[styles.messageRow, styles.messageRowAssistant]}>
+        <View style={styles.assistantColumn}>
+          {/* Assistant Text Bubble */}
+          {hasText && (
+            <View
+              style={[
+                styles.bubble,
+                styles.bubbleAssistant,
+                {
+                  backgroundColor: theme.assistantBubble,
+                  borderColor: theme.assistantBubbleBorder,
+                  marginBottom: hasProperties ? 14 : 0,
+                },
+              ]}
+            >
+              {/* Editorial Title for Featured / Welcome Assistant Messages */}
+              {message.title && (
+                <Text style={[styles.editorialTitle, { color: theme.primary }]}>
+                  {message.title}
+                </Text>
+              )}
+
+              {/* Standard Assistant Badge when no custom title is defined */}
+              {!message.title && (
+                <Text style={[styles.assistantBadge, { color: theme.secondary }]}>
+                  🤖 Asistente Hubik
+                </Text>
+              )}
+
+              {/* Formatted Body Content */}
+              {renderBodyContent()}
+
+              {/* Bottom Timestamp when no properties */}
+              {message.timestamp && !hasProperties ? (
+                <Text
+                  style={[
+                    styles.timestampText,
+                    { color: theme.textSecondary },
+                  ]}
+                >
+                  {message.timestamp}
+                </Text>
+              ) : null}
+            </View>
           )}
 
-          {/* Standard Assistant Badge when no custom title is defined */}
-          {!isUser && !message.title && (
-            <Text style={[styles.assistantBadge, { color: theme.secondary }]}>
-              🤖 Asistente Hubik
-            </Text>
-          )}
-
-          {/* Formatted Body Content with Bold / Highlight Support */}
-          {renderBodyContent()}
-
-          {/* Render Property Cards within Assistant Responses */}
-          {message.properties && message.properties.length > 0 && (
+          {/* Standalone Properties Container - OUTSIDE the speech bubble to eliminate double border */}
+          {hasProperties && (
             <View style={styles.propertiesContainer}>
               <Text
                 style={[
@@ -105,29 +142,28 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = React.memo(
                   { color: theme.textSecondary },
                 ]}
               >
-                Propiedades Encontradas ({message.properties.length}):
+                Propiedades Encontradas ({message.properties!.length}):
               </Text>
-              {message.properties.map((property) => (
+              {message.properties!.map((property) => (
                 <PropertyCard
                   key={property.id}
                   property={property}
                   onPress={onPropertyPress}
                 />
               ))}
+              {message.timestamp ? (
+                <Text
+                  style={[
+                    styles.timestampText,
+                    styles.propertyTimestamp,
+                    { color: theme.textSecondary },
+                  ]}
+                >
+                  {message.timestamp}
+                </Text>
+              ) : null}
             </View>
           )}
-
-          {/* Bottom Timestamp */}
-          {message.timestamp ? (
-            <Text
-              style={[
-                styles.timestampText,
-                { color: theme.textSecondary },
-              ]}
-            >
-              {message.timestamp}
-            </Text>
-          ) : null}
         </View>
       </View>
     );
@@ -199,7 +235,16 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   propertiesContainer: {
-    marginTop: 18,
+    width: '100%',
+    marginTop: 4,
+  },
+  assistantColumn: {
+    width: '100%',
+  },
+  propertyTimestamp: {
+    marginTop: -8,
+    marginBottom: 8,
+    marginRight: 4,
   },
   resultsHeader: {
     ...typography.labelMD,

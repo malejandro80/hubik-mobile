@@ -479,4 +479,23 @@ This file records the chronological record of agent sessions to ensure continuit
     - Secret Scanner: Clean.
 - **Next Actions**: Ready for human review and commit.
 
+---
+
+### [Session 022] Elimination of Card-in-Bubble Double Border
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Eliminated the double border around `PropertyCard` in chat responses:
+    - Decoupled `PropertyCard` rendering from `styles.bubbleAssistant` in `src/components/ChatMessageItem.tsx`.
+    - Rendered assistant text messages within the dedicated speech bubble `bubbleAssistant`, while rendering matching property cards directly in `assistantColumn` as standalone first-class cards.
+    - Preserved `Propiedades Encontradas (X):` header above the cards and relocated the timestamp underneath the card list when properties are present.
+    - Completely removed the redundant outer border, padding, and nested card look identified in user feedback.
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 15 test suites passed, 59/59 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+- **Next Actions**: Ready for human review and commit.
+
+
 
