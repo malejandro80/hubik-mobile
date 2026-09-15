@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { BurgerMenu } from '../components/BurgerMenu';
 import { ChatMessageItem } from '../components/ChatMessageItem';
 import { Header } from '../components/Header';
 import { useColorScheme } from '../hooks/useColorScheme';
@@ -39,6 +40,7 @@ export default function HomeScreen() {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
 
   const handleSend = useCallback(
@@ -113,7 +115,29 @@ export default function HomeScreen() {
   };
 
   const handleMenu = () => {
-    Alert.alert('Menú Hubik', 'Opciones de cuenta y configuración.');
+    setIsMenuOpen(true);
+  };
+
+  const handleMenuItemSelect = (key: string) => {
+    if (key === 'new_chat') {
+      setMessages(INITIAL_MESSAGES);
+      setInputText('');
+    } else if (key === 'saved') {
+      Alert.alert(
+        'Propiedades Guardadas',
+        'Aún no ha guardado propiedades en sus favoritos.'
+      );
+    } else if (key === 'settings') {
+      Alert.alert(
+        'Ajustes',
+        'Configuraciones de voz, lectura y accesibilidad para Don Carlos.'
+      );
+    } else if (key === 'help') {
+      Alert.alert(
+        'Ayuda y Soporte',
+        'Comuníquese con el equipo de soporte de Hubik o su asesor personal.'
+      );
+    }
   };
 
   const renderMessageItem: ListRenderItem<ChatMessage> = useCallback(
@@ -233,6 +257,13 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Slide-in Burger Menu */}
+      <BurgerMenu
+        visible={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        onSelectMenuItem={handleMenuItemSelect}
+      />
     </SafeAreaView>
   );
 }

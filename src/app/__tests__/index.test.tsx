@@ -88,4 +88,23 @@ describe('HomeScreen (Chat UI)', () => {
       expect(getByText(/No se pudo conectar con el servicio de IA/)).toBeTruthy();
     });
   });
+
+  it('opens and interacts with burger menu when tapping header menu button', () => {
+    const { getByLabelText, getByText } = render(<HomeScreen />);
+
+    const menuButton = getByLabelText('Menú de opciones');
+    fireEvent.press(menuButton);
+
+    // Verify BurgerMenu content is now visible
+    expect(getByText('Buscar Propiedades')).toBeTruthy();
+    expect(getByText('Reiniciar Chat')).toBeTruthy();
+    expect(getByText('Propiedades Guardadas')).toBeTruthy();
+
+    // Tap to restart chat
+    const restartItem = getByText('Reiniciar Chat');
+    fireEvent.press(restartItem);
+
+    // Initial greeting remains
+    expect(getByText('Buenos días, Don Carlos.')).toBeTruthy();
+  });
 });
