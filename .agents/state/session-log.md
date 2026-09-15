@@ -29,3 +29,23 @@ This file records the chronological record of agent sessions to ensure continuit
     - TypeScript compilation (`tsc --noEmit`) clean with zero errors.
     - Pre-commit secret quarantine scan clean.
 - **Next Actions**: Ready for feature specification in `specs/` or building new Expo screens/components.
+
+---
+
+### [Session 003] Supabase Integration, .env Setup & MCP Configuration
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Installed `@supabase/supabase-js` (v2.116.0) and `expo-secure-store` (v13.0.2).
+  - Created `.env` with Supabase project reference `xbirlummltqnesuzdlov` (`EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`) and verified it is ignored by `.gitignore`.
+  - Created `.env.example` as a committed environment variable template.
+  - Authored RFC specification in `specs/001-supabase-client.md`.
+  - Implemented `src/lib/supabase.ts` with `ExpoSecureStoreAdapter` for native encrypted keystore storage and web fallback.
+  - Implemented unit tests in `src/lib/__tests__/supabase.test.ts`.
+  - Configured Supabase Model Context Protocol (MCP) server across `.antigravity/mcp.json`, `.agents/plugins/supabase/mcp_config.json`, and root `mcp_config.json`.
+- **Verification**:
+  - Executed `scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors).
+    - Jest: 2 suites passed, 8/8 tests passed.
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+- **Next Actions**: Ready to implement authentication screens, API services, or state management hooks with Supabase.
