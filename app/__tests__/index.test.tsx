@@ -5,6 +5,10 @@ import * as chatApi from '../../src/services/chatApi';
 
 jest.mock('../../src/services/chatApi', () => ({
   sendChatQuery: jest.fn(),
+  fetchDynamicSuggestions: jest.fn().mockResolvedValue([
+    'Austin 2-bed under $400k',
+    'Luxury condos in Miami',
+  ]),
 }));
 
 describe('HomeScreen (Chat UI)', () => {
@@ -12,15 +16,18 @@ describe('HomeScreen (Chat UI)', () => {
     jest.clearAllMocks();
   });
 
-  it('renders header, initial welcome message, and suggestion chips', () => {
+  it('renders header, initial welcome message, and dynamic suggestion chips', async () => {
     const { getByText, getByPlaceholderText } = render(<HomeScreen />);
 
     expect(getByText('Hubik Real Estate AI')).toBeTruthy();
     expect(getByText(/Welcome to Hubik Real Estate AI/)).toBeTruthy();
-    expect(getByText(/Austin 2-bed under \$400k/)).toBeTruthy();
     expect(
       getByPlaceholderText('Ask about properties, cities, prices...')
     ).toBeTruthy();
+
+    await waitFor(() => {
+      expect(getByText(/Austin 2-bed under \$400k/)).toBeTruthy();
+    });
   });
 
   it('sends query when typing and tapping send button', async () => {
@@ -68,8 +75,12 @@ describe('HomeScreen (Chat UI)', () => {
     });
 
     const { getByText } = render(<HomeScreen />);
-    const chip = getByText(/Luxury condos in Miami/);
 
+    await waitFor(() => {
+      expect(getByText(/Luxury condos in Miami/)).toBeTruthy();
+    });
+
+    const chip = getByText(/Luxury condos in Miami/);
     fireEvent.press(chip);
 
     await waitFor(() => {

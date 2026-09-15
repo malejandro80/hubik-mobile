@@ -1,4 +1,8 @@
-import { sendChatQuery, parsePromptFilters } from '../chatApi';
+import {
+  sendChatQuery,
+  parsePromptFilters,
+  fetchDynamicSuggestions,
+} from '../chatApi';
 import { supabase } from '../../lib/supabase';
 
 jest.mock('../../lib/supabase', () => ({
@@ -108,5 +112,23 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
     expect(filters.property_type).toBe('Single Family');
     expect(filters.min_bedrooms).toBe(3);
     expect(filters.max_price).toBe(700000);
+  });
+
+  it('fetchDynamicSuggestions generates dynamic query phrases from Supabase properties', async () => {
+    const mockData = [
+      { city: 'Austin', property_type: 'Condo', price: 385000 },
+      { city: 'Miami', property_type: 'Apartment', price: 890000 },
+    ];
+
+    const mockLimit = jest.fn().mockResolvedValueOnce({ data: mockData, error: null });
+    const mockOrder = jest.fn().mockReturnValue({ limit: mockLimit });
+    const mockSelect = jest.fn().mockReturnValue({ order: mockOrder });
+    (supabase.from as jest.Mock).mockReturnValue({ select: mockSelect });
+
+    const suggestions = await fetchDynamicSuggestions();
+
+    expect(suggestions).toHaveLength(2);
+    expect(suggestions[0]).toContain('Austin');
+    expect(suggestions[1]).toContain('Miami');
   });
 });

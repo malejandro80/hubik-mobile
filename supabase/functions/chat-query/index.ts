@@ -242,11 +242,21 @@ Deno.serve(async (req: Request) => {
       answer = `Found ${items.length}${typeText}${cityText} matching your criteria:`;
     }
 
+    // 4. Generate dynamic contextual suggestions based on returned results
+    const suggestions: string[] = [];
+    if (filters.city) {
+      suggestions.push(`Cheapest properties in ${filters.city}`);
+      suggestions.push(`Luxury homes in ${filters.city}`);
+    } else if (items.length > 0 && items[0].city) {
+      suggestions.push(`Properties in ${items[0].city}`);
+    }
+
     return new Response(
       JSON.stringify({
         answer,
         data: items,
         applied_filters: filters,
+        suggestions,
       }),
       {
         status: 200,

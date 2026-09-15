@@ -20,6 +20,10 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = React.memo(
     const colorScheme = useColorScheme();
     const theme = colors[colorScheme];
 
+    if (!chips || chips.length === 0) {
+      return null;
+    }
+
     return (
       <View style={styles.container}>
         <ScrollView

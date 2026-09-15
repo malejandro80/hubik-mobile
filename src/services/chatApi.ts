@@ -5,6 +5,44 @@ export interface ChatResponse {
   answer: string;
   data: Property[];
   applied_filters?: Record<string, any>;
+  suggestions?: string[];
+}
+
+export async function fetchDynamicSuggestions(): Promise<string[]> {
+  try {
+    const { data, error } = await supabase
+      .from('properties')
+      .select('city, property_type, price')
+      .order('created_at', { ascending: false })
+      .limit(8);
+
+    if (error || !data || data.length === 0) {
+      return [];
+    }
+
+    const suggestions: string[] = [];
+    const seen = new Set<string>();
+
+    for (const item of data) {
+      if (!item.city) continue;
+      const type = item.property_type ? `${item.property_type}s` : 'Homes';
+      const roundedPrice = item.price ? Math.ceil(item.price / 50000) * 50 : 0;
+      const phrase =
+        roundedPrice > 0
+          ? `${type} in ${item.city} under $${roundedPrice}k`
+          : `${type} in ${item.city}`;
+
+      if (!seen.has(phrase)) {
+        seen.add(phrase);
+        suggestions.push(phrase);
+      }
+      if (suggestions.length >= 4) break;
+    }
+
+    return suggestions;
+  } catch {
+    return [];
+  }
 }
 
 
@@ -153,10 +191,19 @@ export async function querySupabaseDirectly(message: string): Promise<ChatRespon
     answer = `Found ${properties.length}${typeText}${cityText} directly in the Hubik database:`;
   }
 
+  const suggestions: string[] = [];
+  if (filters.city) {
+    suggestions.push(`Cheapest properties in ${filters.city}`);
+    suggestions.push(`Luxury homes in ${filters.city}`);
+  } else if (properties.length > 0 && properties[0].city) {
+    suggestions.push(`Properties in ${properties[0].city}`);
+  }
+
   return {
     answer,
     data: properties,
     applied_filters: filters,
+    suggestions,
   };
 }
 

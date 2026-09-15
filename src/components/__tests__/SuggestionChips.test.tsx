@@ -40,4 +40,12 @@ describe('SuggestionChips Component', () => {
     const button = getByLabelText('Search for Austin 2-bed');
     expect(button.props.accessibilityState).toEqual({ disabled: true });
   });
+
+  it('renders null when chips array is empty', () => {
+    const { toJSON } = render(
+      <SuggestionChips chips={[]} onSelectChip={mockOnSelect} />
+    );
+
+    expect(toJSON()).toBeNull();
+  });
 });

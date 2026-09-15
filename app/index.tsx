@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,17 +15,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChatMessageItem } from '../src/components/ChatMessageItem';
 import { SuggestionChips } from '../src/components/SuggestionChips';
 import { useColorScheme } from '../src/hooks/useColorScheme';
-import { sendChatQuery } from '../src/services/chatApi';
+import { fetchDynamicSuggestions, sendChatQuery } from '../src/services/chatApi';
 import { colors } from '../src/theme/colors';
 import { ChatMessage } from '../src/types/property';
 
-const SUGGESTION_CHIPS = [
-  'Austin 2-bed under $400k',
-  'Family homes in Denver 3+ beds',
-  'Luxury condos in Miami',
-  'Studios under $300k',
-  'Seattle townhouses',
-];
+
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -43,7 +37,22 @@ export default function HomeScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [suggestionChips, setSuggestionChips] = useState<string[]>([]);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchDynamicSuggestions()
+      .then((chips) => {
+        if (isMounted && chips.length > 0) {
+          setSuggestionChips(chips);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSend = useCallback(
     async (queryText?: string) => {
@@ -78,6 +87,10 @@ export default function HomeScreen() {
             timestamp: 'Just now',
           },
         ]);
+
+        if (response.suggestions && response.suggestions.length > 0) {
+          setSuggestionChips(response.suggestions);
+        }
       } catch (err: any) {
         setMessages([
           ...newMessages,
@@ -135,9 +148,9 @@ export default function HomeScreen() {
           </Text>
         </View>
 
-        {/* Suggestion Chips */}
+        {/* Dynamic Suggestion Chips */}
         <SuggestionChips
-          chips={SUGGESTION_CHIPS}
+          chips={suggestionChips}
           onSelectChip={handleSend}
           disabled={loading}
         />
