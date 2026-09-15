@@ -12,12 +12,12 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChatMessageItem } from '../src/components/ChatMessageItem';
-import { SuggestionChips } from '../src/components/SuggestionChips';
-import { useColorScheme } from '../src/hooks/useColorScheme';
-import { fetchDynamicSuggestions, sendChatQuery } from '../src/services/chatApi';
-import { colors } from '../src/theme/colors';
-import { ChatMessage } from '../src/types/property';
+import { ChatMessageItem } from '../components/ChatMessageItem';
+import { SuggestionChips } from '../components/SuggestionChips';
+import { useColorScheme } from '../hooks/useColorScheme';
+import { fetchDynamicSuggestions, sendChatQuery } from '../services/chatApi';
+import { colors } from '../theme/colors';
+import { ChatMessage } from '../types/property';
 
 
 

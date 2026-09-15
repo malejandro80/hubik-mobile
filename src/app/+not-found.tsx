@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link, Stack } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
-import { useColorScheme } from '../src/hooks/useColorScheme';
-import { colors } from '../src/theme/colors';
+import { useColorScheme } from '../hooks/useColorScheme';
+import { colors } from '../theme/colors';
 
 export default function NotFoundScreen() {
   const colorScheme = useColorScheme();

@@ -1,9 +1,9 @@
 import React from 'react';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import HomeScreen from '../index';
-import * as chatApi from '../../src/services/chatApi';
+import * as chatApi from '../../services/chatApi';
 
-jest.mock('../../src/services/chatApi', () => ({
+jest.mock('../../services/chatApi', () => ({
   sendChatQuery: jest.fn(),
   fetchDynamicSuggestions: jest.fn().mockResolvedValue([
     'Austin 2-bed under $400k',

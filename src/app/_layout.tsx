@@ -2,8 +2,8 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useColorScheme } from '../src/hooks/useColorScheme';
-import { colors } from '../src/theme/colors';
+import { useColorScheme } from '../hooks/useColorScheme';
+import { colors } from '../theme/colors';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();

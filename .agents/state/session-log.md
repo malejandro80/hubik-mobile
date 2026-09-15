@@ -52,7 +52,6 @@ This file records the chronological record of agent sessions to ensure continuit
 
 ---
 
-<<<<<<< HEAD
 ### [Session 004] Real Estate AI Natural Language Query & pgvector Search
 - **Status**: Completed & Verified
 - **Changes Made**:
@@ -168,4 +167,24 @@ This file records the chronological record of agent sessions to ensure continuit
   - Added Jest suites: gatekeeper, artifacts, llm, workflow.
 - **Verification**: `scripts/verify.sh check-all` passing (lint, Jest, tsc, secret scan).
 - **Next Actions**: Human reviews generated artifacts; open PR for human approval.
+
+---
+
+### [Session 011] Folder Structure Simplification: App & Src Consolidation
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Relocated root Expo Router application routes and layouts from `app/` into `src/app/` (`git mv app src/app`).
+  - Updated relative imports in `src/app/_layout.tsx`, `src/app/index.tsx`, `src/app/+not-found.tsx`, and `src/app/__tests__/index.test.tsx` to directly reference sibling directories (`../components/`, `../services/`, `../hooks/`, `../theme/`, `../types/`).
+  - Updated `@app/*` path alias in `tsconfig.json` to point to `./src/app/*`.
+  - Updated `jest.config.js` with module alias `'^@app/(.*)$': '<rootDir>/src/app/$1'` and unified test coverage under `src/**/*.{ts,tsx}`.
+  - Configured `app.json` with explicit `expo-router` plugin root `"./src/app"`.
+  - Added `dist/**` to `.eslintrc.json` ignore patterns to safeguard against static exports.
+- **Verification**:
+  - Executed `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 11 test suites passed, 41/41 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+- **Next Actions**: Ready for human review and atomic commit.
+
 
