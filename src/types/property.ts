@@ -21,6 +21,7 @@ export interface Property {
   image_url: string;
   images: string[];
   similarity?: number;
+  embedding?: number[];
   created_at?: string;
 }
 

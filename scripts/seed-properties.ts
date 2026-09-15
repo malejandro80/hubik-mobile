@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
-import { MOCK_PROPERTIES } from '../server/mockData';
+import { MOCK_PROPERTIES } from './mockProperties';
 
 dotenv.config();
 

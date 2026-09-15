@@ -1,4 +1,4 @@
-import { Property } from './types';
+import { Property } from '../src/types/property';
 
 // Helper to generate a deterministic 768-dim normalized vector for testing/mocking
 export function generateMockEmbedding(seedText: string): number[] {

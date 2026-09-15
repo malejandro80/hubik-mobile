@@ -84,7 +84,7 @@ export default function HomeScreen() {
           {
             id: `assistant-${Date.now()}`,
             sender: 'assistant',
-            text: `⚠️ Could not connect to API server (${err?.message || 'Check connection'}). Ensure the backend service is running with 'npm run server'.`,
+            text: `⚠️ Could not connect to AI service (${err?.message || 'Check connection'}). Please try again.`,
             timestamp: 'Just now',
           },
         ]);

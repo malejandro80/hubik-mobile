@@ -7,7 +7,6 @@ export interface ChatResponse {
   applied_filters?: Record<string, any>;
 }
 
-const DEFAULT_API_URL = 'http://localhost:3001/api/chat-query';
 
 export function parsePromptFilters(message: string): Record<string, any> {
   const lower = message.toLowerCase();
@@ -162,42 +161,28 @@ export async function querySupabaseDirectly(message: string): Promise<ChatRespon
 }
 
 export async function sendChatQuery(message: string): Promise<ChatResponse> {
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL;
-
   try {
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ message }),
-    });
+    const { data, error } = await supabase.functions.invoke<ChatResponse>(
+      'chat-query',
+      {
+        body: { message },
+      }
+    );
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.error || `HTTP error ${response.status}: ${response.statusText}`
-      );
+    if (error) {
+      throw error;
     }
 
-    const data: ChatResponse = await response.json();
-    return data;
+    if (data && data.answer) {
+      return data;
+    }
+
+    throw new Error('Invalid response received from chat-query function');
   } catch (err: any) {
-    const isNetworkError =
-      err.name === 'TypeError' ||
-      err.message?.includes('fetch') ||
-      err.message?.includes('network') ||
-      err.message?.includes('ECONNREFUSED') ||
-      err.message?.includes('Failed to fetch');
-
-    if (isNetworkError) {
-      console.warn(
-        `[chatApi] Remote API server unreachable at ${apiUrl}. Querying Supabase database directly...`
-      );
-      return querySupabaseDirectly(message);
-    }
-
-    console.warn(`[chatApi] API error (${apiUrl}):`, err.message);
-    throw err;
+    console.warn(
+      '[chatApi] Supabase Edge Function unreachable or failed. Querying Supabase database directly...',
+      err?.message
+    );
+    return querySupabaseDirectly(message);
   }
 }

@@ -1,14 +1,21 @@
-import { sendChatQuery } from '../chatApi';
+import { sendChatQuery, parsePromptFilters } from '../chatApi';
+import { supabase } from '../../lib/supabase';
 
-describe('chatApi - sendChatQuery', () => {
-  const originalFetch = global.fetch;
+jest.mock('../../lib/supabase', () => ({
+  supabase: {
+    functions: {
+      invoke: jest.fn(),
+    },
+    from: jest.fn(),
+  },
+}));
 
-  afterEach(() => {
-    global.fetch = originalFetch;
+describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
+  beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('sends POST request and returns chat response on success', async () => {
+  it('invokes chat-query Edge Function and returns response on success', async () => {
     const mockApiResponse = {
       answer: 'Found 2 apartments in Austin',
       data: [
@@ -30,38 +37,20 @@ describe('chatApi - sendChatQuery', () => {
       applied_filters: { city: 'Austin' },
     };
 
-    global.fetch = jest.fn().mockResolvedValueOnce({
-      ok: true,
-      json: jest.fn().mockResolvedValueOnce(mockApiResponse),
-    } as any);
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: mockApiResponse,
+      error: null,
+    });
 
     const result = await sendChatQuery('Austin 2-bed under $400k');
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.any(String),
-      expect.objectContaining({
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'Austin 2-bed under $400k' }),
-      })
-    );
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('chat-query', {
+      body: { message: 'Austin 2-bed under $400k' },
+    });
     expect(result).toEqual(mockApiResponse);
   });
 
-  it('throws error when server responds with error status', async () => {
-    global.fetch = jest.fn().mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      statusText: 'Internal Server Error',
-      json: jest.fn().mockResolvedValueOnce({ error: 'LLM synthesis failure' }),
-    } as any);
-
-    await expect(sendChatQuery('test query')).rejects.toThrow(
-      'LLM synthesis failure'
-    );
-  });
-
-  it('falls back to direct Supabase query when API server is unreachable', async () => {
+  it('falls back to direct Supabase database query when Edge Function returns error', async () => {
     const mockDbData = [
       {
         id: 'db-prop-1',
@@ -79,26 +68,45 @@ describe('chatApi - sendChatQuery', () => {
       },
     ];
 
-    global.fetch = jest.fn((url: any) => {
-      if (typeof url === 'string' && url.includes(':3001')) {
-        return Promise.reject(new TypeError('Failed to fetch'));
-      }
-      // Supabase mock response
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        headers: new Headers({ 'content-range': '0-0/1' }),
-        json: async () => mockDbData,
-        text: async () => JSON.stringify(mockDbData),
-      } as any);
+    // Edge Function fails
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: null,
+      error: new Error('Edge Function invocation error'),
+    });
+
+    // Mock direct query chain
+    const mockOrder = jest.fn().mockReturnThis();
+    const mockLimit = jest.fn().mockResolvedValueOnce({ data: mockDbData, error: null });
+    const mockSelect = jest.fn().mockReturnValue({
+      ilike: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      lte: jest.fn().mockReturnThis(),
+      order: mockOrder,
+      limit: mockLimit,
+    });
+    mockOrder.mockReturnValue({
+      limit: mockLimit,
+    });
+
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: mockSelect,
     });
 
     const result = await sendChatQuery('Austin 2-bed under $400k');
 
+    expect(supabase.functions.invoke).toHaveBeenCalled();
     expect(result).toBeDefined();
     expect(result.data).toHaveLength(1);
     expect(result.data[0].title).toBe('Austin Condo');
     expect(result.answer).toContain('database');
+  });
+
+  it('parsePromptFilters correctly extracts structured filters', () => {
+    const filters = parsePromptFilters('Denver 3-bed house under 700k');
+    expect(filters.city).toBe('Denver');
+    expect(filters.property_type).toBe('Single Family');
+    expect(filters.min_bedrooms).toBe(3);
+    expect(filters.max_price).toBe(700000);
   });
 });

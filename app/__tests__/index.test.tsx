@@ -94,7 +94,7 @@ describe('HomeScreen (Chat UI)', () => {
     fireEvent.press(sendButton);
 
     await waitFor(() => {
-      expect(getByText(/Could not connect to API server/)).toBeTruthy();
+      expect(getByText(/Could not connect to AI service/)).toBeTruthy();
     });
   });
 });

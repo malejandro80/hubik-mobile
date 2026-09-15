@@ -1,5 +1,6 @@
 {
   "extends": ["expo"],
+  "ignorePatterns": ["supabase/functions/**"],
   "rules": {
     "react-hooks/exhaustive-deps": "warn"
   }

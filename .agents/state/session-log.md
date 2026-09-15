@@ -135,4 +135,26 @@ This file records the chronological record of agent sessions to ensure continuit
   - Executed `scripts/verify.sh check-all`: 9/9 test suites passing (31/31), ESLint clean, TypeScript clean, secret quarantine clean.
 - **Next Actions**: Ready to create branches and open Pull Requests autonomously or via `gh pr create` / MCP tools.
 
+---
+
+### [Session 009] Supabase Edge Function Migration & Server Deletion
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Replaced the Express Node.js backend server (`server/`) with a native Supabase Edge Function (`supabase/functions/chat-query/index.ts`) in Deno.
+  - Implemented CORS handling, heuristic prompt filter extraction, and Google Gemini AI integration with synthesis and direct Postgres query execution in the Edge Function.
+  - Refactored `src/services/chatApi.ts` to use `supabase.functions.invoke('chat-query', { body: { message } })` with direct database fallback (`querySupabaseDirectly`).
+  - Created `scripts/mockProperties.ts` and decoupled `scripts/seed-properties.ts` from the server directory.
+  - Deleted the entire `server/` directory and uninstalled unused dependencies (`express`, `cors`, `zod`, `@types/express`, `@types/cors`).
+  - Removed `"server": "tsx server/index.ts"` from `package.json`.
+  - Updated `tsconfig.json` and `.eslintrc.json` to configure Supabase Edge Function boundaries.
+  - Updated unit tests in `src/services/__tests__/chatApi.test.ts` and `app/__tests__/index.test.tsx`.
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 7 test suites passed, 23/23 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+- **Next Actions**: Ready for release/PR.
+
+
 
