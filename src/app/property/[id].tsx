@@ -2,18 +2,19 @@ import React, { useState } from 'react';
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { BurgerMenu } from '../../components/BurgerMenu';
+import { ChatInputBar } from '../../components/ChatInputBar';
 import { Header } from '../../components/Header';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { colors, shapes, spacing, typography } from '../../theme/colors';
@@ -131,9 +132,32 @@ export default function PropertyDetailScreen() {
     Alert.alert('Micrófono Hubik', 'Hable con tranquilidad para consultar sobre esta vivienda.');
   };
 
+  const handleMenuItemSelect = (key: string) => {
+    setIsMenuOpen(false);
+    if (key === 'new_chat' || key === 'search') {
+      router.push('/');
+    } else if (key === 'saved') {
+      Alert.alert(
+        'Propiedades Guardadas',
+        'Aún no ha guardado propiedades en sus favoritos.'
+      );
+    } else if (key === 'settings') {
+      Alert.alert(
+        'Ajustes',
+        'Configuraciones de voz, lectura y accesibilidad para Don Carlos.'
+      );
+    } else if (key === 'help') {
+      Alert.alert(
+        'Ayuda y Soporte',
+        'Comuníquese con el equipo de soporte de Hubik o su asesor personal.'
+      );
+    }
+  };
+
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: theme.background }]}
+      edges={['top', 'left', 'right', 'bottom']}
     >
       {/* Top Header */}
       <Header
@@ -142,11 +166,17 @@ export default function PropertyDetailScreen() {
         onMenuPress={() => setIsMenuOpen(true)}
       />
 
-      <ScrollView
+      <KeyboardAvoidingView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
       >
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Hero Image Container with Photo Count Badge */}
         <View style={styles.imageWrapper}>
           <Image source={{ uri: imageUrl }} style={styles.heroImage} resizeMode="cover" />
@@ -308,50 +338,27 @@ export default function PropertyDetailScreen() {
           <Text style={styles.contactButtonText}>Contactar asesor</Text>
         </TouchableOpacity>
 
-        {/* Mini quick query pill */}
-        <View
-          style={[
-            styles.quickQueryBar,
-            {
-              backgroundColor: theme.surfaceContainerLow,
-              borderColor: theme.outlineVariant,
-            },
-          ]}
-        >
-          <Ionicons
-            name="chatbubble-outline"
-            size={18}
-            color={theme.textSecondary}
-            style={styles.quickQueryIcon}
-          />
-          <TextInput
-            style={[styles.quickQueryInput, { color: theme.text }]}
-            placeholder="Pregunte o dicte su duda..."
-            placeholderTextColor={theme.textSecondary}
-            value={quickQuestion}
-            onChangeText={setQuickQuestion}
-            onSubmitEditing={handleQuickQuestion}
-            returnKeyType="send"
-            accessibilityLabel="Pregunte sobre la propiedad"
-          />
-          <TouchableOpacity
-            style={styles.micCircle}
-            onPress={handleMicPress}
-            accessibilityRole="button"
-            accessibilityLabel="Hablar por micrófono sobre la propiedad"
-          >
-            <Ionicons name="mic" size={18} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+        {/* Uniform ChatInputBar */}
+        <ChatInputBar
+          value={quickQuestion}
+          onChangeText={setQuickQuestion}
+          onSend={handleQuickQuestion}
+          onMicPress={handleMicPress}
+          placeholder="Escriba su consulta aquí..."
+          hasTopBorder={false}
+          containerStyle={styles.detailInputContainer}
+        />
       </View>
+    </KeyboardAvoidingView>
 
-      {/* Slide-in Burger Menu */}
-      <BurgerMenu
-        visible={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-      />
-    </SafeAreaView>
-  );
+    {/* Slide-in Burger Menu */}
+    <BurgerMenu
+      visible={isMenuOpen}
+      onClose={() => setIsMenuOpen(false)}
+      onSelectMenuItem={handleMenuItemSelect}
+    />
+  </SafeAreaView>
+);
 }
 
 const styles = StyleSheet.create({
@@ -583,29 +590,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.2,
   },
-  quickQueryBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 46,
-    borderRadius: 23,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-  },
-  quickQueryIcon: {
-    marginRight: 8,
-  },
-  quickQueryInput: {
-    flex: 1,
-    fontSize: 14,
+  detailInputContainer: {
+    paddingHorizontal: 0,
     paddingVertical: 0,
-    height: '100%',
-  },
-  micCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#163931',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });

@@ -1,6 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   KeyboardAvoidingView,
@@ -8,14 +7,12 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { BurgerMenu } from '../components/BurgerMenu';
+import { ChatInputBar } from '../components/ChatInputBar';
 import { ChatMessageItem } from '../components/ChatMessageItem';
 import { Header } from '../components/Header';
 import { useColorScheme } from '../hooks/useColorScheme';
@@ -41,7 +38,6 @@ export default function HomeScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isFocused, setIsFocused] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
 
@@ -118,19 +114,13 @@ export default function HomeScreen() {
     [inputText, loading, messages]
   );
 
-  const isSendActive = Boolean(inputText.trim());
-
-  const handleActionPress = () => {
-    if (isSendActive) {
-      handleSend();
-    } else {
-      Alert.alert(
-        'Micrófono Hubik',
-        'Escuchando... Hable con tranquilidad para buscar propiedades.',
-        [{ text: 'Entendido' }]
-      );
-    }
-  };
+  const handleMicPress = useCallback(() => {
+    Alert.alert(
+      'Micrófono Hubik',
+      'Escuchando... Hable con tranquilidad para buscar propiedades.',
+      [{ text: 'Entendido' }]
+    );
+  }, []);
 
   const handleBack = () => {
     Alert.alert('Navegación', 'Regresar a la pantalla anterior.');
@@ -221,68 +211,14 @@ export default function HomeScreen() {
         />
 
         {/* Don Carlos Serene Hearth Input Dock */}
-        <View
-          style={[
-            styles.inputBar,
-            {
-              backgroundColor: theme.background,
-              borderTopColor: theme.outlineVariant,
-            },
-          ]}
-        >
-          {/* Input Pill Container */}
-          <View
-            style={[
-              styles.inputCapsule,
-              {
-                backgroundColor: theme.surfaceContainerLow,
-                borderColor: isFocused ? theme.secondary : theme.outlineVariant,
-              },
-            ]}
-          >
-            <TextInput
-              style={[styles.input, { color: theme.text }]}
-              placeholder="Escriba su consulta aquí..."
-              placeholderTextColor={theme.textSecondary}
-              value={inputText}
-              onChangeText={setInputText}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              onSubmitEditing={() => handleSend()}
-              returnKeyType="send"
-              editable={!loading}
-              accessibilityLabel="Campo de consulta"
-            />
-          </View>
-
-          {/* Forest Pine Action Button (Mic / Send) */}
-          <TouchableOpacity
-            style={[
-              styles.actionButton,
-              {
-                backgroundColor: '#163931',
-              },
-            ]}
-            onPress={handleActionPress}
-            disabled={loading}
-            accessibilityRole="button"
-            accessibilityLabel={
-              isSendActive ? 'Enviar consulta' : 'Hablar por micrófono'
-            }
-            accessibilityState={{
-              busy: loading,
-            }}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : isSendActive ? (
-              <Ionicons name="arrow-up" size={24} color="#FFFFFF" />
-            ) : (
-              <Ionicons name="mic" size={26} color="#FFFFFF" />
-            )}
-            <Text style={styles.srOnly}>Enviar</Text>
-          </TouchableOpacity>
-        </View>
+        <ChatInputBar
+          value={inputText}
+          onChangeText={setInputText}
+          onSend={handleSend}
+          onMicPress={handleMicPress}
+          placeholder="Escriba su consulta aquí..."
+          loading={loading}
+        />
       </KeyboardAvoidingView>
 
       {/* Slide-in Burger Menu */}
@@ -323,48 +259,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.marginMobile, // 20px
     paddingTop: 8,
     paddingBottom: 24,
-  },
-  inputBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-  },
-  inputCapsule: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 1.5,
-    paddingHorizontal: 20,
-  },
-  input: {
-    flex: 1,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    ...typography.bodyLG,
-    fontSize: 16,
-    height: '100%',
-  },
-  actionButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    marginLeft: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#02241F',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  srOnly: {
-    position: 'absolute',
-    width: 1,
-    height: 1,
-    opacity: 0,
   },
 });

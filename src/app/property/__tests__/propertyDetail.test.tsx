@@ -109,7 +109,7 @@ describe('PropertyDetailScreen', () => {
   it('handles quick question and mic press from bottom dock', () => {
     const { getByPlaceholderText, getByLabelText } = render(<PropertyDetailScreen />);
 
-    const micBtn = getByLabelText('Hablar por micrófono sobre la propiedad');
+    const micBtn = getByLabelText('Hablar por micrófono');
     fireEvent.press(micBtn);
 
     expect(Alert.alert).toHaveBeenCalledWith(
@@ -117,7 +117,7 @@ describe('PropertyDetailScreen', () => {
       'Hable con tranquilidad para consultar sobre esta vivienda.'
     );
 
-    const input = getByPlaceholderText('Pregunte o dicte su duda...');
+    const input = getByPlaceholderText('Escriba su consulta aquí...');
     fireEvent.changeText(input, '¿Tiene plaza de garaje accesible?');
     fireEvent(input, 'submitEditing');
 

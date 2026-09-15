@@ -447,3 +447,36 @@ This file records the chronological record of agent sessions to ensure continuit
     - Secret Scanner: Clean.
 - **Next Actions**: Ready for human review and commit.
 
+---
+
+### [Session 021] Universal Header & ChatInputBar Component Uniformity
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Unified the **Header** across all views:
+    - Set `headerShown: false` in `Stack.screenOptions` (`src/app/_layout.tsx`) ensuring standard custom `Header` is universally applied without duplicate native navigation bars.
+    - Updated `src/app/property/[id].tsx` to use `SafeAreaView` from `react-native-safe-area-context` with `edges={['top', 'left', 'right', 'bottom']}`, ensuring 100% pixel-perfect status bar insets matching `src/app/index.tsx`.
+    - Wired `onSelectMenuItem` in `src/app/property/[id].tsx` for `BurgerMenu`, allowing users to navigate back to search/chat or access settings/saved properties from any view.
+  - Unified the **Barra de Escritura (ChatInputBar)** across all views:
+    - Created reusable `ChatInputBar` component (`src/components/ChatInputBar.tsx`) standardizing dimensions:
+      - 56px input capsule, 28px border radius, 1.5px border, `theme.surfaceContainerLow` background, `theme.secondary` focus border ring.
+      - 56x56px circular action button in deep forest pine (`#163931`).
+      - White microphone icon (`mic`, size 26) when input is empty.
+      - White send icon (`arrow-up`, size 24) when input text is present.
+      - Activity indicator when `loading` is active.
+    - Replaced manual input code in `src/app/index.tsx` with `<ChatInputBar ... />`, bringing `index.tsx` down to 263 lines (<300 line limit).
+    - Replaced ad-hoc mini pill in `src/app/property/[id].tsx` with `<ChatInputBar ... />` and added `KeyboardAvoidingView` so the input dock raises seamlessly with the keyboard.
+  - Added unit test suite `src/components/__tests__/ChatInputBar.test.tsx` verifying:
+    - Placeholder and mic icon rendering.
+    - Arrow-up button display and query dispatch when text is entered.
+    - Keyboard submitEditing support.
+    - Loading disabled state.
+  - Updated `src/app/property/__tests__/propertyDetail.test.tsx` to align with the unified `ChatInputBar` component and accessibility labels.
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 15 test suites passed, 59/59 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+- **Next Actions**: Ready for human review and commit.
+
+
