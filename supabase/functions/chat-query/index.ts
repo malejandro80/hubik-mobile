@@ -32,24 +32,42 @@ function parsePromptFilters(message: string): FilterParams {
     }
   }
 
-  if (lower.includes('apartment') || lower.includes('flat')) {
+  if (
+    lower.includes('apartment') ||
+    lower.includes('flat') ||
+    lower.includes('apartamento') ||
+    lower.includes('departamento') ||
+    lower.includes('piso')
+  ) {
     filters.property_type = 'Apartment';
-  } else if (lower.includes('condo')) {
+  } else if (lower.includes('condo') || lower.includes('condominio')) {
     filters.property_type = 'Condo';
-  } else if (lower.includes('townhouse') || lower.includes('townhome')) {
+  } else if (
+    lower.includes('townhouse') ||
+    lower.includes('townhome') ||
+    lower.includes('casa adosada')
+  ) {
     filters.property_type = 'Townhouse';
-  } else if (lower.includes('studio')) {
+  } else if (
+    lower.includes('studio') ||
+    lower.includes('estudio') ||
+    lower.includes('monoambiente') ||
+    lower.includes('microestudio')
+  ) {
     filters.property_type = 'Studio';
   } else if (
     lower.includes('house') ||
     lower.includes('single family') ||
-    lower.includes('home')
+    lower.includes('home') ||
+    lower.includes('casa') ||
+    lower.includes('vivienda') ||
+    lower.includes('chalet')
   ) {
     filters.property_type = 'Single Family';
   }
 
   const maxPriceMatch = lower.match(
-    /(?:under|below|less than|<|max)\s*\$?(\d+(?:k|,\d{3}|\.000)?)\b(?!\s*(?:m2|m²|sqm|sq\s*m|meter|metre|metro|square|sqft|sq\s*ft|bed|br))/i
+    /(?:under|below|less than|<|max|menos de|menor a|hasta|máximo|maximo|bajo|debajo de)\s*\$?(\d+(?:k|,\d{3}|\.000)?)\b(?!\s*(?:m2|m²|sqm|sq\s*m|meter|metre|metro|square|sqft|sq\s*ft|bed|br|hab|dorm|cuart|recám))/i
   );
   if (maxPriceMatch) {
     const raw = maxPriceMatch[1].toLowerCase();
@@ -59,7 +77,7 @@ function parsePromptFilters(message: string): FilterParams {
   }
 
   const minPriceMatch = lower.match(
-    /(?:above|over|more than|>|min)\s*\$?(\d+(?:k|,\d{3}|\.000)?)\b(?!\s*(?:m2|m²|sqm|sq\s*m|meter|metre|metro|square|sqft|sq\s*ft|bed|br))/i
+    /(?:above|over|more than|>|min|más de|mas de|mayor a|desde|mínimo|minimo|sobre|arriba de)\s*\$?(\d+(?:k|,\d{3}|\.000)?)\b(?!\s*(?:m2|m²|sqm|sq\s*m|meter|metre|metro|square|sqft|sq\s*ft|bed|br|hab|dorm|cuart|recám))/i
   );
   if (minPriceMatch) {
     const raw = minPriceMatch[1].toLowerCase();
@@ -68,13 +86,15 @@ function parsePromptFilters(message: string): FilterParams {
     filters.min_price = val;
   }
 
-  const bedMatch = lower.match(/(\d+)\s*(?:-| )?(?:bed|bedroom|br)/);
+  const bedMatch = lower.match(
+    /(\d+)\s*(?:-| )?(?:bed|bedroom|br|habitación|habitaciones|hab|dormitorio|dormitorios|cuarto|cuartos|recámara|recámaras)/i
+  );
   if (bedMatch) {
     filters.min_bedrooms = parseInt(bedMatch[1], 10);
   }
 
   const maxAreaMatch = lower.match(
-    /(?:less than|less|under|below|<|max)\s*(\d+)\s*(?:square meters|square metres|metros cuadrados|metros|m2|m²|sqm|sq m|square feet|square feets|sqft|sq ft|sq\.ft)?/
+    /(?:less than|less|under|below|<|max|menos de|menor a|hasta|máximo|maximo|debajo de)\s*(\d+)\s*(?:square meters|square metres|metros cuadrados|metros|m2|m²|sqm|sq m|square feet|square feets|sqft|sq ft|sq\.ft)?/i
   );
   if (
     maxAreaMatch &&
@@ -102,7 +122,7 @@ function parsePromptFilters(message: string): FilterParams {
   }
 
   const minAreaMatch = lower.match(
-    /(?:more than|over|above|>|min)\s*(\d+)\s*(?:square meters|square metres|metros cuadrados|metros|m2|m²|sqm|sq m|square feet|square feets|sqft|sq ft|sq\.ft)?/
+    /(?:more than|over|above|>|min|más de|mas de|mayor a|desde|mínimo|minimo|arriba de)\s*(\d+)\s*(?:square meters|square metres|metros cuadrados|metros|m2|m²|sqm|sq m|square feet|square feets|sqft|sq ft|sq\.ft)?/i
   );
   if (
     minAreaMatch &&
@@ -129,17 +149,43 @@ function parsePromptFilters(message: string): FilterParams {
     filters.min_square_meters = val;
   }
 
-  const limitMatch = lower.match(/(?:give|show|find|list|top)\s*(?:me\s*)?(\d+)/);
+  const limitMatch = lower.match(
+    /(?:give|show|find|list|top|dame|muestra|mostrar|busca|buscar|encuentra|primeras|primeros)\s*(?:me\s*)?(\d+)/i
+  );
   if (limitMatch) {
     filters.limit = parseInt(limitMatch[1], 10);
   }
 
-  if (lower.includes('cheapest') || lower.includes('lowest price')) {
+  if (
+    lower.includes('cheapest') ||
+    lower.includes('lowest price') ||
+    lower.includes('más barato') ||
+    lower.includes('mas barato') ||
+    lower.includes('más barata') ||
+    lower.includes('mas barata') ||
+    lower.includes('más económico') ||
+    lower.includes('mas economico') ||
+    lower.includes('más económica') ||
+    lower.includes('mas economica') ||
+    lower.includes('menor precio')
+  ) {
     filters.sort_by = 'price_asc';
   } else if (
     lower.includes('most expensive') ||
     lower.includes('highest price') ||
-    lower.includes('luxury')
+    lower.includes('luxury') ||
+    lower.includes('más caro') ||
+    lower.includes('mas caro') ||
+    lower.includes('más cara') ||
+    lower.includes('mas cara') ||
+    lower.includes('más costoso') ||
+    lower.includes('mas costoso') ||
+    lower.includes('más costosa') ||
+    lower.includes('mas costosa') ||
+    lower.includes('mayor precio') ||
+    lower.includes('lujo') ||
+    lower.includes('lujoso') ||
+    lower.includes('lujosa')
   ) {
     filters.sort_by = 'price_desc';
   }
@@ -194,7 +240,7 @@ Deno.serve(async (req: Request) => {
               systemInstruction: {
                 parts: [
                   {
-                    text: 'You are a real estate search assistant. Extract search filters as a JSON object with optional keys: city (string), property_type (Apartment, Single Family, Townhouse, Studio, Condo), min_price (number), max_price (number), min_bedrooms (number), max_bedrooms (number), min_square_meters (number), max_square_meters (number), limit (number), sort_by (price_asc, price_desc). Note that area is measured in square meters (m²). Only output valid JSON.',
+                    text: 'Eres un asistente experto en búsqueda de bienes raíces. Extrae los filtros de búsqueda a partir del mensaje del usuario (en español o inglés) como un objeto JSON con claves opcionales: city (string), property_type (Apartment, Single Family, Townhouse, Studio, Condo), min_price (number), max_price (number), min_bedrooms (number), max_bedrooms (number), min_square_meters (number), max_square_meters (number), limit (number), sort_by (price_asc, price_desc). El área se mide en metros cuadrados (m²). Genera únicamente JSON válido sin explicaciones adicionales.',
                   },
                 ],
               },
@@ -268,25 +314,29 @@ Deno.serve(async (req: Request) => {
 
     const items = properties || [];
 
-    // 3. Synthesize conversational answer
+    // 3. Synthesize conversational answer in Spanish
     let answer: string;
     if (items.length === 0) {
-      answer = `I couldn't find any properties matching "${message}". Try searching for Austin, Miami, Denver, Seattle, or New York!`;
+      answer = `No encontré propiedades que coincidan con "${message}". ¡Intenta buscar en Austin, Miami, Denver, Seattle o New York!`;
     } else {
-      const cityText = filters.city ? ` in ${filters.city}` : '';
-      const typeText = filters.property_type
-        ? ` ${filters.property_type.toLowerCase()}s`
-        : ' properties';
-      answer = `Found ${items.length}${typeText}${cityText} matching your criteria:`;
+      const cityText = filters.city ? ` en ${filters.city}` : '';
+      let typeText = ' propiedades';
+      if (filters.property_type === 'Apartment') typeText = ' apartamentos';
+      else if (filters.property_type === 'Single Family') typeText = ' casas familiares';
+      else if (filters.property_type === 'Townhouse') typeText = ' casas adosadas';
+      else if (filters.property_type === 'Condo') typeText = ' condominios';
+      else if (filters.property_type === 'Studio') typeText = ' estudios';
+
+      answer = `Encontré ${items.length}${typeText}${cityText} que coinciden con tu búsqueda:`;
     }
 
-    // 4. Generate dynamic contextual suggestions based on returned results
+    // 4. Generate dynamic contextual suggestions in Spanish
     const suggestions: string[] = [];
     if (filters.city) {
-      suggestions.push(`Cheapest properties in ${filters.city}`);
-      suggestions.push(`Luxury homes in ${filters.city}`);
+      suggestions.push(`Propiedades más baratas en ${filters.city}`);
+      suggestions.push(`Casas de lujo en ${filters.city}`);
     } else if (items.length > 0 && items[0].city) {
-      suggestions.push(`Properties in ${items[0].city}`);
+      suggestions.push(`Propiedades en ${items[0].city}`);
     }
 
     return new Response(

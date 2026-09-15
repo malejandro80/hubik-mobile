@@ -28,17 +28,18 @@ describe('PropertyCard Component', () => {
   });
 
   it('renders specs for bedrooms, bathrooms, and square meters', () => {
-    const { getByText } = render(<PropertyCard property={mockProperty} />);
+    const { getByText, getByLabelText } = render(<PropertyCard property={mockProperty} />);
 
-    expect(getByText(/2 Beds/)).toBeTruthy();
-    expect(getByText(/2 Baths/)).toBeTruthy();
+    expect(getByText(/2 hab\./)).toBeTruthy();
+    expect(getByText(/2 baños/)).toBeTruthy();
     expect(getByText(/102 m²/)).toBeTruthy();
+    expect(getByLabelText('102 metros cuadrados')).toBeTruthy();
   });
 
-  it('renders property status and type badges', () => {
+  it('renders property status and type badges in Spanish', () => {
     const { getByText } = render(<PropertyCard property={mockProperty} />);
 
-    expect(getByText('Available')).toBeTruthy();
-    expect(getByText('Apartment')).toBeTruthy();
+    expect(getByText('Disponible')).toBeTruthy();
+    expect(getByText('Apartamento')).toBeTruthy();
   });
 });

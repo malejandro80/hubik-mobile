@@ -17,7 +17,7 @@ describe('ChatMessageItem Component', () => {
     );
 
     expect(getByText('Looking for 2-bed in Austin')).toBeTruthy();
-    expect(queryByText('🤖 Hubik Assistant')).toBeNull();
+    expect(queryByText('🤖 Asistente Hubik')).toBeNull();
   });
 
   it('renders assistant message with badge and properties', () => {
@@ -48,9 +48,9 @@ describe('ChatMessageItem Component', () => {
       <ChatMessageItem message={assistantMessage} />
     );
 
-    expect(getByText('🤖 Hubik Assistant')).toBeTruthy();
+    expect(getByText('🤖 Asistente Hubik')).toBeTruthy();
     expect(getByText('Here are matching properties:')).toBeTruthy();
-    expect(getByText('Matching Properties (1):')).toBeTruthy();
+    expect(getByText('Propiedades Encontradas (1):')).toBeTruthy();
     expect(getByText('Sunny Austin Condo')).toBeTruthy();
   });
 });

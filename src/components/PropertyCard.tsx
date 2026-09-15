@@ -35,6 +35,36 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'Available':
+        return 'Disponible';
+      case 'Pending':
+        return 'Pendiente';
+      case 'Sold':
+        return 'Vendido';
+      default:
+        return status;
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'Apartment':
+        return 'Apartamento';
+      case 'Single Family':
+        return 'Casa Familiar';
+      case 'Townhouse':
+        return 'Casa Adosada';
+      case 'Condo':
+        return 'Condominio';
+      case 'Studio':
+        return 'Estudio';
+      default:
+        return type;
+    }
+  };
+
   const formattedPrice = `$${Number(property.price).toLocaleString()}`;
   const formattedArea = Number(property.square_meters).toLocaleString();
 
@@ -47,7 +77,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
         { backgroundColor: theme.card, borderColor: theme.border },
       ]}
       accessibilityRole="button"
-      accessibilityLabel={`${property.title}, ${formattedPrice}, in ${property.city}`}
+      accessibilityLabel={`${property.title}, ${formattedPrice}, en ${property.city}`}
     >
       {/* Property Cover Image */}
       <View style={styles.imageContainer}>
@@ -67,12 +97,12 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
             { backgroundColor: getStatusColor(property.status) },
           ]}
         >
-          <Text style={styles.statusText}>{property.status}</Text>
+          <Text style={styles.statusText}>{getStatusLabel(property.status)}</Text>
         </View>
 
         {/* Property Type Pill */}
         <View style={styles.typeBadge}>
-          <Text style={styles.typeText}>{property.property_type}</Text>
+          <Text style={styles.typeText}>{getTypeLabel(property.property_type)}</Text>
         </View>
       </View>
 
@@ -108,7 +138,11 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
                 { color: colorScheme === 'dark' ? '#D1D5DB' : '#4B5563' },
               ]}
             >
-              {property.bedrooms === 0 ? 'Studio' : `${property.bedrooms} Beds`}
+              {property.bedrooms === 0
+                ? 'Estudio'
+                : property.bedrooms === 1
+                ? '1 hab.'
+                : `${property.bedrooms} hab.`}
             </Text>
           </View>
 
@@ -122,7 +156,9 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
                 { color: colorScheme === 'dark' ? '#D1D5DB' : '#4B5563' },
               ]}
             >
-              {property.bathrooms} Baths
+              {property.bathrooms === 1
+                ? '1 baño'
+                : `${property.bathrooms} baños`}
             </Text>
           </View>
 
@@ -135,7 +171,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
                 styles.specText,
                 { color: colorScheme === 'dark' ? '#D1D5DB' : '#4B5563' },
               ]}
-              accessibilityLabel={`${property.square_meters} square meters`}
+              accessibilityLabel={`${property.square_meters} metros cuadrados`}
             >
               {formattedArea} m²
             </Text>

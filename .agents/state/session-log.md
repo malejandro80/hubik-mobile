@@ -206,7 +206,43 @@ This file records the chronological record of agent sessions to ensure continuit
     - TypeScript: Clean (`tsc --noEmit` 0 errors).
     - Secret Scanner: Clean.
   - Live Edge Function Verification: Invoked `chat-query` with `"Show me apartments in Austin under 100 m2"`; returned Austin properties with 85 m² and 98 m² under `"applied_filters":{"max_square_meters":100}`.
+---
+
+### [Session 013] Spanish Language Focus for Real Estate AI Chat & UI
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Reoriented the AI chat experience and mobile user interface to the Spanish language.
+  - Updated `supabase/functions/chat-query/index.ts`:
+    - Updated Gemini 2.5 Flash system prompt to extract property search filters from Spanish and English user messages.
+    - Updated `parsePromptFilters` to support Spanish terms for property types (`apartamentos`, `departamentos`, `casas`, `casas adosadas`, `condominios`, `estudios`), price expressions (`menos de`, `menor a`, `hasta`, `más de`, `mayor a`, `desde`), bedrooms (`habitaciones`, `hab`, `dormitorios`, `cuartos`), and sorting (`más barato`, `más económico`, `más caro`, `lujo`).
+    - Synthesized conversational answers in Spanish (`"Encontré X propiedades..."`, `"No encontré propiedades..."`).
+    - Generated contextual suggestions in Spanish (`"Propiedades más baratas en..."`, `"Casas de lujo en..."`).
+  - Updated `src/services/chatApi.ts`:
+    - Added Spanish heuristics to `parsePromptFilters`.
+    - Localized `fetchDynamicSuggestions` phrases to Spanish (e.g. `"Departamentos en Austin por menos de $400k"`).
+    - Localized `querySupabaseDirectly` fallback answers and suggestions to Spanish.
+  - Updated `src/app/index.tsx`:
+    - Localized welcome message: `"👋 ¡Bienvenido a Hubik Real Estate AI!..."`.
+    - Localized header subtitle: `"Búsqueda con lenguaje natural • Gemini 2.5 • pgvector"`.
+    - Localized input placeholder: `"Pregunta por propiedades, ciudades, precios o m²..."` and accessibility labels.
+    - Localized send button: `"Enviar"`.
+  - Updated `src/components/ChatMessageItem.tsx`:
+    - Localized assistant badge to `"🤖 Asistente Hubik"`.
+    - Localized results header to `"Propiedades Encontradas (X):"`.
+  - Updated `src/components/PropertyCard.tsx`:
+    - Localized status badges: `Disponible`, `Pendiente`, `Vendido`.
+    - Localized property type badges: `Apartamento`, `Casa Familiar`, `Casa Adosada`, `Condominio`, `Estudio`.
+    - Localized specs: `X hab.` (o `Estudio`), `X baños`, `X m²`.
+    - Localized accessibility labels: `"X metros cuadrados"`, `"en [Ciudad]"`.
+  - Updated Jest test suites in `src/components/__tests__/PropertyCard.test.tsx`, `src/components/__tests__/ChatMessageItem.test.tsx`, `src/app/__tests__/index.test.tsx`, and `src/services/__tests__/chatApi.test.ts` (added test for Spanish natural language queries).
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 11 test suites passed, 43/43 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
 - **Next Actions**: Ready for human review and atomic commit.
+
 
 
 

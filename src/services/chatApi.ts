@@ -23,14 +23,22 @@ export async function fetchDynamicSuggestions(): Promise<string[]> {
     const suggestions: string[] = [];
     const seen = new Set<string>();
 
+    const typeMap: Record<string, string> = {
+      Apartment: 'Departamentos',
+      Condo: 'Condominios',
+      Townhouse: 'Casas adosadas',
+      Studio: 'Estudios',
+      'Single Family': 'Casas familiares',
+    };
+
     for (const item of data) {
       if (!item.city) continue;
-      const type = item.property_type ? `${item.property_type}s` : 'Homes';
+      const type = (item.property_type && typeMap[item.property_type]) || 'Propiedades';
       const roundedPrice = item.price ? Math.ceil(item.price / 50000) * 50 : 0;
       const phrase =
         roundedPrice > 0
-          ? `${type} in ${item.city} under $${roundedPrice}k`
-          : `${type} in ${item.city}`;
+          ? `${type} en ${item.city} por menos de $${roundedPrice}k`
+          : `${type} en ${item.city}`;
 
       if (!seen.has(phrase)) {
         seen.add(phrase);
@@ -45,7 +53,6 @@ export async function fetchDynamicSuggestions(): Promise<string[]> {
   }
 }
 
-
 export function parsePromptFilters(message: string): Record<string, any> {
   const lower = message.toLowerCase();
   const filters: Record<string, any> = {};
@@ -58,24 +65,42 @@ export function parsePromptFilters(message: string): Record<string, any> {
     }
   }
 
-  if (lower.includes('apartment') || lower.includes('flat')) {
+  if (
+    lower.includes('apartment') ||
+    lower.includes('flat') ||
+    lower.includes('apartamento') ||
+    lower.includes('departamento') ||
+    lower.includes('piso')
+  ) {
     filters.property_type = 'Apartment';
-  } else if (lower.includes('condo')) {
+  } else if (lower.includes('condo') || lower.includes('condominio')) {
     filters.property_type = 'Condo';
-  } else if (lower.includes('townhouse') || lower.includes('townhome')) {
+  } else if (
+    lower.includes('townhouse') ||
+    lower.includes('townhome') ||
+    lower.includes('casa adosada')
+  ) {
     filters.property_type = 'Townhouse';
-  } else if (lower.includes('studio')) {
+  } else if (
+    lower.includes('studio') ||
+    lower.includes('estudio') ||
+    lower.includes('monoambiente') ||
+    lower.includes('microestudio')
+  ) {
     filters.property_type = 'Studio';
   } else if (
     lower.includes('house') ||
     lower.includes('single family') ||
-    lower.includes('home')
+    lower.includes('home') ||
+    lower.includes('casa') ||
+    lower.includes('vivienda') ||
+    lower.includes('chalet')
   ) {
     filters.property_type = 'Single Family';
   }
 
   const maxPriceMatch = lower.match(
-    /(?:under|below|less than|<|max)\s*\$?(\d+(?:k|,\d{3}|\.000)?)\b(?!\s*(?:m2|m²|sqm|sq\s*m|meter|metre|metro|square|sqft|sq\s*ft|bed|br))/i
+    /(?:under|below|less than|<|max|menos de|menor a|hasta|máximo|maximo|bajo|debajo de)\s*\$?(\d+(?:k|,\d{3}|\.000)?)\b(?!\s*(?:m2|m²|sqm|sq\s*m|meter|metre|metro|square|sqft|sq\s*ft|bed|br|hab|dorm|cuart|recám))/i
   );
   if (maxPriceMatch) {
     const raw = maxPriceMatch[1].toLowerCase();
@@ -85,7 +110,7 @@ export function parsePromptFilters(message: string): Record<string, any> {
   }
 
   const minPriceMatch = lower.match(
-    /(?:above|over|more than|>|min)\s*\$?(\d+(?:k|,\d{3}|\.000)?)\b(?!\s*(?:m2|m²|sqm|sq\s*m|meter|metre|metro|square|sqft|sq\s*ft|bed|br))/i
+    /(?:above|over|more than|>|min|más de|mas de|mayor a|desde|mínimo|minimo|sobre|arriba de)\s*\$?(\d+(?:k|,\d{3}|\.000)?)\b(?!\s*(?:m2|m²|sqm|sq\s*m|meter|metre|metro|square|sqft|sq\s*ft|bed|br|hab|dorm|cuart|recám))/i
   );
   if (minPriceMatch) {
     const raw = minPriceMatch[1].toLowerCase();
@@ -94,13 +119,15 @@ export function parsePromptFilters(message: string): Record<string, any> {
     filters.min_price = val;
   }
 
-  const bedMatch = lower.match(/(\d+)\s*(?:-| )?(?:bed|bedroom|br)/);
+  const bedMatch = lower.match(
+    /(\d+)\s*(?:-| )?(?:bed|bedroom|br|habitación|habitaciones|hab|dormitorio|dormitorios|cuarto|cuartos|recámara|recámaras)/i
+  );
   if (bedMatch) {
     filters.min_bedrooms = parseInt(bedMatch[1], 10);
   }
 
   const maxAreaMatch = lower.match(
-    /(?:less than|less|under|below|<|max)\s*(\d+)\s*(?:square meters|square metres|metros cuadrados|metros|m2|m²|sqm|sq m|square feet|square feets|sqft|sq ft|sq\.ft)?/
+    /(?:less than|less|under|below|<|max|menos de|menor a|hasta|máximo|maximo|debajo de)\s*(\d+)\s*(?:square meters|square metres|metros cuadrados|metros|m2|m²|sqm|sq m|square feet|square feets|sqft|sq ft|sq\.ft)?/i
   );
   if (
     maxAreaMatch &&
@@ -127,7 +154,7 @@ export function parsePromptFilters(message: string): Record<string, any> {
     filters.max_square_meters = val;
   }
   const minAreaMatch = lower.match(
-    /(?:more than|over|above|>|min)\s*(\d+)\s*(?:square meters|square metres|metros cuadrados|metros|m2|m²|sqm|sq m|square feet|square feets|sqft|sq ft|sq\.ft)?/
+    /(?:more than|over|above|>|min|más de|mas de|mayor a|desde|mínimo|minimo|arriba de)\s*(\d+)\s*(?:square meters|square metres|metros cuadrados|metros|m2|m²|sqm|sq m|square feet|square feets|sqft|sq ft|sq\.ft)?/i
   );
   if (
     minAreaMatch &&
@@ -154,18 +181,44 @@ export function parsePromptFilters(message: string): Record<string, any> {
     filters.min_square_meters = val;
   }
 
-  // Limit extraction (e.g. "give 3 properties", "give 3 properites", "top 5", "show 3")
-  const limitMatch = lower.match(/(?:give|show|find|list|top)\s*(?:me\s*)?(\d+)/);
+  // Limit extraction (e.g. "give 3 properties", "muestra 3", "top 5")
+  const limitMatch = lower.match(
+    /(?:give|show|find|list|top|dame|muestra|mostrar|busca|buscar|encuentra|primeras|primeros)\s*(?:me\s*)?(\d+)/i
+  );
   if (limitMatch) {
     filters.limit = parseInt(limitMatch[1], 10);
   }
 
-  if (lower.includes('cheapest') || lower.includes('lowest price')) {
+  if (
+    lower.includes('cheapest') ||
+    lower.includes('lowest price') ||
+    lower.includes('más barato') ||
+    lower.includes('mas barato') ||
+    lower.includes('más barata') ||
+    lower.includes('mas barata') ||
+    lower.includes('más económico') ||
+    lower.includes('mas economico') ||
+    lower.includes('más económica') ||
+    lower.includes('mas economica') ||
+    lower.includes('menor precio')
+  ) {
     filters.sort_by = 'price_asc';
   } else if (
     lower.includes('most expensive') ||
     lower.includes('highest price') ||
-    lower.includes('luxury')
+    lower.includes('luxury') ||
+    lower.includes('más caro') ||
+    lower.includes('mas caro') ||
+    lower.includes('más cara') ||
+    lower.includes('mas cara') ||
+    lower.includes('más costoso') ||
+    lower.includes('mas costoso') ||
+    lower.includes('más costosa') ||
+    lower.includes('mas costosa') ||
+    lower.includes('mayor precio') ||
+    lower.includes('lujo') ||
+    lower.includes('lujoso') ||
+    lower.includes('lujosa')
   ) {
     filters.sort_by = 'price_desc';
   }
@@ -228,19 +281,25 @@ export async function querySupabaseDirectly(message: string): Promise<ChatRespon
 
   let answer: string;
   if (properties.length === 0) {
-    answer = `I couldn't find any properties in the database matching "${message}". Try searching for Austin, Miami, Denver, Seattle, or New York!`;
+    answer = `No encontré propiedades en la base de datos que coincidan con "${message}". ¡Intenta buscar en Austin, Miami, Denver, Seattle o New York!`;
   } else {
-    const cityText = filters.city ? ` in ${filters.city}` : '';
-    const typeText = filters.property_type ? ` ${filters.property_type.toLowerCase()}s` : ' properties';
-    answer = `Found ${properties.length}${typeText}${cityText} directly in the Hubik database:`;
+    const cityText = filters.city ? ` en ${filters.city}` : '';
+    let typeText = ' propiedades';
+    if (filters.property_type === 'Apartment') typeText = ' apartamentos';
+    else if (filters.property_type === 'Single Family') typeText = ' casas familiares';
+    else if (filters.property_type === 'Townhouse') typeText = ' casas adosadas';
+    else if (filters.property_type === 'Condo') typeText = ' condominios';
+    else if (filters.property_type === 'Studio') typeText = ' estudios';
+
+    answer = `Encontré ${properties.length}${typeText}${cityText} en la base de datos de Hubik:`;
   }
 
   const suggestions: string[] = [];
   if (filters.city) {
-    suggestions.push(`Cheapest properties in ${filters.city}`);
-    suggestions.push(`Luxury homes in ${filters.city}`);
+    suggestions.push(`Propiedades más baratas en ${filters.city}`);
+    suggestions.push(`Casas de lujo en ${filters.city}`);
   } else if (properties.length > 0 && properties[0].city) {
-    suggestions.push(`Properties in ${properties[0].city}`);
+    suggestions.push(`Propiedades en ${properties[0].city}`);
   }
 
   return {

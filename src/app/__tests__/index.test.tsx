@@ -20,9 +20,9 @@ describe('HomeScreen (Chat UI)', () => {
     const { getByText, getByPlaceholderText } = render(<HomeScreen />);
 
     expect(getByText('Hubik Real Estate AI')).toBeTruthy();
-    expect(getByText(/Welcome to Hubik Real Estate AI/)).toBeTruthy();
+    expect(getByText(/¡Bienvenido a Hubik Real Estate AI!/)).toBeTruthy();
     expect(
-      getByPlaceholderText('Ask about properties, cities, prices...')
+      getByPlaceholderText('Pregunta por propiedades, ciudades, precios o m²...')
     ).toBeTruthy();
 
     await waitFor(() => {
@@ -52,8 +52,8 @@ describe('HomeScreen (Chat UI)', () => {
     });
 
     const { getByPlaceholderText, getByText } = render(<HomeScreen />);
-    const input = getByPlaceholderText('Ask about properties, cities, prices...');
-    const sendButton = getByText('Send');
+    const input = getByPlaceholderText('Pregunta por propiedades, ciudades, precios o m²...');
+    const sendButton = getByText('Enviar');
 
     fireEvent.changeText(input, '2-bed in Austin');
     fireEvent.press(sendButton);
@@ -98,14 +98,14 @@ describe('HomeScreen (Chat UI)', () => {
     );
 
     const { getByPlaceholderText, getByText } = render(<HomeScreen />);
-    const input = getByPlaceholderText('Ask about properties, cities, prices...');
-    const sendButton = getByText('Send');
+    const input = getByPlaceholderText('Pregunta por propiedades, ciudades, precios o m²...');
+    const sendButton = getByText('Enviar');
 
     fireEvent.changeText(input, 'Any houses in Denver');
     fireEvent.press(sendButton);
 
     await waitFor(() => {
-      expect(getByText(/Could not connect to AI service/)).toBeTruthy();
+      expect(getByText(/No se pudo conectar con el servicio de IA/)).toBeTruthy();
     });
   });
 });

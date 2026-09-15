@@ -35,7 +35,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = React.memo(
           ]}
         >
           {!isUser && (
-            <Text style={styles.assistantBadge}>🤖 Hubik Assistant</Text>
+            <Text style={styles.assistantBadge}>🤖 Asistente Hubik</Text>
           )}
           <Text
             style={[
@@ -55,7 +55,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = React.memo(
                   { color: colorScheme === 'dark' ? '#9CA3AF' : '#6B7280' },
                 ]}
               >
-                Matching Properties ({message.properties.length}):
+                Propiedades Encontradas ({message.properties.length}):
               </Text>
               {message.properties.map((property) => (
                 <PropertyCard

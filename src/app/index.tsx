@@ -25,7 +25,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'welcome-1',
     sender: 'assistant',
-    text: "👋 Welcome to Hubik Real Estate AI! I can search our properties database using natural language. Try asking for a specific city, price range, bedrooms, or property type!",
+    text: "👋 ¡Bienvenido a Hubik Real Estate AI! Puedo buscar propiedades usando lenguaje natural. Prueba preguntando por ciudad, rango de precio, habitaciones o metros cuadrados.",
     timestamp: 'Just now',
   },
 ];
@@ -97,7 +97,7 @@ export default function HomeScreen() {
           {
             id: `assistant-${Date.now()}`,
             sender: 'assistant',
-            text: `⚠️ Could not connect to AI service (${err?.message || 'Check connection'}). Please try again.`,
+            text: `⚠️ No se pudo conectar con el servicio de IA (${err?.message || 'Verifica la conexión'}). Por favor intenta nuevamente.`,
             timestamp: 'Just now',
           },
         ]);
@@ -144,7 +144,7 @@ export default function HomeScreen() {
               { color: colorScheme === 'dark' ? '#9CA3AF' : '#6B7280' },
             ]}
           >
-            Natural language queries • Gemini 2.5 • pgvector
+            Búsqueda con lenguaje natural • Gemini 2.5 • pgvector
           </Text>
         </View>
 
@@ -181,7 +181,7 @@ export default function HomeScreen() {
                 borderColor: theme.border,
               },
             ]}
-            placeholder="Ask about properties, cities, prices..."
+            placeholder="Pregunta por propiedades, ciudades, precios o m²..."
             placeholderTextColor={
               colorScheme === 'dark' ? '#6B7280' : '#9CA3AF'
             }
@@ -190,7 +190,7 @@ export default function HomeScreen() {
             onSubmitEditing={() => handleSend()}
             returnKeyType="send"
             editable={!loading}
-            accessibilityLabel="Message input for property queries"
+            accessibilityLabel="Campo de mensaje para buscar propiedades"
           />
           <TouchableOpacity
             style={[
@@ -204,7 +204,7 @@ export default function HomeScreen() {
             onPress={() => handleSend()}
             disabled={isSendDisabled}
             accessibilityRole="button"
-            accessibilityLabel="Send real estate query"
+            accessibilityLabel="Enviar consulta de propiedades"
             accessibilityState={{
               disabled: isSendDisabled,
               busy: loading,
@@ -213,7 +213,7 @@ export default function HomeScreen() {
             {loading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.sendButtonText}>Send</Text>
+              <Text style={styles.sendButtonText}>Enviar</Text>
             )}
           </TouchableOpacity>
         </View>

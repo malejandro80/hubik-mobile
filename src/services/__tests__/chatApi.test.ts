@@ -103,7 +103,7 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
     expect(result).toBeDefined();
     expect(result.data).toHaveLength(1);
     expect(result.data[0].title).toBe('Austin Condo');
-    expect(result.answer).toContain('database');
+    expect(result.answer).toContain('base de datos');
   });
 
   it('parsePromptFilters correctly extracts structured filters', () => {
@@ -129,7 +129,25 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
     expect(filtersFeet.max_square_meters).toBe(93);
   });
 
-  it('fetchDynamicSuggestions generates dynamic query phrases from Supabase properties', async () => {
+  it('parsePromptFilters extracts Spanish natural language queries', () => {
+    const filters = parsePromptFilters('departamentos en Austin de menos de 100 m2');
+    expect(filters.city).toBe('Austin');
+    expect(filters.property_type).toBe('Apartment');
+    expect(filters.max_square_meters).toBe(100);
+
+    const filtersHouse = parsePromptFilters('casas familiares en Miami con más de 3 habitaciones por menos de 500k');
+    expect(filtersHouse.city).toBe('Miami');
+    expect(filtersHouse.property_type).toBe('Single Family');
+    expect(filtersHouse.min_bedrooms).toBe(3);
+    expect(filtersHouse.max_price).toBe(500000);
+
+    const filtersSort = parsePromptFilters('los departamentos más baratos en Denver');
+    expect(filtersSort.city).toBe('Denver');
+    expect(filtersSort.property_type).toBe('Apartment');
+    expect(filtersSort.sort_by).toBe('price_asc');
+  });
+
+  it('fetchDynamicSuggestions generates dynamic query phrases in Spanish from Supabase properties', async () => {
     const mockData = [
       { city: 'Austin', property_type: 'Condo', price: 385000 },
       { city: 'Miami', property_type: 'Apartment', price: 890000 },
@@ -143,7 +161,7 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
     const suggestions = await fetchDynamicSuggestions();
 
     expect(suggestions).toHaveLength(2);
-    expect(suggestions[0]).toContain('Austin');
-    expect(suggestions[1]).toContain('Miami');
+    expect(suggestions[0]).toBe('Condominios en Austin por menos de $400k');
+    expect(suggestions[1]).toBe('Departamentos en Miami por menos de $900k');
   });
 });
