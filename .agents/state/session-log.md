@@ -52,6 +52,7 @@ This file records the chronological record of agent sessions to ensure continuit
 
 ---
 
+<<<<<<< HEAD
 ### [Session 004] Real Estate AI Natural Language Query & pgvector Search
 - **Status**: Completed & Verified
 - **Changes Made**:
@@ -156,5 +157,15 @@ This file records the chronological record of agent sessions to ensure continuit
     - Secret Scanner: Clean.
 - **Next Actions**: Ready for release/PR.
 
+---
 
+### [Session 010] LangGraph Architecture Team Orchestrator
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Replaced `scripts/architecture-team/run.py` with a TypeScript LangGraph StateGraph (`scripts/architecture-team/`) implementing the architecture-team skill end-to-end.
+  - Added nodes lead/systems/spec/security/qa/gatekeeper/writeArtifacts/escalate with deterministic gatekeeper and max 1 revision loop.
+  - Added `npm run arch-team` CLI, Gemini role provider with offline fallback, artifact writer for `specs/` + `docs/adr/`.
+  - Added Jest suites: gatekeeper, artifacts, llm, workflow.
+- **Verification**: `scripts/verify.sh check-all` passing (lint, Jest, tsc, secret scan).
+- **Next Actions**: Human reviews generated artifacts; open PR for human approval.
 
