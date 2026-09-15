@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   ListRenderItem,
@@ -12,6 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { ChatMessageItem } from '../components/ChatMessageItem';
 import { SuggestionChips } from '../components/SuggestionChips';
 import { useColorScheme } from '../hooks/useColorScheme';
@@ -23,8 +25,9 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'welcome-1',
     sender: 'assistant',
-    text: '👋 ¡Bienvenido a Hubik Real Estate AI! Puedo buscar propiedades usando lenguaje natural. Prueba preguntando por ciudad, rango de precio, habitaciones o metros cuadrados.',
-    timestamp: 'Just now',
+    title: 'Buenos días, Don Carlos.',
+    text: '¿En qué puedo ayudarle hoy con sus propiedades o búsqueda de vivienda?\n\nPuede pulsar el **botón verde del micrófono** para hablar con tranquilidad, o escribir si lo prefiere.',
+    timestamp: '10:30',
   },
 ];
 
@@ -110,12 +113,59 @@ export default function HomeScreen() {
     [inputText, loading, messages]
   );
 
+  const isSendActive = Boolean(inputText.trim());
+
+  const handleActionPress = () => {
+    if (isSendActive) {
+      handleSend();
+    } else {
+      Alert.alert(
+        'Micrófono Hubik',
+        'Escuchando... Hable con tranquilidad para buscar propiedades.',
+        [{ text: 'Entendido' }]
+      );
+    }
+  };
+
+  const handleAttach = () => {
+    Alert.alert('Adjuntar', 'Seleccione un documento o archivo de propiedad.', [
+      { text: 'Aceptar' },
+    ]);
+  };
+
+  const handleCamera = () => {
+    Alert.alert('Cámara', 'Tome o adjunte una foto de una propiedad.', [
+      { text: 'Aceptar' },
+    ]);
+  };
+
   const renderMessageItem: ListRenderItem<ChatMessage> = useCallback(
     ({ item }) => <ChatMessageItem message={item} />,
     []
   );
 
-  const isSendDisabled = !inputText.trim() || loading;
+  const renderListHeader = useCallback(
+    () => (
+      <View style={styles.listHeader}>
+        <Text accessibilityRole="header" style={styles.accessibleHeader}>
+          Hubik Real Estate AI
+        </Text>
+        <View
+          style={[
+            styles.dateCapsule,
+            { backgroundColor: theme.surfaceContainerHigh },
+          ]}
+        >
+          <Text
+            style={[styles.dateCapsuleText, { color: theme.textSecondary }]}
+          >
+            Hoy, 10:30
+          </Text>
+        </View>
+      </View>
+    ),
+    [theme.surfaceContainerHigh, theme.textSecondary]
+  );
 
   return (
     <SafeAreaView
@@ -127,91 +177,117 @@ export default function HomeScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
       >
-        {/* Serene Hearth Warm Architectural Header */}
-        <View
-          style={[
-            styles.header,
-            { backgroundColor: theme.background, borderBottomColor: theme.border },
-          ]}
-        >
-          <Text style={[styles.headerTitle, { color: theme.primary }]}>
-            Hubik Real Estate AI
-          </Text>
-          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
-            Búsqueda con lenguaje natural • Gemini 2.5 • pgvector
-          </Text>
-        </View>
-
-        {/* Dynamic Suggestion Chips */}
-        <SuggestionChips
-          chips={suggestionChips}
-          onSelectChip={handleSend}
-          disabled={loading}
-        />
-
-        {/* Message Feed */}
+        {/* Message Feed with Top Date Capsule Header */}
         <FlatList
           ref={flatListRef}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessageItem}
+          ListHeaderComponent={renderListHeader}
           contentContainerStyle={styles.feedContent}
           keyboardShouldPersistTaps="handled"
         />
 
-        {/* Tactile Serene Hearth Input Dock */}
+        {/* Dynamic Suggestion Chips */}
+        {suggestionChips.length > 0 && (
+          <View style={styles.chipsContainer}>
+            <SuggestionChips
+              chips={suggestionChips}
+              onSelectChip={handleSend}
+              disabled={loading}
+            />
+          </View>
+        )}
+
+        {/* Don Carlos Serene Hearth Input Dock */}
         <View
           style={[
             styles.inputBar,
-            { backgroundColor: theme.background, borderTopColor: theme.border },
+            {
+              backgroundColor: theme.background,
+              borderTopColor: theme.outlineVariant,
+            },
           ]}
         >
-          <TextInput
+          {/* Input Pill Container */}
+          <View
             style={[
-              styles.input,
+              styles.inputCapsule,
               {
-                backgroundColor: theme.card,
-                color: theme.text,
-                borderColor: isFocused ? theme.primary : theme.border,
-                borderWidth: isFocused ? 2.5 : 2,
+                backgroundColor: theme.surfaceContainerLow,
+                borderColor: isFocused ? theme.secondary : theme.outlineVariant,
               },
             ]}
-            placeholder="Pregunta por propiedades, ciudades, precios o m²..."
-            placeholderTextColor={theme.textSecondary}
-            value={inputText}
-            onChangeText={setInputText}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            onSubmitEditing={() => handleSend()}
-            returnKeyType="send"
-            editable={!loading}
-            accessibilityLabel="Campo de mensaje para buscar propiedades"
-          />
+          >
+            <TouchableOpacity
+              onPress={handleAttach}
+              style={styles.pillIcon}
+              accessibilityRole="button"
+              accessibilityLabel="Adjuntar archivo o documento"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name="attach-outline"
+                size={24}
+                color={theme.textSecondary}
+              />
+            </TouchableOpacity>
+
+            <TextInput
+              style={[styles.input, { color: theme.text }]}
+              placeholder="Escriba su consulta aquí..."
+              placeholderTextColor={theme.textSecondary}
+              value={inputText}
+              onChangeText={setInputText}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              onSubmitEditing={() => handleSend()}
+              returnKeyType="send"
+              editable={!loading}
+              accessibilityLabel="Campo de consulta"
+            />
+
+            <TouchableOpacity
+              onPress={handleCamera}
+              style={styles.pillIcon}
+              accessibilityRole="button"
+              accessibilityLabel="Tomar foto o imagen"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name="camera-outline"
+                size={22}
+                color={theme.textSecondary}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Forest Pine Action Button (Mic / Send) */}
           <TouchableOpacity
             style={[
-              styles.sendButton,
+              styles.actionButton,
               {
-                backgroundColor: isSendDisabled
-                  ? theme.disabled
-                  : theme.primary,
+                backgroundColor: '#163931',
               },
             ]}
-            onPress={() => handleSend()}
-            disabled={isSendDisabled}
+            onPress={handleActionPress}
+            disabled={loading}
             accessibilityRole="button"
-            accessibilityLabel="Enviar consulta de propiedades"
+            accessibilityLabel={
+              isSendActive ? 'Enviar consulta' : 'Hablar por micrófono'
+            }
             accessibilityState={{
-              disabled: isSendDisabled,
               busy: loading,
             }}
           >
             {loading ? (
-              <ActivityIndicator size="small" color={theme.primaryText} />
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : isSendActive ? (
+              <Ionicons name="arrow-up" size={24} color="#FFFFFF" />
             ) : (
-              <Text style={[styles.sendButtonText, { color: theme.primaryText }]}>
-                Enviar
-              </Text>
+              <Ionicons name="mic" size={26} color="#FFFFFF" />
             )}
+            <Text style={styles.srOnly}>Enviar</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -226,59 +302,83 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: spacing.marginMobile, // 20px
-    paddingVertical: 14,
-    borderBottomWidth: 1.5,
+  listHeader: {
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  headerTitle: {
-    ...typography.headlineLG,
-    fontSize: 24,
-    letterSpacing: -0.3,
+  accessibleHeader: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    marginTop: 4,
+  dateCapsule: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: shapes.full, // 9999
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  dateCapsuleText: {
+    ...typography.labelMD,
+    fontSize: 13,
     fontWeight: '500',
     letterSpacing: 0.1,
   },
   feedContent: {
     paddingHorizontal: spacing.marginMobile, // 20px
-    paddingTop: 16,
-    paddingBottom: 32,
+    paddingTop: 8,
+    paddingBottom: 24,
+  },
+  chipsContainer: {
+    paddingBottom: 6,
   },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.marginMobile, // 20px
-    paddingVertical: 14,
-    borderTopWidth: 1.5,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+  },
+  inputCapsule: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+  },
+  pillIcon: {
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
     flex: 1,
-    borderRadius: shapes.lg, // 16px
-    paddingHorizontal: 18,
-    paddingVertical: 14,
+    paddingHorizontal: 8,
+    paddingVertical: 0,
     ...typography.bodyLG,
-    fontSize: 17,
-    marginRight: 12,
-    minHeight: spacing.touchDefault, // 56px
+    fontSize: 16,
+    height: '100%',
   },
-  sendButton: {
-    borderRadius: shapes.lg, // 16px
-    paddingHorizontal: 22,
-    height: spacing.touchDefault, // 56px
+  actionButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginLeft: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1A3A34',
+    shadowColor: '#02241F',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
-    elevation: 2,
+    elevation: 3,
   },
-  sendButtonText: {
-    ...typography.labelLG,
-    fontSize: 17,
-    letterSpacing: 0.3,
+  srOnly: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
   },
 });

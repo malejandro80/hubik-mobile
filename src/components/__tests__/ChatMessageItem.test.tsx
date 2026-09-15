@@ -53,4 +53,26 @@ describe('ChatMessageItem Component', () => {
     expect(getByText('Propiedades Encontradas (1):')).toBeTruthy();
     expect(getByText('Sunny Austin Condo')).toBeTruthy();
   });
+
+  it('renders editorial assistant message with title, highlighted text, and timestamp', () => {
+    const welcomeMessage: ChatMessage = {
+      id: 'welcome-1',
+      sender: 'assistant',
+      title: 'Buenos días, Don Carlos.',
+      text: '¿En qué puedo ayudarle hoy con sus propiedades o búsqueda de vivienda?\n\nPuede pulsar el **botón verde del micrófono** para hablar con tranquilidad, o escribir si lo prefiere.',
+      timestamp: '10:30',
+    };
+
+    const { getByText, queryByText } = render(
+      <ChatMessageItem message={welcomeMessage} />
+    );
+
+    expect(getByText('Buenos días, Don Carlos.')).toBeTruthy();
+    expect(
+      getByText(/¿En qué puedo ayudarle hoy con sus propiedades/)
+    ).toBeTruthy();
+    expect(getByText('botón verde del micrófono')).toBeTruthy();
+    expect(getByText('10:30')).toBeTruthy();
+    expect(queryByText('🤖 Asistente Hubik')).toBeNull();
+  });
 });

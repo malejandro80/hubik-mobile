@@ -28,6 +28,7 @@ export interface Property {
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'assistant';
+  title?: string;
   text: string;
   properties?: Property[];
   timestamp: string;

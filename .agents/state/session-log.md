@@ -278,7 +278,31 @@ This file records the chronological record of agent sessions to ensure continuit
     - Secret Scanner: Clean.
 - **Next Actions**: Ready for human review and atomic commit.
 
+---
 
-
-
-
+### [Session 015] Don Carlos Conversational Chat UI Redesign
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Implemented the custom "Don Carlos" Serene Hearth conversational chat UI based on high-fidelity visual mockups:
+    - **Top Date Capsule**: Centered pill capsule displaying `"Hoy, 10:30"` with muted container background (`#E8EAE6` / `surfaceContainerHigh`) as `FlatList` header.
+    - **Editorial Assistant Welcome Card**:
+      - Editorial serif title (`"Buenos días, Don Carlos."`) in deep forest pine (`#02241F`).
+      - High-legibility paragraphs with paragraph spacing and support for bold highlighted phrases (e.g. `"botón verde del micrófono"` rendered in bold green `#2C685A`).
+      - Timestamp (`"10:30"`) aligned to the bottom right of the card.
+    - **Bottom Input Dock**:
+      - 56px input pill container with 28px border radius, 1.5px structural border, and attachment paperclip (`Ionicons` `attach-outline`) and camera (`Ionicons` `camera-outline`) icons.
+      - Placeholder updated to `"Escriba su consulta aquí..."`.
+      - 56x56px circular action button in deep forest pine (`#163931`) with dynamic microphone (`mic`) / send (`arrow-up`) icons.
+  - Updated `src/types/property.ts`: Added optional `title?: string;` to `ChatMessage`.
+  - Updated `src/components/ChatMessageItem.tsx`: Added editorial serif title support, formatted text with bold highlighting, paragraph spacing, and bottom-right timestamps.
+  - Updated `src/app/index.tsx`: Rebuilt layout with top date capsule, Don Carlos initial message, input pill dock, and pine microphone button.
+  - Updated tests:
+    - `src/components/__tests__/ChatMessageItem.test.tsx`: Added test for editorial message with title, highlighted text, and timestamp.
+    - `src/app/__tests__/index.test.tsx`: Updated assertions to reflect the new approved functional and UI specification for Don Carlos and placeholder text under Rule 04.
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 11 test suites passed, 45/45 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+- **Next Actions**: Ready for human review and atomic commit.
