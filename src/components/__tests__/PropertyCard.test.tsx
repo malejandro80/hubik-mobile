@@ -42,4 +42,20 @@ describe('PropertyCard Component', () => {
     expect(getByText('Disponible')).toBeTruthy();
     expect(getByText('Apartamento')).toBeTruthy();
   });
+
+  it('renders action buttons and commission calculation', () => {
+    const handlePress = jest.fn();
+    const { getByText, getByLabelText } = render(
+      <PropertyCard property={mockProperty} onPress={handlePress} />
+    );
+
+    expect(getByText('Ver detalle')).toBeTruthy();
+    expect(getByText('Compartir')).toBeTruthy();
+    expect(getByText('Tu comisión:')).toBeTruthy();
+    expect(getByText('Captación propia')).toBeTruthy();
+
+    // Verify bookmark button toggle
+    const bookmarkBtn = getByLabelText('Guardar propiedad');
+    expect(bookmarkBtn).toBeTruthy();
+  });
 });

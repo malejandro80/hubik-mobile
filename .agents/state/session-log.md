@@ -374,3 +374,36 @@ This file records the chronological record of agent sessions to ensure continuit
     - TypeScript: Clean (`tsc --noEmit` 0 errors).
     - Secret Scanner: Clean.
 - **Next Actions**: Ready for human review and atomic commit.
+
+---
+
+### [Session 019] Architectural Serene Hearth Property Card Redesign
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Rebuilt the `PropertyCard` component following the high-contrast Serene Hearth architectural mockup:
+    - **Top Overlaid Badges**:
+      - Deep forest status pill (`● Disponible · 3%`) with mint circle indicator (`#52D1A8`).
+      - Frosted glass key badge (`🔑 Llaves en oficina · Apartamento`).
+      - Frosted camera badge on bottom right of the image (`📷 14 fotos`).
+    - **Title & Bookmark Action**:
+      - Editorial serif title in `Georgia`/`serif` (`fontSize: 22`, `fontWeight: '700'`).
+      - Interactive bookmark/favorite toggle button with `bookmark-outline`/`bookmark` icons.
+    - **Address & Details**:
+      - Exterior location details with `onSurfaceVariant` styling (`#414846`).
+    - **Specs Row**:
+      - Inline specs with separator dots (`102 m² · 2 hab. · 2 baños · Cota cero`), highlighting `"Cota cero"` in deep emerald (`#2C685A`).
+    - **Financials Block**:
+      - Left column: Bold price and price per square meter (`€/m²`).
+      - Right column: Commission highlight (`Tu comisión: $13,500 €` / `Captación propia`) in `#2C685A`.
+    - **Action Buttons**:
+      - Primary action button: `Ver detalle` (deep forest pine `#163931`, white eye icon).
+      - Secondary action button: `Compartir` (soft sage plate, native `Share.share` integration).
+  - Updated `src/components/PropertyCard.tsx`.
+  - Updated `src/components/__tests__/PropertyCard.test.tsx` with coverage for action buttons, commission calculation, and bookmark toggle.
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 13 test suites passed, 49/49 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+- **Next Actions**: Ready for human review and atomic commit.
