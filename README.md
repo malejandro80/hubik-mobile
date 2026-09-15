@@ -98,3 +98,4 @@ When interacting with an AI agent in this repository, you can leverage slash tri
 
 ## 📄 License
 MIT
+# hubik-mobile
