@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { Property } from '../types/property';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { colors } from '../theme/colors';
+import { colors, shapes, typography } from '../theme/colors';
 
 interface PropertyCardProps {
   property: Property;
@@ -70,7 +70,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
 
   return (
     <TouchableOpacity
-      activeOpacity={0.85}
+      activeOpacity={0.88}
       onPress={() => onPress && onPress(property)}
       style={[
         styles.card,
@@ -100,16 +100,26 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
           <Text style={styles.statusText}>{getStatusLabel(property.status)}</Text>
         </View>
 
-        {/* Property Type Pill */}
-        <View style={styles.typeBadge}>
-          <Text style={styles.typeText}>{getTypeLabel(property.property_type)}</Text>
+        {/* Property Type Pill - Architectural Serene Hearth Badge */}
+        <View
+          style={[
+            styles.typeBadge,
+            {
+              backgroundColor: theme.badgeBackground,
+              borderColor: theme.badgeBorder,
+            },
+          ]}
+        >
+          <Text style={[styles.typeText, { color: theme.text }]}>
+            {getTypeLabel(property.property_type)}
+          </Text>
         </View>
       </View>
 
       {/* Property Details */}
       <View style={styles.content}>
         <View style={styles.priceRow}>
-          <Text style={[styles.price, { color: theme.text }]}>
+          <Text style={[styles.price, { color: theme.primary }]}>
             {formattedPrice}
           </Text>
         </View>
@@ -122,20 +132,20 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
         </Text>
 
         <Text
-          style={[styles.address, { color: colorScheme === 'dark' ? '#9CA3AF' : '#6B7280' }]}
+          style={[styles.address, { color: theme.textSecondary }]}
           numberOfLines={1}
         >
           📍 {property.address}, {property.city}
         </Text>
 
         {/* Specs Row */}
-        <View style={styles.specsRow}>
+        <View style={[styles.specsRow, { borderTopColor: theme.border }]}>
           <View style={styles.specItem}>
             <Text style={styles.specIcon}>🛏️</Text>
             <Text
               style={[
                 styles.specText,
-                { color: colorScheme === 'dark' ? '#D1D5DB' : '#4B5563' },
+                { color: theme.textSecondary },
               ]}
             >
               {property.bedrooms === 0
@@ -146,14 +156,14 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
             </Text>
           </View>
 
-          <View style={styles.specDivider} />
+          <View style={[styles.specDivider, { backgroundColor: theme.border }]} />
 
           <View style={styles.specItem}>
             <Text style={styles.specIcon}>🚿</Text>
             <Text
               style={[
                 styles.specText,
-                { color: colorScheme === 'dark' ? '#D1D5DB' : '#4B5563' },
+                { color: theme.textSecondary },
               ]}
             >
               {property.bathrooms === 1
@@ -162,14 +172,14 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
             </Text>
           </View>
 
-          <View style={styles.specDivider} />
+          <View style={[styles.specDivider, { backgroundColor: theme.border }]} />
 
           <View style={styles.specItem}>
             <Text style={styles.specIcon}>📐</Text>
             <Text
               style={[
                 styles.specText,
-                { color: colorScheme === 'dark' ? '#D1D5DB' : '#4B5563' },
+                { color: theme.textSecondary },
               ]}
               accessibilityLabel={`${property.square_meters} metros cuadrados`}
             >
@@ -186,19 +196,19 @@ PropertyCard.displayName = 'PropertyCard';
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
-    borderWidth: 1,
+    borderRadius: shapes.xl, // 24px
+    borderWidth: 1.5,
     overflow: 'hidden',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    marginBottom: 20,
+    shadowColor: '#1A3A34',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 2,
   },
   imageContainer: {
     width: '100%',
-    height: 180,
+    height: 190,
     position: 'relative',
     backgroundColor: '#E5E7EB',
   },
@@ -208,77 +218,79 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     position: 'absolute',
-    top: 12,
-    left: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    top: 14,
+    left: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: shapes.default, // 8px
   },
   statusText: {
     color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 12,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   typeBadge: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(17, 24, 39, 0.75)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    top: 14,
+    right: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: shapes.default, // 8px
+    borderWidth: 1.5,
   },
   typeText: {
-    color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 12,
+    letterSpacing: 0.2,
   },
   content: {
-    padding: 14,
+    padding: 18,
   },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   price: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
+    letterSpacing: -0.5,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
+    ...typography.headlineMD,
+    fontSize: 20,
+    marginBottom: 6,
   },
   address: {
-    fontSize: 13,
-    marginBottom: 12,
+    fontSize: 14,
+    marginBottom: 16,
+    lineHeight: 20,
   },
   specsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(156, 163, 175, 0.2)',
+    paddingTop: 12,
+    borderTopWidth: 1.5,
+    minHeight: 48,
   },
   specItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 12,
   },
   specIcon: {
-    fontSize: 13,
-    marginRight: 4,
+    fontSize: 14,
+    marginRight: 6,
   },
   specText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '500',
   },
   specDivider: {
-    width: 1,
-    height: 14,
-    backgroundColor: 'rgba(156, 163, 175, 0.4)',
-    marginRight: 10,
+    width: 1.5,
+    height: 16,
+    marginRight: 12,
   },
 });

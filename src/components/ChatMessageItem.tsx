@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { ChatMessage, Property } from '../types/property';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { colors } from '../theme/colors';
+import { colors, shapes, typography } from '../theme/colors';
 import { PropertyCard } from './PropertyCard';
 
 interface ChatMessageItemProps {
@@ -27,20 +27,31 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = React.memo(
           style={[
             styles.bubble,
             isUser
-              ? [styles.bubbleUser, { backgroundColor: theme.primary }]
+              ? [
+                  styles.bubbleUser,
+                  {
+                    backgroundColor: theme.userBubble,
+                    borderColor: theme.userBubbleBorder,
+                  },
+                ]
               : [
                   styles.bubbleAssistant,
-                  { backgroundColor: theme.card, borderColor: theme.border },
+                  {
+                    backgroundColor: theme.assistantBubble,
+                    borderColor: theme.assistantBubbleBorder,
+                  },
                 ],
           ]}
         >
           {!isUser && (
-            <Text style={styles.assistantBadge}>🤖 Asistente Hubik</Text>
+            <Text style={[styles.assistantBadge, { color: theme.secondary }]}>
+              🤖 Asistente Hubik
+            </Text>
           )}
           <Text
             style={[
               styles.messageText,
-              { color: isUser ? '#FFFFFF' : theme.text },
+              { color: theme.text },
             ]}
           >
             {message.text}
@@ -52,7 +63,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = React.memo(
               <Text
                 style={[
                   styles.resultsHeader,
-                  { color: colorScheme === 'dark' ? '#9CA3AF' : '#6B7280' },
+                  { color: theme.textSecondary },
                 ]}
               >
                 Propiedades Encontradas ({message.properties.length}):
@@ -77,7 +88,7 @@ ChatMessageItem.displayName = 'ChatMessageItem';
 const styles = StyleSheet.create({
   messageRow: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   messageRowUser: {
     justifyContent: 'flex-end',
@@ -86,36 +97,37 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   bubble: {
-    maxWidth: '92%',
-    borderRadius: 16,
-    padding: 14,
+    maxWidth: '90%',
+    paddingHorizontal: 22,
+    paddingVertical: 18,
+    borderRadius: shapes.xl, // 24px
+    borderWidth: 1.5,
   },
   bubbleUser: {
-    borderBottomRightRadius: 4,
+    borderBottomRightRadius: shapes.sm, // 4px
   },
   bubbleAssistant: {
-    borderWidth: 1,
-    borderBottomLeftRadius: 4,
+    borderBottomLeftRadius: shapes.sm, // 4px
   },
   assistantBadge: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#6366F1',
-    marginBottom: 6,
+    ...typography.labelMD,
+    fontSize: 13,
+    marginBottom: 8,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   messageText: {
-    fontSize: 15,
-    lineHeight: 22,
+    ...typography.bodyLG,
+    letterSpacing: 0.2,
   },
   propertiesContainer: {
-    marginTop: 14,
+    marginTop: 18,
   },
   resultsHeader: {
-    fontSize: 12,
-    fontWeight: '700',
+    ...typography.labelMD,
+    fontSize: 13,
     textTransform: 'uppercase',
-    marginBottom: 10,
-    letterSpacing: 0.5,
+    marginBottom: 12,
+    letterSpacing: 0.6,
   },
 });

@@ -16,16 +16,14 @@ import { ChatMessageItem } from '../components/ChatMessageItem';
 import { SuggestionChips } from '../components/SuggestionChips';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { fetchDynamicSuggestions, sendChatQuery } from '../services/chatApi';
-import { colors } from '../theme/colors';
+import { colors, shapes, spacing, typography } from '../theme/colors';
 import { ChatMessage } from '../types/property';
-
-
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'welcome-1',
     sender: 'assistant',
-    text: "👋 ¡Bienvenido a Hubik Real Estate AI! Puedo buscar propiedades usando lenguaje natural. Prueba preguntando por ciudad, rango de precio, habitaciones o metros cuadrados.",
+    text: '👋 ¡Bienvenido a Hubik Real Estate AI! Puedo buscar propiedades usando lenguaje natural. Prueba preguntando por ciudad, rango de precio, habitaciones o metros cuadrados.',
     timestamp: 'Just now',
   },
 ];
@@ -37,6 +35,7 @@ export default function HomeScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [suggestionChips, setSuggestionChips] = useState<string[]>([]);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
 
@@ -128,22 +127,17 @@ export default function HomeScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
       >
-        {/* Header */}
+        {/* Serene Hearth Warm Architectural Header */}
         <View
           style={[
             styles.header,
-            { backgroundColor: theme.card, borderBottomColor: theme.border },
+            { backgroundColor: theme.background, borderBottomColor: theme.border },
           ]}
         >
-          <Text style={[styles.headerTitle, { color: theme.text }]}>
+          <Text style={[styles.headerTitle, { color: theme.primary }]}>
             Hubik Real Estate AI
           </Text>
-          <Text
-            style={[
-              styles.headerSubtitle,
-              { color: colorScheme === 'dark' ? '#9CA3AF' : '#6B7280' },
-            ]}
-          >
+          <Text style={[styles.headerSubtitle, { color: theme.textSecondary }]}>
             Búsqueda con lenguaje natural • Gemini 2.5 • pgvector
           </Text>
         </View>
@@ -165,28 +159,29 @@ export default function HomeScreen() {
           keyboardShouldPersistTaps="handled"
         />
 
-        {/* Input Bar */}
+        {/* Tactile Serene Hearth Input Dock */}
         <View
           style={[
             styles.inputBar,
-            { backgroundColor: theme.card, borderTopColor: theme.border },
+            { backgroundColor: theme.background, borderTopColor: theme.border },
           ]}
         >
           <TextInput
             style={[
               styles.input,
               {
-                backgroundColor: theme.background,
+                backgroundColor: theme.card,
                 color: theme.text,
-                borderColor: theme.border,
+                borderColor: isFocused ? theme.primary : theme.border,
+                borderWidth: isFocused ? 2.5 : 2,
               },
             ]}
             placeholder="Pregunta por propiedades, ciudades, precios o m²..."
-            placeholderTextColor={
-              colorScheme === 'dark' ? '#6B7280' : '#9CA3AF'
-            }
+            placeholderTextColor={theme.textSecondary}
             value={inputText}
             onChangeText={setInputText}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             onSubmitEditing={() => handleSend()}
             returnKeyType="send"
             editable={!loading}
@@ -211,9 +206,11 @@ export default function HomeScreen() {
             }}
           >
             {loading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
+              <ActivityIndicator size="small" color={theme.primaryText} />
             ) : (
-              <Text style={styles.sendButtonText}>Enviar</Text>
+              <Text style={[styles.sendButtonText, { color: theme.primaryText }]}>
+                Enviar
+              </Text>
             )}
           </TouchableOpacity>
         </View>
@@ -230,51 +227,58 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    paddingHorizontal: spacing.marginMobile, // 20px
+    paddingVertical: 14,
+    borderBottomWidth: 1.5,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '800',
+    ...typography.headlineLG,
+    fontSize: 24,
     letterSpacing: -0.3,
   },
   headerSubtitle: {
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 14,
+    marginTop: 4,
     fontWeight: '500',
+    letterSpacing: 0.1,
   },
   feedContent: {
-    padding: 16,
-    paddingBottom: 24,
+    paddingHorizontal: spacing.marginMobile, // 20px
+    paddingTop: 16,
+    paddingBottom: 32,
   },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
+    paddingHorizontal: spacing.marginMobile, // 20px
+    paddingVertical: 14,
+    borderTopWidth: 1.5,
   },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-    marginRight: 10,
-    minHeight: 44,
+    borderRadius: shapes.lg, // 16px
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    ...typography.bodyLG,
+    fontSize: 17,
+    marginRight: 12,
+    minHeight: spacing.touchDefault, // 56px
   },
   sendButton: {
-    borderRadius: 22,
-    paddingHorizontal: 18,
-    height: 44,
+    borderRadius: shapes.lg, // 16px
+    paddingHorizontal: 22,
+    height: spacing.touchDefault, // 56px
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#1A3A34',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 4,
+    elevation: 2,
   },
   sendButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
+    ...typography.labelLG,
+    fontSize: 17,
+    letterSpacing: 0.3,
   },
 });

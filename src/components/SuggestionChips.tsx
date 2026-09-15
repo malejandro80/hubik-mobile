@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { colors } from '../theme/colors';
+import { colors, shapes, spacing, typography } from '../theme/colors';
 
 interface SuggestionChipsProps {
   chips: string[];
@@ -34,7 +34,7 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = React.memo(
           {chips.map((chip, index) => (
             <TouchableOpacity
               key={index}
-              activeOpacity={0.7}
+              activeOpacity={0.8}
               disabled={disabled}
               style={[
                 styles.chip,
@@ -49,8 +49,9 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = React.memo(
               accessibilityLabel={`Search for ${chip}`}
               accessibilityState={{ disabled }}
             >
-              <Text style={[styles.chipText, { color: theme.primary }]}>
-                💡 {chip}
+              <Text style={[styles.chipText, { color: theme.text }]}>
+                <Text style={{ color: theme.secondary }}>💡 </Text>
+                {chip}
               </Text>
             </TouchableOpacity>
           ))}
@@ -64,22 +65,29 @@ SuggestionChips.displayName = 'SuggestionChips';
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: spacing.marginMobile, // 20px
   },
   chip: {
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    marginRight: 8,
-    minHeight: 44,
+    borderWidth: 1.5,
+    borderRadius: shapes.full, // 9999px (full pill)
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    marginRight: 10,
+    minHeight: spacing.touchMin, // 52px
     justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#1A3A34',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   chipText: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...typography.labelMD,
+    fontSize: 15,
+    letterSpacing: 0.2,
   },
 });

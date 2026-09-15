@@ -38,4 +38,11 @@ describe('Button Component', () => {
     expect(getByTestId('button-loading-indicator')).toBeTruthy();
     expect(queryByText('Loading')).toBeNull();
   });
+
+  it('renders secondary variant with proper styling', () => {
+    const { getByText } = render(
+      <Button title="Secondary Action" onPress={() => {}} variant="secondary" />
+    );
+    expect(getByText('Secondary Action')).toBeTruthy();
+  });
 });

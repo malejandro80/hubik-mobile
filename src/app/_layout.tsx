@@ -29,13 +29,13 @@ export default function RootLayout() {
         <Stack.Screen
           name="index"
           options={{
-            title: 'Hubik Mobile',
+            headerShown: false,
           }}
         />
         <Stack.Screen
           name="+not-found"
           options={{
-            title: 'Not Found',
+            title: 'Página no encontrada',
           }}
         />
       </Stack>

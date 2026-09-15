@@ -8,7 +8,7 @@ import {
   TextStyle,
   StyleProp,
 } from 'react-native';
-import { colors } from '../theme/colors';
+import { colors, shapes, spacing, typography } from '../theme/colors';
 import { useColorScheme } from '../hooks/useColorScheme';
 
 export interface ButtonProps {
@@ -42,13 +42,16 @@ export const Button: React.FC<ButtonProps> = ({
     ? disabled
       ? theme.disabled
       : theme.primary
-    : theme.card;
+    : theme.surfaceContainer;
 
   const textColor = isPrimary
     ? theme.primaryText
     : disabled
     ? theme.disabled
-    : theme.text;
+    : theme.primary;
+
+  const borderColor = isPrimary ? undefined : theme.primary;
+  const borderWidth = isPrimary ? 0 : 2;
 
   return (
     <Pressable
@@ -60,7 +63,11 @@ export const Button: React.FC<ButtonProps> = ({
       accessibilityState={{ disabled: disabled || loading }}
       style={({ pressed }) => [
         styles.container,
-        { backgroundColor },
+        {
+          backgroundColor,
+          borderColor,
+          borderWidth,
+        },
         pressed && styles.pressed,
         style,
       ]}
@@ -82,21 +89,22 @@ export const Button: React.FC<ButtonProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    minHeight: 48,
+    minHeight: spacing.touchDefault, // 56px
     minWidth: 120,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
+    borderRadius: shapes.lg, // 16px
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
   },
   pressed: {
-    opacity: 0.8,
+    opacity: 0.88,
+    transform: [{ scale: 0.98 }],
   },
   text: {
-    fontSize: 16,
-    fontWeight: '600',
+    ...typography.labelLG,
     textAlign: 'center',
+    letterSpacing: 0.2,
   },
 });
