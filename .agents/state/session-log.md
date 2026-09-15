@@ -526,6 +526,33 @@ This file records the chronological record of agent sessions to ensure continuit
     - Secret Scanner: Clean.
 - **Next Actions**: Ready for human review and commit.
 
+---
+
+### [Session 024] Main Chat Header Back Button Removal & Fluid Sidebar Menu Animation
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - **Header Go-Back Button Visibility (`src/components/Header.tsx`, `src/app/index.tsx`)**:
+    - Added `showBack?: boolean` prop to `HeaderProps` defaulting to `Boolean(onBackPress)` if undefined.
+    - Updated `Header.tsx` to conditionally render the back button only when `shouldShowBack` is true, naturally positioning the Brand title/logo on the left and Menu button on the right when `shouldShowBack` is false.
+    - Updated `src/app/index.tsx` to set `showBack={false}` and removed unused `handleBack` handler.
+    - Preserved back button on detail and secondary screens (`src/app/property/[id].tsx`, `src/app/register.tsx`).
+    - Added unit test in `src/components/__tests__/Header.test.tsx` verifying back button omission when `showBack={false}`.
+    - Added assertion in `src/app/__tests__/index.test.tsx` verifying back button is null on home screen.
+  - **Fluid Sidebar Animation & Difuminado (`src/components/BurgerMenu.tsx`)**:
+    - Converted static fade Modal into a fluid, hardware-accelerated drawer transition (`Animated` with `useNativeDriver: true`).
+    - Implemented tranquil dark forest green translucent difuminado backdrop (`rgba(2, 36, 31, 0.45)`) that fades smoothly from 0 to 1 over 260ms.
+    - Implemented smooth spring/bezier deceleration slide-in (`Easing.bezier(0.16, 1, 0.3, 1)`) from offscreen (+340) to 0.
+    - Implemented graceful closing animation (`animateClose`) over 220ms when tapping the backdrop, close button, or menu items before unmounting the modal.
+    - Reduced file size from 333 lines to 247 lines (<300 line limit).
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 16 test suites passed, 66/66 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+- **Next Actions**: Ready for human review and commit.
+
+
 
 
 

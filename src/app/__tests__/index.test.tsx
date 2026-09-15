@@ -32,6 +32,9 @@ describe('HomeScreen (Chat UI)', () => {
     // Verify paperclip and camera icons are removed
     expect(queryByLabelText('Adjuntar archivo o documento')).toBeNull();
     expect(queryByLabelText('Tomar foto o imagen')).toBeNull();
+
+    // Verify back button is hidden on main chat screen
+    expect(queryByLabelText('Regresar')).toBeNull();
   });
 
   it('sends query when typing and tapping send button', async () => {

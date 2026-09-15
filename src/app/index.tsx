@@ -122,10 +122,6 @@ export default function HomeScreen() {
     );
   }, []);
 
-  const handleBack = () => {
-    Alert.alert('Navegación', 'Regresar a la pantalla anterior.');
-  };
-
   const handleMenu = () => {
     setIsMenuOpen(true);
   };
@@ -192,7 +188,7 @@ export default function HomeScreen() {
       {/* Serene Hearth Architectural Header */}
       <Header
         title="Hubik"
-        onBackPress={handleBack}
+        showBack={false}
         onMenuPress={handleMenu}
       />
 
