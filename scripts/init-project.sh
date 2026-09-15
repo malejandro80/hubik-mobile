@@ -147,6 +147,13 @@ mod tests {
 EOF
         fi
         ;;
+    expo|react-native|mobile)
+        cat <<EOF >> "${ROOT_DIR}/toolchain.env"
+TEST_CMD="npm test"
+LINT_CMD="npm run lint"
+BUILD_CMD="npm run typecheck"
+EOF
+        ;;
     *)
         echo "⚠️  Stack '${STACK}' recognized as generic."
         ;;
