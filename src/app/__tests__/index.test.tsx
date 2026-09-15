@@ -16,8 +16,10 @@ describe('HomeScreen (Chat UI)', () => {
     jest.clearAllMocks();
   });
 
-  it('renders header, initial welcome message, and dynamic suggestion chips', async () => {
-    const { getByText, getByPlaceholderText } = render(<HomeScreen />);
+  it('renders header, initial welcome message, and clean input field', () => {
+    const { getByText, getByPlaceholderText, queryByLabelText } = render(
+      <HomeScreen />
+    );
 
     expect(getByText('Hubik Real Estate AI')).toBeTruthy();
     expect(getByText('Buenos días, Don Carlos.')).toBeTruthy();
@@ -27,9 +29,9 @@ describe('HomeScreen (Chat UI)', () => {
     expect(getByText('botón verde del micrófono')).toBeTruthy();
     expect(getByPlaceholderText('Escriba su consulta aquí...')).toBeTruthy();
 
-    await waitFor(() => {
-      expect(getByText(/Austin 2-bed under \$400k/)).toBeTruthy();
-    });
+    // Verify paperclip and camera icons are removed
+    expect(queryByLabelText('Adjuntar archivo o documento')).toBeNull();
+    expect(queryByLabelText('Tomar foto o imagen')).toBeNull();
   });
 
   it('sends query when typing and tapping send button', async () => {
@@ -67,30 +69,6 @@ describe('HomeScreen (Chat UI)', () => {
     await waitFor(() => {
       expect(getByText('Found 1 property in Austin')).toBeTruthy();
       expect(getByText('Modern Austin Apartment')).toBeTruthy();
-    });
-  });
-
-  it('sends query when pressing a suggestion chip', async () => {
-    (chatApi.sendChatQuery as jest.Mock).mockResolvedValueOnce({
-      answer: 'Showing luxury condos in Miami',
-      data: [],
-    });
-
-    const { getByText } = render(<HomeScreen />);
-
-    await waitFor(() => {
-      expect(getByText(/Luxury condos in Miami/)).toBeTruthy();
-    });
-
-    const chip = getByText(/Luxury condos in Miami/);
-    fireEvent.press(chip);
-
-    await waitFor(() => {
-      expect(chatApi.sendChatQuery).toHaveBeenCalledWith('Luxury condos in Miami');
-    });
-
-    await waitFor(() => {
-      expect(getByText('Showing luxury condos in Miami')).toBeTruthy();
     });
   });
 

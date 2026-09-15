@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,9 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { ChatMessageItem } from '../components/ChatMessageItem';
-import { SuggestionChips } from '../components/SuggestionChips';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { fetchDynamicSuggestions, sendChatQuery } from '../services/chatApi';
+import { sendChatQuery } from '../services/chatApi';
 import { colors, shapes, spacing, typography } from '../theme/colors';
 import { ChatMessage } from '../types/property';
 
@@ -39,22 +38,7 @@ export default function HomeScreen() {
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
-  const [suggestionChips, setSuggestionChips] = useState<string[]>([]);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
-
-  useEffect(() => {
-    let isMounted = true;
-    fetchDynamicSuggestions()
-      .then((chips) => {
-        if (isMounted && chips.length > 0) {
-          setSuggestionChips(chips);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   const handleSend = useCallback(
     async (queryText?: string) => {
@@ -89,10 +73,6 @@ export default function HomeScreen() {
             timestamp: 'Just now',
           },
         ]);
-
-        if (response.suggestions && response.suggestions.length > 0) {
-          setSuggestionChips(response.suggestions);
-        }
       } catch (err: any) {
         setMessages([
           ...newMessages,
@@ -125,18 +105,6 @@ export default function HomeScreen() {
         [{ text: 'Entendido' }]
       );
     }
-  };
-
-  const handleAttach = () => {
-    Alert.alert('Adjuntar', 'Seleccione un documento o archivo de propiedad.', [
-      { text: 'Aceptar' },
-    ]);
-  };
-
-  const handleCamera = () => {
-    Alert.alert('Cámara', 'Tome o adjunte una foto de una propiedad.', [
-      { text: 'Aceptar' },
-    ]);
   };
 
   const renderMessageItem: ListRenderItem<ChatMessage> = useCallback(
@@ -188,17 +156,6 @@ export default function HomeScreen() {
           keyboardShouldPersistTaps="handled"
         />
 
-        {/* Dynamic Suggestion Chips */}
-        {suggestionChips.length > 0 && (
-          <View style={styles.chipsContainer}>
-            <SuggestionChips
-              chips={suggestionChips}
-              onSelectChip={handleSend}
-              disabled={loading}
-            />
-          </View>
-        )}
-
         {/* Don Carlos Serene Hearth Input Dock */}
         <View
           style={[
@@ -219,20 +176,6 @@ export default function HomeScreen() {
               },
             ]}
           >
-            <TouchableOpacity
-              onPress={handleAttach}
-              style={styles.pillIcon}
-              accessibilityRole="button"
-              accessibilityLabel="Adjuntar archivo o documento"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name="attach-outline"
-                size={24}
-                color={theme.textSecondary}
-              />
-            </TouchableOpacity>
-
             <TextInput
               style={[styles.input, { color: theme.text }]}
               placeholder="Escriba su consulta aquí..."
@@ -246,20 +189,6 @@ export default function HomeScreen() {
               editable={!loading}
               accessibilityLabel="Campo de consulta"
             />
-
-            <TouchableOpacity
-              onPress={handleCamera}
-              style={styles.pillIcon}
-              accessibilityRole="button"
-              accessibilityLabel="Tomar foto o imagen"
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons
-                name="camera-outline"
-                size={22}
-                color={theme.textSecondary}
-              />
-            </TouchableOpacity>
           </View>
 
           {/* Forest Pine Action Button (Mic / Send) */}
@@ -330,9 +259,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 24,
   },
-  chipsContainer: {
-    paddingBottom: 6,
-  },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -347,16 +273,11 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     borderWidth: 1.5,
-    paddingHorizontal: 14,
-  },
-  pillIcon: {
-    padding: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   input: {
     flex: 1,
-    paddingHorizontal: 8,
+    paddingHorizontal: 0,
     paddingVertical: 0,
     ...typography.bodyLG,
     fontSize: 16,

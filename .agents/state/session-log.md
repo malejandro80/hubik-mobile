@@ -306,3 +306,22 @@ This file records the chronological record of agent sessions to ensure continuit
     - TypeScript: Clean (`tsc --noEmit` 0 errors).
     - Secret Scanner: Clean.
 - **Next Actions**: Ready for human review and atomic commit.
+
+---
+
+### [Session 016] Chat UI Simplification: Removal of Suggestion Chips and Attachment/Camera Icons
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Simplified the chat user interface per user feedback:
+    - Removed floating suggestion chips container (`chipsContainer` / `SuggestionChips`) from `src/app/index.tsx`.
+    - Removed paperclip attachment icon button (`Ionicons` `attach-outline`) from the input capsule.
+    - Removed camera icon button (`Ionicons` `camera-outline`) from the input capsule.
+    - Styled input capsule to a clean full-width text input with 20px horizontal padding and seamless placeholder `"Escriba su consulta aquí..."`.
+  - Updated `src/app/__tests__/index.test.tsx` to verify clean input dock and absence of removed icons.
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 11 test suites passed, 44/44 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+- **Next Actions**: Ready for human review and atomic commit.
