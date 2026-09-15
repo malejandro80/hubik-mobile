@@ -13,8 +13,8 @@ interface FilterParams {
   max_price?: number;
   min_bedrooms?: number;
   max_bedrooms?: number;
-  min_square_feet?: number;
-  max_square_feet?: number;
+  min_square_meters?: number;
+  max_square_meters?: number;
   limit?: number;
   sort_by?: string;
   status?: string;
@@ -49,20 +49,22 @@ function parsePromptFilters(message: string): FilterParams {
   }
 
   const maxPriceMatch = lower.match(
-    /(?:under|below|less than|<|max)\s*\$?(\d+)(?:k|,\d{3}|\.000)?/
+    /(?:under|below|less than|<|max)\s*\$?(\d+(?:k|,\d{3}|\.000)?)\b(?!\s*(?:m2|m²|sqm|sq\s*m|meter|metre|metro|square|sqft|sq\s*ft|bed|br))/i
   );
   if (maxPriceMatch) {
-    let val = parseInt(maxPriceMatch[1], 10);
-    if (lower.includes(`${maxPriceMatch[1]}k`)) val *= 1000;
+    const raw = maxPriceMatch[1].toLowerCase();
+    let val = parseInt(raw.replace(/[k,]/g, ''), 10);
+    if (raw.includes('k')) val *= 1000;
     filters.max_price = val;
   }
 
   const minPriceMatch = lower.match(
-    /(?:above|over|more than|>|min)\s*\$?(\d+)(?:k|,\d{3}|\.000)?/
+    /(?:above|over|more than|>|min)\s*\$?(\d+(?:k|,\d{3}|\.000)?)\b(?!\s*(?:m2|m²|sqm|sq\s*m|meter|metre|metro|square|sqft|sq\s*ft|bed|br))/i
   );
   if (minPriceMatch) {
-    let val = parseInt(minPriceMatch[1], 10);
-    if (lower.includes(`${minPriceMatch[1]}k`)) val *= 1000;
+    const raw = minPriceMatch[1].toLowerCase();
+    let val = parseInt(raw.replace(/[k,]/g, ''), 10);
+    if (raw.includes('k')) val *= 1000;
     filters.min_price = val;
   }
 
@@ -71,24 +73,60 @@ function parsePromptFilters(message: string): FilterParams {
     filters.min_bedrooms = parseInt(bedMatch[1], 10);
   }
 
-  const maxSqftMatch = lower.match(
-    /(?:less than|less|under|below|<|max)\s*(\d+)\s*(?:square feet|square feets|sqft|sq ft|sq\.ft)?/
+  const maxAreaMatch = lower.match(
+    /(?:less than|less|under|below|<|max)\s*(\d+)\s*(?:square meters|square metres|metros cuadrados|metros|m2|m²|sqm|sq m|square feet|square feets|sqft|sq ft|sq\.ft)?/
   );
   if (
-    maxSqftMatch &&
-    (lower.includes('square') || lower.includes('sqft') || lower.includes('sq ft'))
+    maxAreaMatch &&
+    (lower.includes('m2') ||
+      lower.includes('m²') ||
+      lower.includes('sqm') ||
+      lower.includes('sq m') ||
+      lower.includes('meter') ||
+      lower.includes('metre') ||
+      lower.includes('metro') ||
+      lower.includes('square') ||
+      lower.includes('sqft') ||
+      lower.includes('sq ft'))
   ) {
-    filters.max_square_feet = parseInt(maxSqftMatch[1], 10);
+    let val = parseInt(maxAreaMatch[1], 10);
+    if (
+      lower.includes('sqft') ||
+      lower.includes('sq ft') ||
+      lower.includes('square feet') ||
+      lower.includes('feet')
+    ) {
+      val = Math.round(val * 0.092903);
+    }
+    filters.max_square_meters = val;
   }
 
-  const minSqftMatch = lower.match(
-    /(?:more than|over|above|>|min)\s*(\d+)\s*(?:square feet|square feets|sqft|sq ft|sq\.ft)?/
+  const minAreaMatch = lower.match(
+    /(?:more than|over|above|>|min)\s*(\d+)\s*(?:square meters|square metres|metros cuadrados|metros|m2|m²|sqm|sq m|square feet|square feets|sqft|sq ft|sq\.ft)?/
   );
   if (
-    minSqftMatch &&
-    (lower.includes('square') || lower.includes('sqft') || lower.includes('sq ft'))
+    minAreaMatch &&
+    (lower.includes('m2') ||
+      lower.includes('m²') ||
+      lower.includes('sqm') ||
+      lower.includes('sq m') ||
+      lower.includes('meter') ||
+      lower.includes('metre') ||
+      lower.includes('metro') ||
+      lower.includes('square') ||
+      lower.includes('sqft') ||
+      lower.includes('sq ft'))
   ) {
-    filters.min_square_feet = parseInt(minSqftMatch[1], 10);
+    let val = parseInt(minAreaMatch[1], 10);
+    if (
+      lower.includes('sqft') ||
+      lower.includes('sq ft') ||
+      lower.includes('square feet') ||
+      lower.includes('feet')
+    ) {
+      val = Math.round(val * 0.092903);
+    }
+    filters.min_square_meters = val;
   }
 
   const limitMatch = lower.match(/(?:give|show|find|list|top)\s*(?:me\s*)?(\d+)/);
@@ -156,7 +194,7 @@ Deno.serve(async (req: Request) => {
               systemInstruction: {
                 parts: [
                   {
-                    text: 'You are a real estate search assistant. Extract search filters as a JSON object with optional keys: city (string), property_type (Apartment, Single Family, Townhouse, Studio, Condo), min_price (number), max_price (number), min_bedrooms (number), max_bedrooms (number), min_square_feet (number), max_square_feet (number), limit (number), sort_by (price_asc, price_desc). Only output valid JSON.',
+                    text: 'You are a real estate search assistant. Extract search filters as a JSON object with optional keys: city (string), property_type (Apartment, Single Family, Townhouse, Studio, Condo), min_price (number), max_price (number), min_bedrooms (number), max_bedrooms (number), min_square_meters (number), max_square_meters (number), limit (number), sort_by (price_asc, price_desc). Note that area is measured in square meters (m²). Only output valid JSON.',
                   },
                 ],
               },
@@ -184,7 +222,7 @@ Deno.serve(async (req: Request) => {
     let query = supabase
       .from('properties')
       .select(
-        'id, title, property_type, price, bedrooms, bathrooms, square_feet, city, address, status, image_url, images, created_at'
+        'id, title, property_type, price, bedrooms, bathrooms, square_meters, city, address, status, image_url, images, created_at'
       );
 
     if (filters.city) {
@@ -205,11 +243,11 @@ Deno.serve(async (req: Request) => {
     if (filters.max_bedrooms !== undefined) {
       query = query.lte('bedrooms', filters.max_bedrooms);
     }
-    if (filters.min_square_feet !== undefined) {
-      query = query.gte('square_feet', filters.min_square_feet);
+    if (filters.min_square_meters !== undefined) {
+      query = query.gte('square_meters', filters.min_square_meters);
     }
-    if (filters.max_square_feet !== undefined) {
-      query = query.lte('square_feet', filters.max_square_feet);
+    if (filters.max_square_meters !== undefined) {
+      query = query.lte('square_meters', filters.max_square_meters);
     }
 
     if (filters.sort_by === 'price_asc') {

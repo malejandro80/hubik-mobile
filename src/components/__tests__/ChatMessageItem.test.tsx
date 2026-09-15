@@ -28,7 +28,7 @@ describe('ChatMessageItem Component', () => {
       price: 320000,
       bedrooms: 2,
       bathrooms: 1,
-      square_feet: 900,
+      square_meters: 84,
       city: 'Austin',
       address: '500 4th St',
       status: 'Available',

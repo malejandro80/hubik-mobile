@@ -54,7 +54,7 @@ export interface Property {
   price: number;
   bedrooms: number;
   bathrooms: number;
-  square_feet: number;
+  square_meters: number;
   city: string;
   address: string;
   status: 'Available' | 'Pending' | 'Sold';

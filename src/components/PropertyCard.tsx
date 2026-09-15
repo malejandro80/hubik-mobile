@@ -36,7 +36,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
   };
 
   const formattedPrice = `$${Number(property.price).toLocaleString()}`;
-  const formattedSqFt = Number(property.square_feet).toLocaleString();
+  const formattedArea = Number(property.square_meters).toLocaleString();
 
   return (
     <TouchableOpacity
@@ -135,8 +135,9 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
                 styles.specText,
                 { color: colorScheme === 'dark' ? '#D1D5DB' : '#4B5563' },
               ]}
+              accessibilityLabel={`${property.square_meters} square meters`}
             >
-              {formattedSqFt} sqft
+              {formattedArea} m²
             </Text>
           </View>
         </View>

@@ -30,7 +30,7 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
           price: 350000,
           bedrooms: 2,
           bathrooms: 2,
-          square_feet: 1000,
+          square_meters: 93,
           city: 'Austin',
           address: '123 Main St',
           status: 'Available',
@@ -63,7 +63,7 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
         price: 350000,
         bedrooms: 2,
         bathrooms: 2,
-        square_feet: 1000,
+        square_meters: 93,
         city: 'Austin',
         address: '123 Main St',
         status: 'Available',
@@ -112,6 +112,21 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
     expect(filters.property_type).toBe('Single Family');
     expect(filters.min_bedrooms).toBe(3);
     expect(filters.max_price).toBe(700000);
+  });
+
+  it('parsePromptFilters extracts metric area filters (m2, m², sqm)', () => {
+    const filtersM2 = parsePromptFilters('Miami condo under 120 m2');
+    expect(filtersM2.max_square_meters).toBe(120);
+
+    const filtersSqm = parsePromptFilters('Austin apartment over 80 sqm');
+    expect(filtersSqm.min_square_meters).toBe(80);
+
+    const filtersSqMetres = parsePromptFilters('Seattle home under 200 square meters');
+    expect(filtersSqMetres.max_square_meters).toBe(200);
+
+    // Legacy feet query converts to metric m²
+    const filtersFeet = parsePromptFilters('Denver house under 1000 sqft');
+    expect(filtersFeet.max_square_meters).toBe(93);
   });
 
   it('fetchDynamicSuggestions generates dynamic query phrases from Supabase properties', async () => {

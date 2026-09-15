@@ -38,7 +38,7 @@ describe('HomeScreen (Chat UI)', () => {
       price: 375000,
       bedrooms: 2,
       bathrooms: 2,
-      square_feet: 1000,
+      square_meters: 93,
       city: 'Austin',
       address: '200 Congress Ave',
       status: 'Available',

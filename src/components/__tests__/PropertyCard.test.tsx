@@ -10,7 +10,7 @@ const mockProperty: Property = {
   price: 450000,
   bedrooms: 2,
   bathrooms: 2,
-  square_feet: 1100,
+  square_meters: 102,
   city: 'Austin',
   address: '100 Congress Ave',
   status: 'Available',
@@ -27,12 +27,12 @@ describe('PropertyCard Component', () => {
     expect(getByText(/Austin/)).toBeTruthy();
   });
 
-  it('renders specs for bedrooms, bathrooms, and square feet', () => {
+  it('renders specs for bedrooms, bathrooms, and square meters', () => {
     const { getByText } = render(<PropertyCard property={mockProperty} />);
 
     expect(getByText(/2 Beds/)).toBeTruthy();
     expect(getByText(/2 Baths/)).toBeTruthy();
-    expect(getByText(/1,100 sqft/)).toBeTruthy();
+    expect(getByText(/102 m²/)).toBeTruthy();
   });
 
   it('renders property status and type badges', () => {

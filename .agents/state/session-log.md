@@ -185,6 +185,28 @@ This file records the chronological record of agent sessions to ensure continuit
     - Jest: 11 test suites passed, 41/41 tests passing (100%).
     - TypeScript: Clean (`tsc --noEmit` 0 errors).
     - Secret Scanner: Clean.
+---
+
+### [Session 012] Database Schema & App International Metric Standard (m²) Migration
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Migrated PostgreSQL database schema from imperial (`square_feet`) to international metric standard (`square_meters` / $m^2$).
+  - Authored and applied remote database migration `supabase/migrations/20260915_convert_to_square_meters.sql` via Supabase Management API to drop `square_feet`, add `square_meters INTEGER NOT NULL`, and recreate `match_properties` similarity vector search RPC returning `square_meters int`.
+  - Updated mock dataset in `scripts/mockProperties.ts` and seed migration `supabase/migrations/20260915_seed_properties.sql` with converted metric dimensions across all 14 properties.
+  - Executed remote database re-seeding via `supabase/migrations/20260915_seed_properties.sql` and verified `npm run seed` with developer service role key.
+  - Updated Supabase Edge Function `supabase/functions/chat-query/index.ts` to parse metric natural language queries (`m2`, `m²`, `sqm`, `metros cuadrados`, `square meters`), prevent collision between price and area filters via negative lookaheads, query `square_meters`, and redeployed to remote Supabase project `wbzfeqzvwfglirwlpzpy`.
+  - Updated client service `src/services/chatApi.ts` with metric regex parsing and fallback query builder.
+  - Updated UI component `src/components/PropertyCard.tsx` to render `{formattedArea} m²` and accessible screen-reader label `"{formattedArea} square meters"`.
+  - Updated domain interface `Property.square_meters` in `src/types/property.ts` and RFC specification `specs/002-real-estate-ai-query.md`.
+  - Updated unit test suites across `src/components/__tests__/PropertyCard.test.tsx`, `src/components/__tests__/ChatMessageItem.test.tsx`, `src/app/__tests__/index.test.tsx`, and `src/services/__tests__/chatApi.test.ts`.
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 11 test suites passed, 42/42 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+  - Live Edge Function Verification: Invoked `chat-query` with `"Show me apartments in Austin under 100 m2"`; returned Austin properties with 85 m² and 98 m² under `"applied_filters":{"max_square_meters":100}`.
 - **Next Actions**: Ready for human review and atomic commit.
+
 
 
