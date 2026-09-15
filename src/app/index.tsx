@@ -14,13 +14,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 import { BurgerMenu } from '../components/BurgerMenu';
 import { ChatMessageItem } from '../components/ChatMessageItem';
 import { Header } from '../components/Header';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { sendChatQuery } from '../services/chatApi';
 import { colors, shapes, spacing, typography } from '../theme/colors';
-import { ChatMessage } from '../types/property';
+import { ChatMessage, Property } from '../types/property';
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -33,6 +34,7 @@ const INITIAL_MESSAGES: ChatMessage[] = [
 ];
 
 export default function HomeScreen() {
+  const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
 
@@ -42,6 +44,26 @@ export default function HomeScreen() {
   const [isFocused, setIsFocused] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
+
+  const handlePropertyPress = useCallback(
+    (property: Property) => {
+      router.push({
+        pathname: '/property/[id]',
+        params: {
+          id: property.id,
+          title: property.title,
+          price: property.price.toString(),
+          city: property.city,
+          address: property.address,
+          bedrooms: property.bedrooms.toString(),
+          bathrooms: property.bathrooms.toString(),
+          square_meters: property.square_meters.toString(),
+          image_url: property.image_url,
+        },
+      });
+    },
+    [router]
+  );
 
   const handleSend = useCallback(
     async (queryText?: string) => {
@@ -141,8 +163,13 @@ export default function HomeScreen() {
   };
 
   const renderMessageItem: ListRenderItem<ChatMessage> = useCallback(
-    ({ item }) => <ChatMessageItem message={item} />,
-    []
+    ({ item }) => (
+      <ChatMessageItem
+        message={item}
+        onPropertyPress={handlePropertyPress}
+      />
+    ),
+    [handlePropertyPress]
   );
 
   const renderListHeader = useCallback(

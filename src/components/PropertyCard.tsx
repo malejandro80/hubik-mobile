@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Image,
   Platform,
@@ -24,7 +24,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
 }) => {
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
-  const [isSaved, setIsSaved] = useState(false);
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -39,31 +38,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
     }
   };
 
-  const getTypeLabel = (type: string) => {
-    switch (type) {
-      case 'Apartment':
-        return 'Apartamento';
-      case 'Single Family':
-        return 'Casa Familiar';
-      case 'Townhouse':
-        return 'Casa Adosada';
-      case 'Condo':
-        return 'Condominio';
-      case 'Studio':
-        return 'Estudio';
-      default:
-        return type;
-    }
-  };
-
   const formattedPrice = `$${Number(property.price).toLocaleString('en-US')}`;
   const formattedArea = Number(property.square_meters).toLocaleString('en-US');
-  const pricePerMeter = `$${Math.round(
-    property.price / (property.square_meters || 1)
-  ).toLocaleString('en-US')} €/m²`;
-  const commission = `$${Math.round(property.price * 0.03).toLocaleString(
-    'en-US'
-  )} €`;
 
   const handleShare = async () => {
     try {
@@ -74,10 +50,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
     } catch {
       // User dismissed share dialog
     }
-  };
-
-  const handleToggleSave = () => {
-    setIsSaved((prev) => !prev);
   };
 
   return (
@@ -101,27 +73,12 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
 
         {/* Top Overlaid Badges */}
         <View style={styles.topBadgesRow}>
-          {/* Exclusiva / Status Badge */}
           <View style={styles.exclusiveBadge}>
             <Text style={styles.exclusiveDot}>● </Text>
             <Text style={styles.exclusiveText}>
               {getStatusLabel(property.status)}
             </Text>
             <Text style={styles.exclusivePercent}> · 3%</Text>
-          </View>
-
-          {/* Key / Type Badge */}
-          <View style={styles.glassBadge}>
-            <Ionicons
-              name="key-outline"
-              size={13}
-              color="#191C1B"
-              style={styles.keyIcon}
-            />
-            <Text style={styles.glassBadgeText}>Llaves en oficina · </Text>
-            <Text style={styles.glassBadgeText}>
-              {getTypeLabel(property.property_type)}
-            </Text>
           </View>
         </View>
 
@@ -143,7 +100,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
 
       {/* Property Content Area */}
       <View style={styles.content}>
-        {/* Title & Bookmark Row */}
+        {/* Title Row */}
         <View style={styles.titleRow}>
           <Text
             style={[styles.title, { color: theme.text }]}
@@ -151,21 +108,6 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
           >
             {property.title}
           </Text>
-          <TouchableOpacity
-            onPress={handleToggleSave}
-            accessibilityRole="button"
-            accessibilityLabel={
-              isSaved ? 'Quitar de guardados' : 'Guardar propiedad'
-            }
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            style={styles.bookmarkButton}
-          >
-            <Ionicons
-              name={isSaved ? 'bookmark' : 'bookmark-outline'}
-              size={24}
-              color={isSaved ? theme.secondary : theme.text}
-            />
-          </TouchableOpacity>
         </View>
 
         {/* Address / Location Line */}
@@ -199,38 +141,16 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
           <Text style={[styles.specDot, { color: theme.textSecondary }]}>
             {' '}·{' '}
           </Text>
-          <Text style={[styles.specHighlight, { color: theme.secondary }]}>
-            Cota cero
+          <Text style={[styles.specText, { color: theme.textSecondary }]}>
+            Apto
           </Text>
         </View>
 
-        {/* Financial Block (Price + Commission) */}
+        {/* Financial Block (Price) */}
         <View style={styles.financialRow}>
           <View style={styles.priceCol}>
             <Text style={[styles.price, { color: theme.primary }]}>
               {formattedPrice}
-            </Text>
-            <Text
-              style={[styles.pricePerMeter, { color: theme.textSecondary }]}
-            >
-              {pricePerMeter}
-            </Text>
-          </View>
-
-          <View style={styles.commissionCol}>
-            <Text style={[styles.commissionLabel, { color: theme.secondary }]}>
-              Tu comisión:
-            </Text>
-            <Text style={[styles.commissionAmount, { color: theme.secondary }]}>
-              {commission}
-            </Text>
-            <Text
-              style={[
-                styles.commissionCaption,
-                { color: theme.textSecondary },
-              ]}
-            >
-              Captación propia
             </Text>
           </View>
         </View>
@@ -336,22 +256,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 12,
   },
-  glassBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: shapes.full,
-  },
-  keyIcon: {
-    marginRight: 4,
-  },
-  glassBadgeText: {
-    color: '#191C1B',
-    fontWeight: '600',
-    fontSize: 12,
-  },
   photoCountBadge: {
     position: 'absolute',
     bottom: 12,
@@ -396,10 +300,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.3,
     lineHeight: 28,
-    marginRight: 10,
-  },
-  bookmarkButton: {
-    padding: 2,
   },
   address: {
     fontSize: 15,
@@ -421,10 +321,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  specHighlight: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
   financialRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -440,28 +336,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.5,
     marginBottom: 2,
-  },
-  pricePerMeter: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  commissionCol: {
-    alignItems: 'flex-end',
-  },
-  commissionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  commissionAmount: {
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.2,
-    marginBottom: 2,
-  },
-  commissionCaption: {
-    fontSize: 11,
-    fontWeight: '500',
   },
   actionsRow: {
     flexDirection: 'row',

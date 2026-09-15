@@ -407,3 +407,43 @@ This file records the chronological record of agent sessions to ensure continuit
     - TypeScript: Clean (`tsc --noEmit` 0 errors).
     - Secret Scanner: Clean.
 - **Next Actions**: Ready for human review and atomic commit.
+
+---
+
+### [Session 020] Property Detail Screen & Navigation Implementation
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Implemented the complete, accessible **Property Detail Screen** at `src/app/property/[id].tsx` based on the Serene Hearth design mockup:
+    - **Hero Image Section**: High-resolution image card with photo counter badge (`[ 🖼️ 1 de 8 fotos ]`).
+    - **Price & Location Block**: Prominent price display (`485.000 €`), soft mint `"Sin honorarios de agencia"` badge (`#D2F3EA`), emerald pin, neighborhood header (`Barrio de Salamanca, Madrid`), and street address with exterior/cota cero details.
+    - **Accessibility & Comfort Grid**: 6-card grid with custom icons and badge styling:
+      - `Ascensor directo` (Sin escalón en portal)
+      - `Acceso plano` (Pasillos anchos 95cm)
+      - `2 Baños adaptados` (Ducha llana antideslizante)
+      - `120 m² soleados` (Luz natural de mañana)
+      - `3 Habitaciones` (Armarios empotrados)
+      - `Calefacción central` (Excelente aislamiento)
+    - **Description Section**: Editorial typography detailing accessible layout, cota cero access, parqué en espiga, and comfort.
+    - **Walking Distances Container ("Cercanías a pie")**: Walking distances to essential daily amenities (Farmacia 24h a 80m, Supermercado a 120m, Autobús a 150m, Centro de Salud a 380m).
+    - **Fixed Bottom Dock**:
+      - Primary action button: `Contactar asesor` (`#163931`) with headset icon.
+      - Integrated quick query text bar with microphone button for voice/chat accessibility inquiries.
+    - **Top Header**: Shared `Header` component with back button navigation (`router.back()`) and slide-in `BurgerMenu`.
+  - Wired navigation in `src/app/index.tsx`:
+    - Imported `useRouter` from `expo-router`.
+    - Implemented `handlePropertyPress` callback passing property parameters (`id`, `title`, `price`, `city`, `address`, `bedrooms`, `bathrooms`, `square_meters`, `image_url`) to `/property/[id]`.
+    - Passed `onPropertyPress` down to `ChatMessageItem` and `PropertyCard` for both card clicks and `"Ver detalle"` button.
+  - Added unit test suite `src/app/property/__tests__/propertyDetail.test.tsx` verifying:
+    - Photo badge, price, and agency fee badge.
+    - Full 6-feature accessibility grid rendering.
+    - Housing description and walking amenities.
+    - Contact advisor action and quick query / mic input interactions.
+    - Header back button navigation to return to chat.
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 14 test suites passed, 55/55 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+- **Next Actions**: Ready for human review and commit.
+

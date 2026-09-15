@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 import { PropertyCard } from '../PropertyCard';
 import { Property } from '../../types/property';
 
@@ -28,34 +28,34 @@ describe('PropertyCard Component', () => {
   });
 
   it('renders specs for bedrooms, bathrooms, and square meters', () => {
-    const { getByText, getByLabelText } = render(<PropertyCard property={mockProperty} />);
+    const { getByText, getByLabelText } = render(
+      <PropertyCard property={mockProperty} />
+    );
 
     expect(getByText(/2 hab\./)).toBeTruthy();
     expect(getByText(/2 baños/)).toBeTruthy();
     expect(getByText(/102 m²/)).toBeTruthy();
+    expect(getByText('Apto')).toBeTruthy();
     expect(getByLabelText('102 metros cuadrados')).toBeTruthy();
   });
 
-  it('renders property status and type badges in Spanish', () => {
+  it('renders property status badge in Spanish', () => {
     const { getByText } = render(<PropertyCard property={mockProperty} />);
 
     expect(getByText('Disponible')).toBeTruthy();
-    expect(getByText('Apartamento')).toBeTruthy();
   });
 
-  it('renders action buttons and commission calculation', () => {
+  it('renders action buttons and triggers onPress on click', () => {
     const handlePress = jest.fn();
-    const { getByText, getByLabelText } = render(
+    const { getByText } = render(
       <PropertyCard property={mockProperty} onPress={handlePress} />
     );
 
     expect(getByText('Ver detalle')).toBeTruthy();
     expect(getByText('Compartir')).toBeTruthy();
-    expect(getByText('Tu comisión:')).toBeTruthy();
-    expect(getByText('Captación propia')).toBeTruthy();
 
-    // Verify bookmark button toggle
-    const bookmarkBtn = getByLabelText('Guardar propiedad');
-    expect(bookmarkBtn).toBeTruthy();
+    const detailBtn = getByText('Ver detalle');
+    fireEvent.press(detailBtn);
+    expect(handlePress).toHaveBeenCalledWith(mockProperty);
   });
 });
