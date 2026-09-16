@@ -552,6 +552,39 @@ This file records the chronological record of agent sessions to ensure continuit
     - Secret Scanner: Clean.
 - **Next Actions**: Ready for human review and commit.
 
+---
+
+### [Session 025] InmoVoz Voice-First Stepped Wizard Machine Implementation
+- **Status**: Completed & Verified
+- **Changes Made**:
+  - Registered Master Technical Blueprint in `docs/architecture/inmovoz-blueprint.md`.
+  - Installed `expo-haptics` (`v13.0.1`) for senior tactile feedback.
+  - Implemented Domain Models in `src/types/voiceWizard.ts` (`WizardStep`, `ExtractedPropertyData`, `ClarificationQuestion`, `CategorizedPhoto`, `WizardState`, `WizardAction`).
+  - Created Pure Finite State Machine Hook in `src/hooks/useVoiceWizardMachine.ts`:
+    - Manages 3 distinct steps (`1. Dictado e Ingesta`, `2. Ubicación y Fotos`, `3. Validación e Identidad`).
+    - Handles voice transcription, extraction parsing, sequential binary questions, photo categorization, cadastral verification, and publication.
+  - Built Senior-Ergonomic UI Components (`src/components/wizard/`):
+    - `WizardProgressBar.tsx`: High-contrast 3-step indicator with accessible labels.
+    - `ReactiveSummaryCard.tsx`: Real-time extracted property attributes badges (type, neighborhood, price, beds, elevator).
+    - `BinaryClarificationCard.tsx`: Empathetic clarification questions with giant $\ge 52 \times 52$ dp `[ SÍ ]` and `[ NO ]` action buttons.
+    - `PushToTalkButton.tsx`: $68 \times 68$ dp PTT button with pulsing wave halo and haptic feedback.
+  - Integrated Stepped Wizard Machine into `src/app/register.tsx` (279 lines, $< 300$ line limit).
+  - Authored comprehensive test suites (5 new suites, 16 new tests):
+    - `src/hooks/__tests__/useVoiceWizardMachine.test.ts` (8 tests).
+    - `src/components/wizard/__tests__/WizardProgressBar.test.tsx` (2 tests).
+    - `src/components/wizard/__tests__/ReactiveSummaryCard.test.tsx` (2 tests).
+    - `src/components/wizard/__tests__/BinaryClarificationCard.test.tsx` (2 tests).
+    - `src/components/wizard/__tests__/PushToTalkButton.test.tsx` (2 tests).
+    - `src/app/__tests__/register.test.tsx` (6 tests).
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`:
+    - ESLint: Clean (0 errors, 0 warnings).
+    - Jest: 21 test suites passed, 82/82 tests passing (100%).
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+    - Secret Scanner: Clean.
+- **Next Actions**: Ready for human review and commit.
+
+
 
 
 
