@@ -3,7 +3,10 @@
 Operating rules for Claude Code in `hubik-mobile`. This repo already has a thorough governance framework under `.agents/` and `antigravity/instructions.md`, written for other agent tools (Antigravity, and a LangGraph-based "architecture-team" squad). Claude Code doesn't run that literal 8-phase, multi-persona pipeline — there's no `architecture-team` slash-command here — but the underlying constraints are tool-agnostic and apply just the same. This file distills them into what actually changes how I work in this repo.
 
 ## Source of truth (read when in doubt)
-- `.agents/rules/*.md` — binding constraints, summarized below.
+- `.agents/rules/*.md` — binding constraints, summarized below. Includes
+  `.agents/rules/07-feature-graph.md`, a static Mermaid map of how the shipped RFCs and their
+  modules/DB columns depend on each other — check it before touching shared code
+  (`chatApi.ts`, `usePropertyRegistrationChat`, the `properties` table).
 - `.agents/references/*.md` — deeper checklists (Definition of Done, security, testing patterns).
 - `.agents/state/session-log.md` / `current-milestone.md` — project memory across sessions.
 - `specs/*.md` — approved feature RFCs (template: `specs/000-spec-template.md`).

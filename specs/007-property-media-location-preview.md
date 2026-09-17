@@ -142,6 +142,22 @@ description/images/coordinates when present; unchanged for today's seeded-proper
       a real device/simulator; also blocked until the pending migration and Edge Function
       redeploys below are applied.
 
+### Amendment (PR review, 2026-09-17): local photo staging + grid management
+The original flow uploaded each picked photo to `property-images` immediately on pick, and gave
+no way to delete, reorder, or change the cover photo from the chat. Changed to:
+- **Deferred upload**: `usePropertyRegistrationChat.addPhotos` now only stages picked `file://`
+  URIs into `draft.images` — no network call. `confirmPublish` uploads every staged local URI as
+  a single batch (`uploadPropertyImages`, order-preserving) immediately before calling
+  `publishProperty`, so photos the user later removes are never uploaded at all.
+- **Grid management**: new `src/components/PropertyPhotoGrid.tsx` (+ isolated
+  `.styles.ts`), rendered in `index.tsx` while `registration.state.mode === 'photos'`. Each
+  thumbnail gets a delete button and ⬆️/⬇️ reorder buttons (no new dependency — plain array
+  swap/splice via new hook methods `removePhoto(index)` / `movePhoto(index, direction)`); index 0
+  is visually badged "Portada" and is what `image_url: draft.images?.[0]` already used at publish.
+- **"Edit position" (line 27 comment)**: already covered by the existing "Cambiar ubicación" chip
+  (`index.tsx`, wired to `registration.editLocation()`) on the confirming screen, plus the
+  draggable pin inside `ChatMapPicker` itself — verified on-device, no new control added.
+
 ### Notable fix made along the way
 While wiring the richer preview flow, the chat's message `id`s (`` `assistant-${Date.now()}` ``)
 could collide when two messages were appended within the same millisecond — this flow now chains

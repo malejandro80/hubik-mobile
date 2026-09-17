@@ -81,15 +81,33 @@ export function usePropertyRegistrationChat() {
     [state.draft]
   );
 
+  // Photos are staged locally (their picked file:// URIs) and only uploaded to Storage as a
+  // single batch in confirmPublish - avoids uploading photos the user later removes/reorders.
   const addPhotos = useCallback(
-    async (uris: string[]) => {
-      const uploaded = await uploadPropertyImages(draftIdRef.current, uris);
-      const images = [...(state.draft.images || []), ...uploaded];
+    (uris: string[]) => {
+      const images = [...(state.draft.images || []), ...uris];
       setState((prev) => ({ ...prev, draft: { ...prev.draft, images } }));
       return { images };
     },
     [state.draft.images]
   );
+
+  const removePhoto = useCallback((index: number) => {
+    setState((prev) => ({
+      ...prev,
+      draft: { ...prev.draft, images: (prev.draft.images || []).filter((_, i) => i !== index) },
+    }));
+  }, []);
+
+  const movePhoto = useCallback((index: number, direction: 'up' | 'down') => {
+    setState((prev) => {
+      const images = [...(prev.draft.images || [])];
+      const target = direction === 'up' ? index - 1 : index + 1;
+      if (target < 0 || target >= images.length) return prev;
+      [images[index], images[target]] = [images[target], images[index]];
+      return { ...prev, draft: { ...prev.draft, images } };
+    });
+  }, []);
 
   const skipPhotos = useCallback(() => {
     setState((prev) => ({ ...prev, mode: 'location' }));
@@ -123,7 +141,17 @@ export function usePropertyRegistrationChat() {
   }, [state.draft]);
 
   const confirmPublish = useCallback(async (): Promise<Property> => {
-    const property = await publishProperty(state.draft);
+    const draftImages = state.draft.images || [];
+    const localUris = draftImages.filter((uri) => uri.startsWith('file://'));
+
+    let images = draftImages;
+    if (localUris.length > 0) {
+      const uploaded = await uploadPropertyImages(draftIdRef.current, localUris);
+      let next = 0;
+      images = draftImages.map((uri) => (uri.startsWith('file://') ? uploaded[next++] : uri));
+    }
+
+    const property = await publishProperty({ ...state.draft, images });
     setState(INITIAL_STATE);
     return property;
   }, [state.draft]);
@@ -134,6 +162,8 @@ export function usePropertyRegistrationChat() {
     processMessage,
     processAudioMessage,
     addPhotos,
+    removePhoto,
+    movePhoto,
     skipPhotos,
     editPhotos,
     editLocation,

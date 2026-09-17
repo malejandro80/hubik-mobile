@@ -85,17 +85,13 @@ describe('usePropertyRegistrationChat', () => {
     expect(result.current.state.missingFields).toEqual([]);
   });
 
-  it('addPhotos() uploads and appends images without leaving the photos step', async () => {
+  it('addPhotos() stages local URIs without uploading or leaving the photos step', async () => {
     (chatApi.intakeProperty as jest.Mock).mockResolvedValueOnce({
       data: {},
       missing_fields: [],
       assistant_message: 'Listo.',
       ready_to_confirm: true,
     });
-    (propertyImages.uploadPropertyImages as jest.Mock).mockResolvedValueOnce([
-      'https://storage.example.com/a.jpg',
-      'https://storage.example.com/b.jpg',
-    ]);
 
     const { result } = renderHook(() => usePropertyRegistrationChat());
     act(() => result.current.start());
@@ -103,19 +99,42 @@ describe('usePropertyRegistrationChat', () => {
       await result.current.processMessage('todo listo');
     });
 
-    await act(async () => {
-      await result.current.addPhotos(['file://a.jpg', 'file://b.jpg']);
+    act(() => {
+      result.current.addPhotos(['file://a.jpg', 'file://b.jpg']);
     });
 
-    expect(propertyImages.uploadPropertyImages).toHaveBeenCalledWith(
-      expect.any(String),
-      ['file://a.jpg', 'file://b.jpg']
-    );
-    expect(result.current.state.draft.images).toEqual([
-      'https://storage.example.com/a.jpg',
-      'https://storage.example.com/b.jpg',
-    ]);
+    expect(propertyImages.uploadPropertyImages).not.toHaveBeenCalled();
+    expect(result.current.state.draft.images).toEqual(['file://a.jpg', 'file://b.jpg']);
     expect(result.current.state.mode).toBe('photos');
+  });
+
+  it('removePhoto() drops a staged image by index', () => {
+    const { result } = renderHook(() => usePropertyRegistrationChat());
+    act(() => result.current.start());
+    act(() => {
+      result.current.addPhotos(['file://a.jpg', 'file://b.jpg', 'file://c.jpg']);
+    });
+
+    act(() => result.current.removePhoto(1));
+
+    expect(result.current.state.draft.images).toEqual(['file://a.jpg', 'file://c.jpg']);
+  });
+
+  it('movePhoto() swaps a staged image with its neighbor, e.g. to change the cover photo', () => {
+    const { result } = renderHook(() => usePropertyRegistrationChat());
+    act(() => result.current.start());
+    act(() => {
+      result.current.addPhotos(['file://a.jpg', 'file://b.jpg', 'file://c.jpg']);
+    });
+
+    act(() => result.current.movePhoto(1, 'up'));
+    expect(result.current.state.draft.images).toEqual(['file://b.jpg', 'file://a.jpg', 'file://c.jpg']);
+
+    act(() => result.current.movePhoto(0, 'up'));
+    expect(result.current.state.draft.images).toEqual(['file://b.jpg', 'file://a.jpg', 'file://c.jpg']);
+
+    act(() => result.current.movePhoto(2, 'down'));
+    expect(result.current.state.draft.images).toEqual(['file://b.jpg', 'file://a.jpg', 'file://c.jpg']);
   });
 
   it('skipPhotos() moves from photos to the location step', async () => {
@@ -280,6 +299,44 @@ describe('usePropertyRegistrationChat', () => {
     expect(published).toEqual(mockProperty);
     expect(result.current.state.mode).toBe('idle');
     expect(result.current.state.draft).toEqual({});
+  });
+
+  it('confirmPublish() uploads staged local photos as a single batch, preserving order', async () => {
+    (chatApi.intakeProperty as jest.Mock).mockResolvedValueOnce({
+      data: { operation_type: 'sale', property_type: 'Apartment', price: 420000, bedrooms: 3, bathrooms: 2, square_meters: 90, city: 'Madrid', address: 'Calle Mayor 12' },
+      missing_fields: [],
+      assistant_message: 'Listo.',
+      ready_to_confirm: true,
+    });
+    (propertyImages.uploadPropertyImages as jest.Mock).mockResolvedValueOnce([
+      'https://storage.example.com/a.jpg',
+      'https://storage.example.com/b.jpg',
+    ]);
+    const mockProperty = { id: 'new-1', title: 'Piso en venta en Madrid' };
+    (chatApi.publishProperty as jest.Mock).mockResolvedValueOnce(mockProperty);
+
+    const { result } = renderHook(() => usePropertyRegistrationChat());
+    act(() => result.current.start());
+    await act(async () => {
+      await result.current.processMessage('todos los datos');
+    });
+    act(() => {
+      result.current.addPhotos(['file://a.jpg', 'file://b.jpg']);
+    });
+
+    await act(async () => {
+      await result.current.confirmPublish();
+    });
+
+    expect(propertyImages.uploadPropertyImages).toHaveBeenCalledWith(
+      expect.any(String),
+      ['file://a.jpg', 'file://b.jpg']
+    );
+    expect(chatApi.publishProperty).toHaveBeenCalledWith(
+      expect.objectContaining({
+        images: ['https://storage.example.com/a.jpg', 'https://storage.example.com/b.jpg'],
+      })
+    );
   });
 
   it('confirmPublish() keeps the draft intact for retry when publishing fails', async () => {

@@ -1,7 +1,12 @@
 import React from 'react';
 import { Alert } from 'react-native';
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import PropertyDetailScreen from '../[id]';
+import * as chatApi from '../../../services/chatApi';
+
+jest.mock('../../../services/chatApi', () => ({
+  generatePropertyDescription: jest.fn(),
+}));
 
 const mockBack = jest.fn();
 let mockParams: {
@@ -40,6 +45,9 @@ describe('PropertyDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    (chatApi.generatePropertyDescription as jest.Mock).mockResolvedValue({
+      description: 'Vivienda totalmente exterior y luminosa, con portero físico y ascensor accesible a cota cero.',
+    });
     mockParams = {
       id: 'prop-123',
       title: 'Barrio de Salamanca, Madrid',
@@ -57,8 +65,9 @@ describe('PropertyDetailScreen', () => {
     jest.restoreAllMocks();
   });
 
-  it('renders hero photo badge, price, and agency badge correctly', () => {
+  it('renders hero photo badge, price, and agency badge correctly', async () => {
     const { getByText } = render(<PropertyDetailScreen />);
+    await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
 
     expect(getByText('1 de 8 fotos')).toBeTruthy();
     expect(getByText('$485,000')).toBeTruthy();
@@ -67,8 +76,9 @@ describe('PropertyDetailScreen', () => {
     expect(getByText(/Calle Claudio Coello · 2ª planta con ascensor cota cero/)).toBeTruthy();
   });
 
-  it('renders all 6 accessibility and comfort features', () => {
+  it('renders all 6 accessibility and comfort features', async () => {
     const { getByText } = render(<PropertyDetailScreen />);
+    await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
 
     expect(getByText('Características de Accesibilidad y Confort')).toBeTruthy();
     expect(getByText('Ascensor directo')).toBeTruthy();
@@ -85,12 +95,17 @@ describe('PropertyDetailScreen', () => {
     expect(getByText('Excelente aislamiento')).toBeTruthy();
   });
 
-  it('renders property description and walking distance amenities', () => {
+  it('renders an AI-generated property description (not hardcoded) and walking distance amenities', async () => {
     const { getByText } = render(<PropertyDetailScreen />);
 
-    // Description Section
+    // Description Section - generated via property-describe, grounded in the real known fields
     expect(getByText('Descripción de la vivienda')).toBeTruthy();
-    expect(getByText(/Vivienda totalmente exterior y luminosa/)).toBeTruthy();
+    expect(chatApi.generatePropertyDescription).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Barrio de Salamanca, Madrid', city: 'Madrid' })
+    );
+    await waitFor(() => {
+      expect(getByText(/Vivienda totalmente exterior y luminosa/)).toBeTruthy();
+    });
     expect(getByText(/portero físico y ascensor accesible a cota cero/)).toBeTruthy();
 
     // Nearby Amenities Section
@@ -105,8 +120,9 @@ describe('PropertyDetailScreen', () => {
     expect(getByText('A 380 metros')).toBeTruthy();
   });
 
-  it('handles contact advisor action from fixed dock', () => {
+  it('handles contact advisor action from fixed dock', async () => {
     const { getByLabelText } = render(<PropertyDetailScreen />);
+    await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
 
     const contactBtn = getByLabelText('Contactar asesor de Hubik');
     fireEvent.press(contactBtn);
@@ -118,8 +134,9 @@ describe('PropertyDetailScreen', () => {
     );
   });
 
-  it('handles quick question and mic press from bottom dock', () => {
+  it('handles quick question and mic press from bottom dock', async () => {
     const { getByPlaceholderText, getByLabelText } = render(<PropertyDetailScreen />);
+    await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
 
     const micBtn = getByLabelText('Hablar por micrófono');
     fireEvent.press(micBtn);
@@ -139,8 +156,9 @@ describe('PropertyDetailScreen', () => {
     );
   });
 
-  it('navigates back when tapping header back button', () => {
+  it('navigates back when tapping header back button', async () => {
     const { getByLabelText } = render(<PropertyDetailScreen />);
+    await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
 
     const backBtn = getByLabelText('Regresar');
     fireEvent.press(backBtn);

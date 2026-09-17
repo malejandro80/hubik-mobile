@@ -21,7 +21,12 @@ This rule establishes mandatory standards for all mobile application code built 
 - **Encrypted Vaults**: Use `expo-secure-store` for sensitive state, JWT auth tokens, or private user credentials. Never write credentials to unencrypted `AsyncStorage` or global state.
 - **Secret Quarantine**: Do not embed private backend secrets, master private keys, or write tokens in the client JavaScript bundle. Keep client configs public-key or API gateway scoped.
 
-## 5. Accessibility (a11y)
+## 5. Style Isolation
+- New or modified components keep their `StyleSheet.create({...})` block in an adjacent
+  `<Component>.styles.ts` file (e.g. `ChatMapPicker.tsx` → `ChatMapPicker.styles.ts`), imported
+  back into the component. Keeps component files focused on structure/behavior.
+
+## 6. Accessibility (a11y)
 - Every interactive element MUST define:
   - `accessibilityRole` (e.g. `'button'`, `'link'`, `'header'`, `'checkbox'`).
   - `accessibilityLabel` (short, descriptive text for screen readers).

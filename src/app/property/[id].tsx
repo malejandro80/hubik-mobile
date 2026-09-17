@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -17,6 +18,7 @@ import { BurgerMenu } from '../../components/BurgerMenu';
 import { ChatInputBar } from '../../components/ChatInputBar';
 import { Header } from '../../components/Header';
 import { useColorScheme } from '../../hooks/useColorScheme';
+import { generatePropertyDescription } from '../../services/chatApi';
 import { colors, shapes, spacing, typography } from '../../theme/colors';
 
 interface AccessibilityCardItem {
@@ -102,6 +104,42 @@ export default function PropertyDetailScreen() {
       ? `1 de ${realImages.length} foto${realImages.length === 1 ? '' : 's'}`
       : 'Sin fotos'
     : '1 de 8 fotos';
+
+  // Legacy/seeded properties carry no stored description - generate one from their real fields
+  // instead of showing static mockup copy (RFC 007 explicitly kept the mockup here originally;
+  // superseded by PR review feedback asking for no hardcoded content).
+  const [legacyDescription, setLegacyDescription] = useState<string | null>(null);
+  const [legacyDescriptionLoading, setLegacyDescriptionLoading] = useState(false);
+  const [legacyDescriptionError, setLegacyDescriptionError] = useState(false);
+
+  useEffect(() => {
+    if (isRealDraft) return;
+    let cancelled = false;
+    setLegacyDescriptionLoading(true);
+    setLegacyDescriptionError(false);
+    generatePropertyDescription({
+      title,
+      price: Number(params.price) || undefined,
+      bedrooms: Number(bedrooms) || undefined,
+      bathrooms: Number(bathrooms) || undefined,
+      square_meters: Number(squareMeters) || undefined,
+      city,
+      address,
+    })
+      .then(({ description }) => {
+        if (!cancelled) setLegacyDescription(description);
+      })
+      .catch(() => {
+        if (!cancelled) setLegacyDescriptionError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLegacyDescriptionLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRealDraft, params.id]);
 
   const accessibilityFeatures: AccessibilityCardItem[] = [
     {
@@ -202,11 +240,11 @@ export default function PropertyDetailScreen() {
           keyboardShouldPersistTaps="handled"
         >
         {/* Hero Image Container with Photo Count Badge */}
-        <View style={styles.imageWrapper}>
+        <View style={[styles.imageWrapper, { backgroundColor: theme.surfaceContainerHigh }]}>
           <Image source={{ uri: imageUrl }} style={styles.heroImage} resizeMode="cover" />
           <View style={styles.photoCountBadge}>
-            <Ionicons name="images-outline" size={14} color="#191C1B" style={styles.badgeIcon} />
-            <Text style={styles.photoCountText}>{photoCountLabel}</Text>
+            <Ionicons name="images-outline" size={14} color={theme.text} style={styles.badgeIcon} />
+            <Text style={[styles.photoCountText, { color: theme.text }]}>{photoCountLabel}</Text>
           </View>
         </View>
 
@@ -216,8 +254,8 @@ export default function PropertyDetailScreen() {
             {price}
           </Text>
 
-          <View style={styles.agencyBadge}>
-            <Text style={styles.agencyBadgeText}>Sin honorarios de agencia</Text>
+          <View style={[styles.agencyBadge, { backgroundColor: theme.secondaryContainer }]}>
+            <Text style={[styles.agencyBadgeText, { color: theme.onSecondaryContainer }]}>Sin honorarios de agencia</Text>
           </View>
 
           <View style={styles.locationRow}>
@@ -260,8 +298,8 @@ export default function PropertyDetailScreen() {
                     },
                   ]}
                 >
-                  <View style={styles.featureIconBadge}>
-                    <Ionicons name={item.icon} size={20} color="#2C685A" />
+                  <View style={[styles.featureIconBadge, { backgroundColor: theme.secondaryContainer }]}>
+                    <Ionicons name={item.icon} size={20} color={theme.secondary} />
                   </View>
                   <Text style={[styles.featureTitle, { color: theme.text }]}>
                     {item.title}
@@ -286,18 +324,18 @@ export default function PropertyDetailScreen() {
               <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
                 {params.description}
               </Text>
+            ) : legacyDescriptionLoading ? (
+              <ActivityIndicator color={theme.primary} />
+            ) : legacyDescription ? (
+              <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
+                {legacyDescription}
+              </Text>
             ) : (
-              <>
-                <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
-                  Vivienda totalmente exterior y luminosa, ubicada en una finca señorial tranquila con portero físico y ascensor accesible a cota cero sin desniveles.
-                </Text>
-                <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
-                  Dispone de un amplio salón con balcones orientados al este con sol matutino, suelo de parqué natural en espiga pulido y puertas anchas. La cocina es independiente, con espacio para mesa de comedor diario y acabados ergonómicos.
-                </Text>
-                <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
-                  Los baños disponen de plato de ducha a nivel de suelo y asideros de diseño. Un entorno pensado para el descanso, la seguridad y el confort duradero.
-                </Text>
-              </>
+              <Text style={[styles.descriptionParagraph, { color: theme.textSecondary }]}>
+                {legacyDescriptionError
+                  ? 'No se pudo generar la descripción en este momento.'
+                  : ''}
+              </Text>
             )}
           </View>
         </View>
@@ -324,14 +362,16 @@ export default function PropertyDetailScreen() {
                     key={idx}
                     style={[
                       styles.amenityRow,
-                      idx < NEARBY_AMENITIES.length - 1 ? styles.amenityBorder : null,
+                      idx < NEARBY_AMENITIES.length - 1
+                        ? [styles.amenityBorder, { borderBottomColor: theme.border }]
+                        : null,
                     ]}
                   >
                     <View style={styles.amenityLeft}>
                       <Ionicons
                         name={amenity.icon}
                         size={20}
-                        color="#2C685A"
+                        color={theme.secondary}
                         style={styles.amenityIcon}
                       />
                       <Text style={[styles.amenityName, { color: theme.text }]}>
@@ -363,7 +403,7 @@ export default function PropertyDetailScreen() {
         ]}
       >
         <TouchableOpacity
-          style={styles.contactButton}
+          style={[styles.contactButton, { backgroundColor: theme.primary }]}
           onPress={handleContactAdvisor}
           accessibilityRole="button"
           accessibilityLabel="Contactar asesor de Hubik"
@@ -371,10 +411,10 @@ export default function PropertyDetailScreen() {
           <Ionicons
             name="headset-outline"
             size={22}
-            color="#FFFFFF"
+            color={theme.onPrimary}
             style={styles.contactIcon}
           />
-          <Text style={styles.contactButtonText}>Contactar asesor</Text>
+          <Text style={[styles.contactButtonText, { color: theme.onPrimary }]}>Contactar asesor</Text>
         </TouchableOpacity>
 
         {/* Uniform ChatInputBar */}
@@ -419,7 +459,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
     marginBottom: 20,
-    backgroundColor: '#E5E7EB',
   },
   heroImage: {
     width: '100%',
@@ -447,7 +486,6 @@ const styles = StyleSheet.create({
   photoCountText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#191C1B',
   },
   priceLocationBlock: {
     marginBottom: 24,
@@ -460,14 +498,12 @@ const styles = StyleSheet.create({
   },
   agencyBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#D2F3EA',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: shapes.sm, // 4px
     marginBottom: 16,
   },
   agencyBadgeText: {
-    color: '#1A6354',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -528,7 +564,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: shapes.sm, // 8px
-    backgroundColor: '#D2F3EA',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
@@ -577,7 +612,6 @@ const styles = StyleSheet.create({
   },
   amenityBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#EDEEEC',
   },
   amenityLeft: {
     flexDirection: 'row',
@@ -617,14 +651,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 52,
     borderRadius: shapes.lg, // 16px
-    backgroundColor: '#163931',
     marginBottom: 10,
   },
   contactIcon: {
     marginRight: 8,
   },
   contactButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.2,

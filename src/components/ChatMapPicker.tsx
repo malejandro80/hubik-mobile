@@ -1,10 +1,11 @@
 import React, { useCallback, useMemo } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { colors, shapes } from '../theme/colors';
+import { colors } from '../theme/colors';
+import { styles } from './ChatMapPicker.styles';
 
 export interface ChatMapPickerProps {
   visible: boolean;
@@ -121,43 +122,3 @@ export const ChatMapPicker: React.FC<ChatMapPickerProps> = ({
     </Modal>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  closeButton: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  webview: {
-    flex: 1,
-  },
-  footer: {
-    padding: 16,
-  },
-  confirmButton: {
-    height: 52,
-    borderRadius: shapes.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  confirmButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-});

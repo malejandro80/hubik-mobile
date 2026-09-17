@@ -1,5 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { isAudioPayload, transcribeAndExtractFromAudio } from '../_shared/geminiAudio.ts';
+import { propertyIntakeAudioInstruction, propertyIntakeTextInstruction } from '../_shared/prompts.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -147,6 +148,31 @@ function heuristicExtract(message: string, known: PropertyDraft): PropertyDraft 
   return { ...known, ...extracted };
 }
 
+// Several phrasings per scenario, picked at random, so the assistant doesn't repeat the exact
+// same sentence on every turn - purely cosmetic variety, the underlying data/logic is unchanged.
+const READY_TO_CONFIRM_VARIANTS = [
+  '¡Perfecto! Ya tengo todos los datos necesarios. Aquí tiene el resumen para confirmar.',
+  '¡Listo! Con esto ya completé todos los datos. Revise el resumen y confírmelo cuando guste.',
+  'Excelente, ya reuní todo lo necesario. Eche un vistazo al resumen antes de publicar.',
+];
+
+const MISSING_FIELDS_PREFIX_VARIANTS = ['Me falta: ', 'Aún necesito: ', 'Todavía me falta: '];
+const MISSING_FIELDS_SUFFIX_VARIANTS = [
+  'Puede dármelos todos juntos o de a poco.',
+  'Puede indicármelos todos de una vez o uno a la vez.',
+  'Cuando guste, dígamelos juntos o por partes.',
+];
+
+const CATASTRO_ASK_VARIANTS = [
+  'Para comenzar, indíqueme la referencia catastral de la propiedad (puede consultarla en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de continuar.',
+  'Empecemos por la referencia catastral de la propiedad (está en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de seguir.',
+  'Lo primero que necesito es la referencia catastral (puede encontrarla en el recibo del IBI o en la Sede Electrónica del Catastro). Enseguida la verifico.',
+];
+
+function pick(variants: string[]): string {
+  return variants[Math.floor(Math.random() * variants.length)];
+}
+
 function buildAssistantMessage(
   missing: (keyof PropertyDraft)[],
   catastroStatus?: 'verified' | 'unverified'
@@ -159,31 +185,17 @@ function buildAssistantMessage(
         : '';
 
   if (missing.length === 0) {
-    return `${prefix}¡Perfecto! Ya tengo todos los datos necesarios. Aquí tiene el resumen para confirmar.`;
+    return `${prefix}${pick(READY_TO_CONFIRM_VARIANTS)}`;
   }
   if (missing.includes('catastro')) {
-    return 'Para comenzar, indíqueme la referencia catastral de la propiedad (puede consultarla en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de continuar.';
+    return pick(CATASTRO_ASK_VARIANTS);
   }
   const labels = missing.map((field) => FIELD_LABELS[field]);
   const joined =
     labels.length === 1
       ? labels[0]
       : `${labels.slice(0, -1).join(', ')} y ${labels[labels.length - 1]}`;
-  return `${prefix}Me falta: ${joined}. Puede dármelos todos juntos o de a poco.`;
-}
-
-function buildPropertyAudioSystemInstruction(known: PropertyDraft): string {
-  return (
-    'Eres un asistente que ayuda a un propietario a registrar una vivienda en Hubik, conversando en español. ' +
-    `Datos ya conocidos de esta propiedad (no los repitas salvo que la nota los corrija explícitamente): ${JSON.stringify(known)}. ` +
-    'Primero transcribe fielmente la nota de voz del usuario (en español o inglés) en el campo "transcript". ' +
-    'Luego, a partir de esa transcripción, extrae SOLO los campos que se mencionan explícita o claramente, como un objeto JSON con claves opcionales: ' +
-    'catastro (string, la referencia catastral, normalmente un código alfanumérico de 14 a 20 caracteres), ' +
-    'title (string), property_type (uno exacto de: Apartment, Single Family, Townhouse, Studio, Condo), ' +
-    'operation_type (uno exacto de: sale, rent), price (number, en euros), bedrooms (number), bathrooms (number), ' +
-    'square_meters (number), city (string), address (string, calle y número si se mencionan). ' +
-    'No inventes valores que no estén en la nota. Genera únicamente JSON válido sin explicaciones adicionales.'
-  );
+  return `${prefix}${pick(MISSING_FIELDS_PREFIX_VARIANTS)}${joined}. ${pick(MISSING_FIELDS_SUFFIX_VARIANTS)}`;
 }
 
 function sanitizeGeminiFields(raw: any): Partial<PropertyDraft> {
@@ -241,7 +253,7 @@ Deno.serve(async (req: Request) => {
       try {
         const result = await transcribeAndExtractFromAudio(
           audio,
-          buildPropertyAudioSystemInstruction(known),
+          propertyIntakeAudioInstruction(known),
           geminiKey!
         );
         transcript = result.transcript;
@@ -263,19 +275,7 @@ Deno.serve(async (req: Request) => {
             body: JSON.stringify({
               contents: [{ parts: [{ text: message }] }],
               systemInstruction: {
-                parts: [
-                  {
-                    text:
-                      'Eres un asistente que ayuda a un propietario a registrar una vivienda en Hubik, conversando en español. ' +
-                      `Datos ya conocidos de esta propiedad (no los repitas salvo que el mensaje los corrija explícitamente): ${JSON.stringify(known)}. ` +
-                      'Extrae del mensaje del usuario SOLO los campos que se mencionan explícita o claramente en ese mensaje, como un objeto JSON con claves opcionales: ' +
-                      'catastro (string, la referencia catastral, normalmente un código alfanumérico de 14 a 20 caracteres), ' +
-                      'title (string), property_type (uno exacto de: Apartment, Single Family, Townhouse, Studio, Condo), ' +
-                      'operation_type (uno exacto de: sale, rent), price (number, en euros), bedrooms (number), bathrooms (number), ' +
-                      'square_meters (number), city (string), address (string, calle y número si se mencionan). ' +
-                      'No inventes valores que no estén en el mensaje. Genera únicamente JSON válido sin explicaciones adicionales.',
-                  },
-                ],
+                parts: [{ text: propertyIntakeTextInstruction(known) }],
               },
               generationConfig: { responseMimeType: 'application/json' },
             }),

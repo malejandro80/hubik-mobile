@@ -23,9 +23,14 @@
   `supabase/migrations/20260916_add_catastro.sql` (applied as `20260916231753_add_catastro`),
   `supabase/migrations/20260916_catastro_not_null.sql` (written, NOT applied),
   `supabase/migrations/20260916_add_media_location_description.sql` (written, NOT applied).
-- **Next**: Manual on-device verification of the full flow (photos, map pin, AI description,
-  publish with embedding) and a real voice recording round-trip through Gemini before shipping.
-  Nothing committed to git yet — pending explicit user approval.
+- **Next**: All 12 PR #3 review comments addressed locally (session 033 in `session-log.md`) —
+  photo staging/grid, semantic search fallback, prompt centralization/translation, theme/hardcoding
+  fixes, docs translation, catastro indexing verified. Still pending: manual on-device verification
+  of the full flow (photos grid, deferred upload, map pin, AI description for legacy properties,
+  semantic search, publish with embedding), a real voice recording round-trip through Gemini, and
+  explicit user approval before committing/pushing/replying on PR #3.
+- **See also**: `.agents/rules/07-feature-graph.md` for how RFC 004/006/007 and their modules
+  relate to each other.
 
 ## Prior Milestone: LangGraph Architecture Team Orchestrator
 - **Goal**: Executable multi-agent architecture squad in TypeScript.

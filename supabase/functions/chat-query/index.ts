@@ -1,5 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { isAudioPayload, transcribeAndExtractFromAudio } from '../_shared/geminiAudio.ts';
+import { chatQueryAudioInstruction, chatQueryTextInstruction } from '../_shared/prompts.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -194,14 +195,28 @@ function parsePromptFilters(message: string): FilterParams {
   return filters;
 }
 
-const CHAT_AUDIO_SYSTEM_INSTRUCTION =
-  'Eres un asistente experto en búsqueda de bienes raíces. Primero transcribe fielmente la nota de voz del usuario ' +
-  '(en español o inglés) en el campo "transcript". Luego, a partir de esa transcripción, extrae los filtros de ' +
-  'búsqueda como un objeto JSON con las claves: transcript (string, la transcripción literal) y, opcionalmente, ' +
-  'city (string), property_type (Apartment, Single Family, Townhouse, Studio, Condo), min_price (number), ' +
-  'max_price (number), min_bedrooms (number), max_bedrooms (number), min_square_meters (number), ' +
-  'max_square_meters (number), limit (number), sort_by (price_asc, price_desc). El área se mide en metros ' +
-  'cuadrados (m²). Genera únicamente JSON válido sin explicaciones adicionales.';
+async function embedText(text: string, geminiKey: string): Promise<number[] | null> {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'models/text-embedding-004',
+          content: { parts: [{ text }] },
+        }),
+      }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const values = data?.embedding?.values;
+    return Array.isArray(values) ? values : null;
+  } catch (err) {
+    console.warn('[chat-query] query embedding failed:', err);
+    return null;
+  }
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
@@ -253,7 +268,7 @@ Deno.serve(async (req: Request) => {
         );
       }
       try {
-        const result = await transcribeAndExtractFromAudio(audio, CHAT_AUDIO_SYSTEM_INSTRUCTION, geminiKey!);
+        const result = await transcribeAndExtractFromAudio(audio, chatQueryAudioInstruction(), geminiKey!);
         transcript = result.transcript;
         filters = result.extracted;
       } catch (geminiErr: any) {
@@ -276,11 +291,7 @@ Deno.serve(async (req: Request) => {
               body: JSON.stringify({
                 contents: [{ parts: [{ text: message }] }],
                 systemInstruction: {
-                  parts: [
-                    {
-                      text: 'Eres un asistente experto en búsqueda de bienes raíces. Extrae los filtros de búsqueda a partir del mensaje del usuario (en español o inglés) como un objeto JSON con claves opcionales: city (string), property_type (Apartment, Single Family, Townhouse, Studio, Condo), min_price (number), max_price (number), min_bedrooms (number), max_bedrooms (number), min_square_meters (number), max_square_meters (number), limit (number), sort_by (price_asc, price_desc). El área se mide en metros cuadrados (m²). Genera únicamente JSON válido sin explicaciones adicionales.',
-                    },
-                  ],
+                  parts: [{ text: chatQueryTextInstruction() }],
                 },
                 generationConfig: {
                   responseMimeType: 'application/json',
@@ -351,12 +362,37 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Database error: ${dbError.message}`);
     }
 
-    const items = properties || [];
+    let items = properties || [];
+    let isSemanticFallback = false;
+
+    // 2b. Semantic fallback: the structured filter query found nothing, but every published
+    // property already carries a Gemini embedding (property-publish) - reuse it instead of
+    // just giving up, via the match_properties RPC (existing, previously unused by search).
+    if (items.length === 0 && hasGeminiKey) {
+      try {
+        const queryEmbedding = await embedText(transcript ?? message, geminiKey!);
+        if (queryEmbedding) {
+          const { data: semanticMatches } = await supabase.rpc('match_properties', {
+            query_embedding: queryEmbedding,
+            match_threshold: 0.5,
+            match_count: filters.limit || 10,
+          });
+          if (semanticMatches && semanticMatches.length > 0) {
+            items = semanticMatches;
+            isSemanticFallback = true;
+          }
+        }
+      } catch (semanticErr) {
+        console.warn('[chat-query] semantic fallback failed, keeping empty result:', semanticErr);
+      }
+    }
 
     // 3. Synthesize conversational answer in Spanish
     let answer: string;
     if (items.length === 0) {
       answer = `No encontré propiedades que coincidan con "${transcript ?? message}". ¡Intenta buscar en Austin, Miami, Denver, Seattle o New York!`;
+    } else if (isSemanticFallback) {
+      answer = `No encontré coincidencias exactas, pero estas ${items.length} propiedades son similares a lo que buscas:`;
     } else {
       const cityText = filters.city ? ` en ${filters.city}` : '';
       let typeText = ' propiedades';

@@ -118,7 +118,21 @@ ALTER TABLE public.properties ALTER COLUMN catastro SET NOT NULL;
 
 ---
 
-## 6. Verification & Test Plan
+## 6. Indexing (PR review follow-up)
+`catastro` lookups (`property-intake`'s duplicate check, `property-publish`'s pre-check and
+insert) already hit an index, not a sequential scan: `properties_catastro_key` — the `UNIQUE`
+constraint from the schema change above — is backed by an automatic Postgres B-tree index.
+Confirmed on the remote project via `pg_indexes`:
+```
+CREATE UNIQUE INDEX properties_catastro_key ON public.properties USING btree (catastro)
+```
+No further schema change is needed. Making `catastro` the table's primary key instead of `id`
+was considered and rejected: `id` (uuid) is already referenced by route params, `match_properties`,
+and every client-side navigation path — repointing all of that for an index that already exists
+would be pure risk for zero query-speed benefit. A compound index (e.g. `(catastro, status)`) isn't
+warranted either — every current lookup filters on `catastro` alone.
+
+## 7. Verification & Test Plan
 - [x] Unit Test: `parsePropertyDraft` (client heuristic) extracts a `catastro`-shaped token from free text.
 - [x] Unit Test: `buildAssistantMessage`-equivalent behavior — when `catastro` is missing, the assistant message only asks for it, even if other fields are also missing.
 - [x] Unit Test: immediate feedback is shown the moment `catastro` is newly provided, and is not repeated on a later turn once it was already known.

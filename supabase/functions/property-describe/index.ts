@@ -1,3 +1,5 @@
+import { propertyDescribeInstruction } from '../_shared/prompts.ts';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers':
@@ -18,17 +20,6 @@ interface PropertyDraft {
   images?: string[];
   latitude?: number;
   longitude?: number;
-}
-
-function buildSystemInstruction(known: PropertyDraft): string {
-  return (
-    'Eres un redactor inmobiliario que escribe en español para Hubik. ' +
-    `Estos son los ÚNICOS datos reales de la propiedad: ${JSON.stringify(known)}. ` +
-    'Escribe una descripción breve (2 a 4 frases), cálida y profesional, para el anuncio. ' +
-    'Usa EXCLUSIVAMENTE los datos proporcionados: nunca inventes amenidades, cercanías, ' +
-    'reformas, vistas ni ningún hecho que no esté en esos datos. Si un dato no está presente, ' +
-    'simplemente no lo menciones. Responde solo con un objeto JSON: { "description": "..." }.'
-  );
 }
 
 Deno.serve(async (req: Request) => {
@@ -57,7 +48,7 @@ Deno.serve(async (req: Request) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: 'Genera la descripción del anuncio.' }] }],
-          systemInstruction: { parts: [{ text: buildSystemInstruction(known) }] },
+          systemInstruction: { parts: [{ text: propertyDescribeInstruction(known) }] },
           generationConfig: { responseMimeType: 'application/json' },
         }),
       }

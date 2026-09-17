@@ -734,3 +734,55 @@ This file records the chronological record of agent sessions to ensure continuit
     - TypeScript (`tsc --noEmit`): Clean (0 errors).
     - Secret Scanner: Clean.
 - **Next Actions**: User reloads the app in Metro (`r`) and tests voice note recording in chat. Ready for atomic commit upon approval.
+
+---
+
+### [2026-09-17] Session 033: Resolve All 12 PR #3 Review Comments
+- **Status**: Completed & Verified locally; **not committed** (pending explicit user approval per
+  human-release-authority rule) and no reply/resolve posted on the GitHub PR thread.
+- **Changes Made** (one per PR #3 review comment; full mapping in
+  `~/.claude/plans/snazzy-jumping-avalanche.md`):
+  - `.agents/rules/07-feature-graph.md` (new): static Mermaid graph of RFC 004/006/007 and module
+    dependencies, referenced from `CLAUDE.md` and `current-milestone.md`.
+  - `docs/architecture/inmovoz-blueprint.md`: fully translated to English.
+  - `specs/004-...md`: updated stale "no embedding" Non-Goal (superseded by RFC 007) and added an
+    amendment documenting the new `chat-query` semantic-search fallback.
+  - `specs/006-...md`: added an "Indexing" section confirming (via `mcp__supabase__execute_sql`
+    against the remote project) that `catastro` already has an automatic unique B-tree index
+    (`properties_catastro_key`) — no PK change or extra index needed.
+  - `specs/007-...md`: added a PR-review amendment documenting local photo staging + grid
+    management, and noting the "edit position" comment was already solved by existing controls.
+  - `supabase/functions/_shared/prompts.ts` (new): every Gemini system instruction (chat-query,
+    property-intake ×2, property-describe) centralized here, in English, instructing Spanish
+    output. All three Edge Functions now import from it instead of inlining prompts.
+  - `supabase/functions/chat-query/index.ts`: added a semantic-search fallback (embeds the query
+    via `text-embedding-004`, calls the previously-unused `match_properties` RPC) when the
+    structured filter query returns zero rows.
+  - `supabase/functions/property-intake/index.ts` + `src/services/chatApi.ts`: `buildAssistantMessage`
+    now picks from small phrasing-variant pools per scenario instead of one fixed string each
+    (catastro-status prefixes stay fixed in the client fallback for existing test stability).
+  - `src/hooks/usePropertyRegistrationChat.ts`: `addPhotos` now stages local `file://` URIs only
+    (no upload); new `removePhoto`/`movePhoto`; `confirmPublish` uploads all staged local photos as
+    one batch, order-preserving, immediately before publish.
+  - `src/components/PropertyPhotoGrid.tsx` + `.styles.ts` (new): 3-column `FlatList` grid with
+    delete/reorder/"Portada" cover badge, wired into `src/app/index.tsx`'s photos step.
+  - `src/components/ChatMapPicker.tsx`: styles moved to new `ChatMapPicker.styles.ts`; added a
+    matching rule to `.agents/rules/06-mobile-development.md` (style isolation, new §5).
+  - `src/app/property/[id].tsx`: legacy/seeded properties now get an AI-generated description
+    (`generatePropertyDescription`, loading state) instead of static mockup paragraphs; all
+    hardcoded hex colors replaced with `src/theme/colors.ts` tokens.
+  - Test updates justified by the above behavior changes (not tampering — reviewer explicitly
+    requested them): `usePropertyRegistrationChat.test.ts` (staged-not-uploaded photos, new
+    `removePhoto`/`movePhoto` tests, batch-upload-at-publish test), `index.test.tsx` (new photo
+    grid flow test), `propertyDetail.test.tsx` (AI-generated description assertions + `waitFor`
+    flushes for the new effect).
+- **Verification**:
+  - Ran `./scripts/verify.sh check-all`: ESLint clean (0 errors, 3 pre-existing/unrelated
+    warnings), Jest 34 suites / 181 tests passing, `tsc --noEmit` clean, secret scan clean.
+  - Verified remote `catastro` index via `mcp__supabase__execute_sql` (`pg_indexes` query).
+  - Deno Edge Functions have no local test runner (documented repo-wide gap); syntax-verified with
+    `esbuild` (brace balance + single-file transpile) since `deno` isn't installed here.
+- **Next Actions**: User review of the diff; then explicit approval to commit, and separately to
+  push/reply on PR #3 (neither was done this session). Manual on-device pass still outstanding for
+  the photo grid, deferred-upload-at-publish, legacy-description generation, and semantic-search
+  fallback, same as RFC 007's own pending on-device checklist.

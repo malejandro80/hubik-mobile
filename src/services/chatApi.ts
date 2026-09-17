@@ -397,6 +397,33 @@ function extractCatastro(text: string): string | undefined {
   return match ? match[0].toUpperCase() : undefined;
 }
 
+// Several phrasings per scenario, picked at random, so the assistant doesn't repeat the exact
+// same sentence on every turn - purely cosmetic variety, the underlying data/logic is unchanged.
+// The catastro-prefix lines stay fixed strings (unvaried): existing unit tests assert their
+// exact wording, and they're status confirmations rather than conversational filler.
+const READY_TO_CONFIRM_VARIANTS = [
+  '¡Perfecto! Ya tengo todos los datos necesarios. Aquí tiene el resumen para confirmar.',
+  '¡Listo! Con esto ya completé todos los datos. Revise el resumen y confírmelo cuando guste.',
+  'Excelente, ya reuní todo lo necesario. Eche un vistazo al resumen antes de publicar.',
+];
+
+const MISSING_FIELDS_PREFIX_VARIANTS = ['Me falta: ', 'Aún necesito: ', 'Todavía me falta: '];
+const MISSING_FIELDS_SUFFIX_VARIANTS = [
+  'Puede dármelos todos juntos o de a poco.',
+  'Puede indicármelos todos de una vez o uno a la vez.',
+  'Cuando guste, dígamelos juntos o por partes.',
+];
+
+const CATASTRO_ASK_VARIANTS = [
+  'Para comenzar, indíqueme la referencia catastral de la propiedad (puede consultarla en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de continuar.',
+  'Empecemos por la referencia catastral de la propiedad (está en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de seguir.',
+  'Lo primero que necesito es la referencia catastral (puede encontrarla en el recibo del IBI o en la Sede Electrónica del Catastro). Enseguida la verifico.',
+];
+
+function pickVariant(variants: string[]): string {
+  return variants[Math.floor(Math.random() * variants.length)];
+}
+
 function buildAssistantMessage(missing: (keyof PropertyDraft)[], catastroJustProvided?: boolean): string {
   // This client-side fallback has no DB access, so a newly-provided catastro can only be
   // acknowledged, not verified - real verification happens in property-intake / property-publish.
@@ -405,17 +432,17 @@ function buildAssistantMessage(missing: (keyof PropertyDraft)[], catastroJustPro
     : '';
 
   if (missing.length === 0) {
-    return `${prefix}¡Perfecto! Ya tengo todos los datos necesarios. Aquí tiene el resumen para confirmar.`;
+    return `${prefix}${pickVariant(READY_TO_CONFIRM_VARIANTS)}`;
   }
   if (missing.includes('catastro')) {
-    return 'Para comenzar, indíqueme la referencia catastral de la propiedad (puede consultarla en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de continuar.';
+    return pickVariant(CATASTRO_ASK_VARIANTS);
   }
   const labels = missing.map((field) => PROPERTY_DRAFT_FIELD_LABELS[field as keyof typeof PROPERTY_DRAFT_FIELD_LABELS]);
   const joined =
     labels.length === 1
       ? labels[0]
       : `${labels.slice(0, -1).join(', ')} y ${labels[labels.length - 1]}`;
-  return `${prefix}Me falta: ${joined}. Puede dármelos todos juntos o de a poco.`;
+  return `${prefix}${pickVariant(MISSING_FIELDS_PREFIX_VARIANTS)}${joined}. ${pickVariant(MISSING_FIELDS_SUFFIX_VARIANTS)}`;
 }
 
 export function parsePropertyDraft(message: string, known: PropertyDraft): PropertyIntakeResponse {

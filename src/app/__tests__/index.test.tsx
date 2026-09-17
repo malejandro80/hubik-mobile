@@ -3,6 +3,8 @@ import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import HomeScreen from '../index';
 import * as chatApi from '../../services/chatApi';
+import * as propertyImages from '../../services/propertyImages';
+import * as ImagePicker from 'expo-image-picker';
 
 jest.mock('../../services/chatApi', () => ({
   sendChatQuery: jest.fn(),
@@ -350,6 +352,93 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
         })
       );
       expect(getByText(/Publiqué "Piso en venta en Madrid"/)).toBeTruthy();
+    });
+  });
+
+  it('stages picked photos in the grid (no upload) and uploads them as a batch only at publish time', async () => {
+    (chatApi.intakeProperty as jest.Mock).mockResolvedValueOnce({
+      data: completeDraft,
+      missing_fields: [],
+      assistant_message: '¡Perfecto! Ya tengo todos los datos necesarios. Aquí tiene el resumen para confirmar.',
+      ready_to_confirm: true,
+    });
+    (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValueOnce({
+      canceled: false,
+      assets: [{ uri: 'file://a.jpg' }, { uri: 'file://b.jpg' }],
+    });
+    (propertyImages.uploadPropertyImages as jest.Mock).mockResolvedValueOnce([
+      'https://storage.example.com/a.jpg',
+    ]);
+    (chatApi.generatePropertyDescription as jest.Mock).mockResolvedValueOnce({
+      description: 'Piso luminoso en el centro de Madrid.',
+    });
+    (chatApi.publishProperty as jest.Mock).mockResolvedValueOnce({
+      id: 'new-prop-2',
+      title: 'Piso en venta en Madrid',
+      property_type: 'Apartment',
+      price: 420000,
+      bedrooms: 3,
+      bathrooms: 2,
+      square_meters: 90,
+      city: 'Madrid',
+      address: 'Calle Mayor 12',
+      status: 'Available',
+      image_url: '',
+      images: [],
+    });
+
+    const { getByPlaceholderText, getByText, getByLabelText } = render(<HomeScreen />);
+    const input = getByPlaceholderText('Escriba su consulta aquí...');
+
+    fireEvent.changeText(input, '/agregar-propiedad');
+    fireEvent.press(getByText('Enviar'));
+    await waitFor(() => getByText(/referencia catastral/));
+
+    fireEvent.changeText(
+      input,
+      'Vendo mi piso en Madrid, calle Mayor 12, 3 habitaciones, 2 baños, 90 metros cuadrados, por 420.000 euros'
+    );
+    fireEvent.press(getByText('Enviar'));
+
+    await waitFor(() => {
+      expect(getByLabelText('Search for Adjuntar fotos')).toBeTruthy();
+    });
+    fireEvent.press(getByLabelText('Search for Adjuntar fotos'));
+
+    // Photos are staged locally - no Storage upload happens on pick.
+    await waitFor(() => {
+      expect(getByText('Portada')).toBeTruthy();
+    });
+    expect(propertyImages.uploadPropertyImages).not.toHaveBeenCalled();
+
+    // Remove one staged photo via the grid's per-thumbnail control.
+    fireEvent.press(getByLabelText('Eliminar foto 2'));
+    expect(propertyImages.uploadPropertyImages).not.toHaveBeenCalled();
+
+    fireEvent.press(getByLabelText('Search for Continuar sin fotos'));
+    await waitFor(() => {
+      expect(getByLabelText('Search for Fijar ubicación')).toBeTruthy();
+    });
+    fireEvent.press(getByLabelText('Search for Fijar ubicación'));
+
+    await waitFor(() => {
+      expect(getByText(/Confirmar ubicación/)).toBeTruthy();
+    });
+    fireEvent.press(getByText(/Confirmar ubicación/));
+
+    await waitFor(() => {
+      expect(getByText(/Confirmar y publicar/)).toBeTruthy();
+    });
+    fireEvent.press(getByText(/Confirmar y publicar/));
+
+    await waitFor(() => {
+      expect(propertyImages.uploadPropertyImages).toHaveBeenCalledWith(
+        expect.any(String),
+        ['file://a.jpg']
+      );
+      expect(chatApi.publishProperty).toHaveBeenCalledWith(
+        expect.objectContaining({ images: ['https://storage.example.com/a.jpg'] })
+      );
     });
   });
 

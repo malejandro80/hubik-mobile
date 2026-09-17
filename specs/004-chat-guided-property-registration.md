@@ -26,10 +26,23 @@ Property owners (e.g. Don Carlos) need to register a new listing without filling
 - [x] Remove the old `/register` wizard screen, its hook, its types, and its dedicated wizard components — they are fully superseded.
 
 ### Non-Goals (Out of Scope)
-- Vector embedding generation for the new property. The current search path (`chat-query`) filters with plain SQL, not `match_properties`, so there is no consumer for an embedding yet; `embedding` is left `NULL` on insert.
+- ~~Vector embedding generation for the new property.~~ **Superseded by RFC 007**: `property-publish`
+  now computes a real Gemini `text-embedding-004` embedding from the description at publish time.
+  **Superseded by this document's own PR-review amendment below**: `chat-query` now also has a
+  semantic-search fallback that queries by that embedding via `match_properties`.
 - Photo upload, cadastral reference lookup, and owner PII capture (previously Steps 2 & 3 of the old wizard). These are not modeled in the `properties` schema and are out of scope for this RFC.
 - Authentication / per-user ownership of listings (the app has no login flow today).
 - Editing or deleting previously published properties via chat.
+
+### Amendment (PR review, 2026-09-17): semantic search fallback
+Every published property already carries a real embedding (RFC 007), but nothing consumed it —
+`chat-query` only ever ran structured SQL filters, so `match_properties` (present since the first
+migration) had zero callers. `chat-query/index.ts` now falls back to it: when the structured
+filter query returns zero rows and a Gemini key is configured, the user's message (or transcript)
+is embedded with the same `text-embedding-004` model and passed to `match_properties`; a non-empty
+result is returned as "similar properties" instead of the plain empty-results message. This is
+Edge-Function-only (same asymmetry the audio path already has vs. the client-side heuristic
+fallback) — there is no local/offline equivalent since embedding requires the Gemini API.
 
 ---
 

@@ -19,6 +19,7 @@ import { ChatInputBar } from '../components/ChatInputBar';
 import { ChatMapPicker } from '../components/ChatMapPicker';
 import { ChatMessageItem } from '../components/ChatMessageItem';
 import { Header } from '../components/Header';
+import { PropertyPhotoGrid } from '../components/PropertyPhotoGrid';
 import { SuggestionChips } from '../components/SuggestionChips';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { usePropertyRegistrationChat } from '../hooks/usePropertyRegistrationChat';
@@ -252,10 +253,10 @@ export default function HomeScreen() {
             });
             if (!result.canceled && result.assets.length > 0) {
               const uris = result.assets.map((asset) => asset.uri);
-              const { images } = await registration.addPhotos(uris);
+              const { images } = registration.addPhotos(uris);
               appendAssistantMessage(
                 newMessages,
-                `Añadí ${uris.length} foto(s). Tiene ${images.length} en total. Puede agregar más (hasta ${MAX_PROPERTY_IMAGES}) o tocar "${SKIP_PHOTOS_CHIP}" para continuar.`
+                `Añadí ${uris.length} foto(s). Tiene ${images.length} en total (se subirán al publicar). Puede reordenarlas o eliminarlas abajo, agregar más (hasta ${MAX_PROPERTY_IMAGES}), o tocar "${SKIP_PHOTOS_CHIP}" para continuar.`
               );
             } else {
               appendAssistantMessage(newMessages, 'No se seleccionó ninguna foto. Puede intentarlo de nuevo o continuar sin fotos.');
@@ -543,11 +544,24 @@ export default function HomeScreen() {
 
         {/* Registration step quick actions */}
         {registration.state.mode === 'photos' && (
-          <SuggestionChips
-            chips={[ADD_PHOTOS_CHIP, SKIP_PHOTOS_CHIP]}
-            onSelectChip={handleSend}
-            disabled={loading}
-          />
+          <>
+            {(registration.state.draft.images?.length || 0) > 0 && (
+              <View style={styles.photoGridWrapper}>
+                <PropertyPhotoGrid
+                  images={registration.state.draft.images || []}
+                  maxImages={MAX_PROPERTY_IMAGES}
+                  onRemove={registration.removePhoto}
+                  onMove={registration.movePhoto}
+                  onAddPress={() => handleSend(ADD_PHOTOS_CHIP)}
+                />
+              </View>
+            )}
+            <SuggestionChips
+              chips={[ADD_PHOTOS_CHIP, SKIP_PHOTOS_CHIP]}
+              onSelectChip={handleSend}
+              disabled={loading}
+            />
+          </>
         )}
         {registration.state.mode === 'location' && (
           <SuggestionChips
@@ -601,6 +615,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+  },
+  photoGridWrapper: {
+    paddingHorizontal: spacing.marginMobile,
   },
   listHeader: {
     alignItems: 'center',
