@@ -60,6 +60,10 @@ export default function PropertyDetailScreen() {
     bathrooms?: string;
     square_meters?: string;
     image_url?: string;
+    description?: string;
+    images?: string;
+    lat?: string;
+    lng?: string;
   }>();
 
   const colorScheme = useColorScheme();
@@ -77,9 +81,27 @@ export default function PropertyDetailScreen() {
   const bedrooms = params.bedrooms || '3';
   const bathrooms = params.bathrooms || '2';
   const squareMeters = params.square_meters || '120';
+  const realImages: string[] = (() => {
+    if (!params.images) return [];
+    try {
+      const parsed = JSON.parse(params.images);
+      return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : [];
+    } catch {
+      return [];
+    }
+  })();
+  // A real registration draft is distinguished by carrying an AI-generated description;
+  // legacy/seeded properties (no description param) keep today's mockup content untouched.
+  const isRealDraft = Boolean(params.description);
   const imageUrl =
+    realImages[0] ||
     params.image_url ||
     'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80';
+  const photoCountLabel = isRealDraft
+    ? realImages.length > 0
+      ? `1 de ${realImages.length} foto${realImages.length === 1 ? '' : 's'}`
+      : 'Sin fotos'
+    : '1 de 8 fotos';
 
   const accessibilityFeatures: AccessibilityCardItem[] = [
     {
@@ -135,7 +157,7 @@ export default function PropertyDetailScreen() {
   const handleMenuItemSelect = (key: string) => {
     setIsMenuOpen(false);
     if (key === 'register') {
-      router.push('/register');
+      router.push({ pathname: '/', params: { startRegistration: '1' } });
     } else if (key === 'new_chat' || key === 'search') {
       router.push('/');
     } else if (key === 'saved') {
@@ -184,7 +206,7 @@ export default function PropertyDetailScreen() {
           <Image source={{ uri: imageUrl }} style={styles.heroImage} resizeMode="cover" />
           <View style={styles.photoCountBadge}>
             <Ionicons name="images-outline" size={14} color="#191C1B" style={styles.badgeIcon} />
-            <Text style={styles.photoCountText}>1 de 8 fotos</Text>
+            <Text style={styles.photoCountText}>{photoCountLabel}</Text>
           </View>
         </View>
 
@@ -210,43 +232,48 @@ export default function PropertyDetailScreen() {
                 {title}
               </Text>
               <Text style={[styles.addressSubtitle, { color: theme.textSecondary }]}>
-                {address} · 2ª planta con ascensor cota cero
+                {isRealDraft ? address : `${address} · 2ª planta con ascensor cota cero`}
               </Text>
             </View>
           </View>
         </View>
 
         {/* Section: Características de Accesibilidad y Confort */}
-        <View style={styles.sectionContainer}>
-          <Text style={[styles.sectionTitle, { color: theme.primary }]}>
-            Características de Accesibilidad y Confort
-          </Text>
+        {/* Only shown for legacy/seeded properties - this copy is generic marketing
+            filler, not real per-property data, so it would be misleading next to an
+            actual user-submitted registration draft. */}
+        {!isRealDraft && (
+          <View style={styles.sectionContainer}>
+            <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+              Características de Accesibilidad y Confort
+            </Text>
 
-          <View style={styles.gridContainer}>
-            {accessibilityFeatures.map((item, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.featureCard,
-                  {
-                    backgroundColor: theme.card,
-                    borderColor: theme.border,
-                  },
-                ]}
-              >
-                <View style={styles.featureIconBadge}>
-                  <Ionicons name={item.icon} size={20} color="#2C685A" />
+            <View style={styles.gridContainer}>
+              {accessibilityFeatures.map((item, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.featureCard,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                >
+                  <View style={styles.featureIconBadge}>
+                    <Ionicons name={item.icon} size={20} color="#2C685A" />
+                  </View>
+                  <Text style={[styles.featureTitle, { color: theme.text }]}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.featureSubtitle, { color: theme.textSecondary }]}>
+                    {item.subtitle}
+                  </Text>
                 </View>
-                <Text style={[styles.featureTitle, { color: theme.text }]}>
-                  {item.title}
-                </Text>
-                <Text style={[styles.featureSubtitle, { color: theme.textSecondary }]}>
-                  {item.subtitle}
-                </Text>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Section: Descripción de la vivienda */}
         <View style={styles.sectionContainer}>
@@ -255,61 +282,71 @@ export default function PropertyDetailScreen() {
           </Text>
 
           <View style={styles.descriptionBlock}>
-            <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
-              Vivienda totalmente exterior y luminosa, ubicada en una finca señorial tranquila con portero físico y ascensor accesible a cota cero sin desniveles.
-            </Text>
-            <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
-              Dispone de un amplio salón con balcones orientados al este con sol matutino, suelo de parqué natural en espiga pulido y puertas anchas. La cocina es independiente, con espacio para mesa de comedor diario y acabados ergonómicos.
-            </Text>
-            <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
-              Los baños disponen de plato de ducha a nivel de suelo y asideros de diseño. Un entorno pensado para el descanso, la seguridad y el confort duradero.
-            </Text>
+            {isRealDraft ? (
+              <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
+                {params.description}
+              </Text>
+            ) : (
+              <>
+                <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
+                  Vivienda totalmente exterior y luminosa, ubicada en una finca señorial tranquila con portero físico y ascensor accesible a cota cero sin desniveles.
+                </Text>
+                <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
+                  Dispone de un amplio salón con balcones orientados al este con sol matutino, suelo de parqué natural en espiga pulido y puertas anchas. La cocina es independiente, con espacio para mesa de comedor diario y acabados ergonómicos.
+                </Text>
+                <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
+                  Los baños disponen de plato de ducha a nivel de suelo y asideros de diseño. Un entorno pensado para el descanso, la seguridad y el confort duradero.
+                </Text>
+              </>
+            )}
           </View>
         </View>
 
-        {/* Section: Cercanías a pie */}
-        <View style={styles.sectionContainer}>
-          <View
-            style={[
-              styles.amenitiesCard,
-              {
-                backgroundColor: theme.card,
-                borderColor: theme.border,
-              },
-            ]}
-          >
-            <Text style={[styles.amenitiesTitle, { color: theme.primary }]}>
-              Cercanías a pie
-            </Text>
+        {/* Section: Cercanías a pie - legacy/seeded properties only, same reasoning as above. */}
+        {!isRealDraft && (
+          <View style={styles.sectionContainer}>
+            <View
+              style={[
+                styles.amenitiesCard,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Text style={[styles.amenitiesTitle, { color: theme.primary }]}>
+                Cercanías a pie
+              </Text>
 
-            <View style={styles.amenitiesList}>
-              {NEARBY_AMENITIES.map((amenity, idx) => (
-                <View
-                  key={idx}
-                  style={[
-                    styles.amenityRow,
-                    idx < NEARBY_AMENITIES.length - 1 ? styles.amenityBorder : null,
-                  ]}
-                >
-                  <View style={styles.amenityLeft}>
-                    <Ionicons
-                      name={amenity.icon}
-                      size={20}
-                      color="#2C685A"
-                      style={styles.amenityIcon}
-                    />
-                    <Text style={[styles.amenityName, { color: theme.text }]}>
-                      {amenity.title}
+              <View style={styles.amenitiesList}>
+                {NEARBY_AMENITIES.map((amenity, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.amenityRow,
+                      idx < NEARBY_AMENITIES.length - 1 ? styles.amenityBorder : null,
+                    ]}
+                  >
+                    <View style={styles.amenityLeft}>
+                      <Ionicons
+                        name={amenity.icon}
+                        size={20}
+                        color="#2C685A"
+                        style={styles.amenityIcon}
+                      />
+                      <Text style={[styles.amenityName, { color: theme.text }]}>
+                        {amenity.title}
+                      </Text>
+                    </View>
+                    <Text style={[styles.amenityDistance, { color: theme.textSecondary }]}>
+                      {amenity.distance}
                     </Text>
                   </View>
-                  <Text style={[styles.amenityDistance, { color: theme.textSecondary }]}>
-                    {amenity.distance}
-                  </Text>
-                </View>
-              ))}
+                ))}
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         {/* Extra spacing for fixed floating dock */}
         <View style={{ height: 140 }} />

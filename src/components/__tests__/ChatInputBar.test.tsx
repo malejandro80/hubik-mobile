@@ -69,6 +69,32 @@ describe('ChatInputBar Component', () => {
     expect(handleSend).toHaveBeenCalledWith('Ático con terraza');
   });
 
+  it('shows a stop control and disables typing while recording a voice note', () => {
+    const handleSend = jest.fn();
+    const handleMic = jest.fn();
+    const handleChangeText = jest.fn();
+
+    const { getByLabelText, getByPlaceholderText } = render(
+      <ChatInputBar
+        value=""
+        onChangeText={handleChangeText}
+        onSend={handleSend}
+        onMicPress={handleMic}
+        isRecording={true}
+        placeholder="Escriba su consulta aquí..."
+      />
+    );
+
+    const stopButton = getByLabelText('Detener grabación de nota de voz');
+    expect(stopButton).toBeTruthy();
+    expect(stopButton.props.accessibilityState.selected).toBe(true);
+    expect(getByPlaceholderText('Escriba su consulta aquí...').props.editable).toBe(false);
+
+    fireEvent.press(stopButton);
+    expect(handleMic).toHaveBeenCalledTimes(1);
+    expect(handleSend).not.toHaveBeenCalled();
+  });
+
   it('disables input and button when loading is true', () => {
     const handleSend = jest.fn();
     const handleChangeText = jest.fn();

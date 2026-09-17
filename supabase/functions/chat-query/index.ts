@@ -1,4 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { isAudioPayload, transcribeAndExtractFromAudio } from '../_shared/geminiAudio.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -193,6 +194,15 @@ function parsePromptFilters(message: string): FilterParams {
   return filters;
 }
 
+const CHAT_AUDIO_SYSTEM_INSTRUCTION =
+  'Eres un asistente experto en búsqueda de bienes raíces. Primero transcribe fielmente la nota de voz del usuario ' +
+  '(en español o inglés) en el campo "transcript". Luego, a partir de esa transcripción, extrae los filtros de ' +
+  'búsqueda como un objeto JSON con las claves: transcript (string, la transcripción literal) y, opcionalmente, ' +
+  'city (string), property_type (Apartment, Single Family, Townhouse, Studio, Condo), min_price (number), ' +
+  'max_price (number), min_bedrooms (number), max_bedrooms (number), min_square_meters (number), ' +
+  'max_square_meters (number), limit (number), sort_by (price_asc, price_desc). El área se mide en metros ' +
+  'cuadrados (m²). Genera únicamente JSON válido sin explicaciones adicionales.';
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -201,8 +211,10 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json().catch(() => ({}));
     const message = body?.message;
+    const audio = body?.audio;
+    const isAudioRequest = isAudioPayload(audio);
 
-    if (!message || typeof message !== 'string' || message.trim() === '') {
+    if (!isAudioRequest && (!message || typeof message !== 'string' || message.trim() === '')) {
       return new Response(
         JSON.stringify({ error: 'Missing or invalid "message" parameter' }),
         {
@@ -224,43 +236,70 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 1. Extract query parameters
-    let filters: FilterParams = parsePromptFilters(message);
+    // 1. Extract query parameters (from typed text, or from a transcribed voice note)
+    let filters: FilterParams = {};
+    let transcript: string | undefined;
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
-    if (geminiKey && geminiKey !== 'your_gemini_api_key_here') {
-      try {
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: message }] }],
-              systemInstruction: {
-                parts: [
-                  {
-                    text: 'Eres un asistente experto en búsqueda de bienes raíces. Extrae los filtros de búsqueda a partir del mensaje del usuario (en español o inglés) como un objeto JSON con claves opcionales: city (string), property_type (Apartment, Single Family, Townhouse, Studio, Condo), min_price (number), max_price (number), min_bedrooms (number), max_bedrooms (number), min_square_meters (number), max_square_meters (number), limit (number), sort_by (price_asc, price_desc). El área se mide en metros cuadrados (m²). Genera únicamente JSON válido sin explicaciones adicionales.',
-                  },
-                ],
-              },
-              generationConfig: {
-                responseMimeType: 'application/json',
-              },
-            }),
-          }
-        );
+    const hasGeminiKey = Boolean(geminiKey) && geminiKey !== 'your_gemini_api_key_here';
 
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            const parsed = JSON.parse(text);
-            filters = { ...filters, ...parsed };
+    if (isAudioRequest) {
+      // Voice notes have no local text to run the regex heuristic against, and
+      // Gemini is the only thing that can transcribe them - no fallback here.
+      if (!hasGeminiKey) {
+        return new Response(
+          JSON.stringify({ error: 'Las notas de voz requieren que Gemini esté configurado en el servidor' }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      try {
+        const result = await transcribeAndExtractFromAudio(audio, CHAT_AUDIO_SYSTEM_INSTRUCTION, geminiKey!);
+        transcript = result.transcript;
+        filters = result.extracted;
+      } catch (geminiErr: any) {
+        console.error('[chat-query] Gemini audio transcription error:', geminiErr);
+        return new Response(
+          JSON.stringify({ error: geminiErr?.message || 'No se pudo procesar la nota de voz' }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      filters = parsePromptFilters(message);
+
+      if (hasGeminiKey) {
+        try {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: message }] }],
+                systemInstruction: {
+                  parts: [
+                    {
+                      text: 'Eres un asistente experto en búsqueda de bienes raíces. Extrae los filtros de búsqueda a partir del mensaje del usuario (en español o inglés) como un objeto JSON con claves opcionales: city (string), property_type (Apartment, Single Family, Townhouse, Studio, Condo), min_price (number), max_price (number), min_bedrooms (number), max_bedrooms (number), min_square_meters (number), max_square_meters (number), limit (number), sort_by (price_asc, price_desc). El área se mide en metros cuadrados (m²). Genera únicamente JSON válido sin explicaciones adicionales.',
+                    },
+                  ],
+                },
+                generationConfig: {
+                  responseMimeType: 'application/json',
+                },
+              }),
+            }
+          );
+
+          if (geminiRes.ok) {
+            const geminiData = await geminiRes.json();
+            const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              const parsed = JSON.parse(text);
+              filters = { ...filters, ...parsed };
+            }
           }
+        } catch (geminiErr) {
+          console.warn('[chat-query] Gemini parsing error, using heuristic fallback:', geminiErr);
         }
-      } catch (geminiErr) {
-        console.warn('[chat-query] Gemini parsing error, using heuristic fallback:', geminiErr);
       }
     }
 
@@ -317,7 +356,7 @@ Deno.serve(async (req: Request) => {
     // 3. Synthesize conversational answer in Spanish
     let answer: string;
     if (items.length === 0) {
-      answer = `No encontré propiedades que coincidan con "${message}". ¡Intenta buscar en Austin, Miami, Denver, Seattle o New York!`;
+      answer = `No encontré propiedades que coincidan con "${transcript ?? message}". ¡Intenta buscar en Austin, Miami, Denver, Seattle o New York!`;
     } else {
       const cityText = filters.city ? ` en ${filters.city}` : '';
       let typeText = ' propiedades';
@@ -345,6 +384,7 @@ Deno.serve(async (req: Request) => {
         data: items,
         applied_filters: filters,
         suggestions,
+        ...(transcript ? { transcript } : {}),
       }),
       {
         status: 200,

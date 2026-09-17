@@ -1,7 +1,13 @@
 import {
   sendChatQuery,
+  sendChatQueryAudio,
   parsePromptFilters,
   fetchDynamicSuggestions,
+  parsePropertyDraft,
+  intakeProperty,
+  intakePropertyAudio,
+  publishProperty,
+  generatePropertyDescription,
 } from '../chatApi';
 import { supabase } from '../../lib/supabase';
 
@@ -163,5 +169,304 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
     expect(suggestions).toHaveLength(2);
     expect(suggestions[0]).toBe('Condominios en Austin por menos de $400k');
     expect(suggestions[1]).toBe('Departamentos en Miami por menos de $900k');
+  });
+});
+
+describe('chatApi - sendChatQueryAudio', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const audio = { data: 'YmFzZTY0LWF1ZGlv', mimeType: 'audio/mp4' };
+
+  it('invokes chat-query with the audio payload and returns the transcript', async () => {
+    const mockApiResponse = {
+      answer: 'Encontré 1 apartamento en Austin',
+      data: [],
+      transcript: 'apartamentos en Austin',
+    };
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: mockApiResponse,
+      error: null,
+    });
+
+    const result = await sendChatQueryAudio(audio);
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('chat-query', {
+      body: { audio },
+    });
+    expect(result).toEqual(mockApiResponse);
+  });
+
+  it('throws (no local fallback) when the Edge Function fails', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: null,
+      error: new Error('Gemini unreachable'),
+    });
+
+    await expect(sendChatQueryAudio(audio)).rejects.toThrow('Gemini unreachable');
+  });
+});
+
+describe('chatApi - intakePropertyAudio', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const audio = { data: 'YmFzZTY0LWF1ZGlv', mimeType: 'audio/mp4' };
+
+  it('invokes property-intake with the audio payload and returns the transcript', async () => {
+    const mockResponse = {
+      data: { operation_type: 'sale', property_type: 'Apartment' },
+      missing_fields: ['price'],
+      assistant_message: 'Me falta: precio.',
+      ready_to_confirm: false,
+      transcript: 'vendo mi piso',
+    };
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: mockResponse,
+      error: null,
+    });
+
+    const result = await intakePropertyAudio(audio, {});
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('property-intake', {
+      body: { audio, known: {} },
+    });
+    expect(result).toEqual(mockResponse);
+  });
+
+  it('throws (no local fallback) when the Edge Function fails', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: null,
+      error: new Error('Gemini unreachable'),
+    });
+
+    await expect(intakePropertyAudio(audio, {})).rejects.toThrow('Gemini unreachable');
+  });
+});
+
+describe('chatApi - parsePropertyDraft (heuristic extraction)', () => {
+  it('extracts fields from a full natural language description', () => {
+    const result = parsePropertyDraft(
+      'Mi referencia catastral es 1234567VH5797S0001WX. Quiero poner a la venta mi piso en Madrid de 3 habitaciones y 2 baños, 90 metros cuadrados, en la calle Mayor 12, por 420.000 euros.',
+      {}
+    );
+
+    expect(result.data.catastro).toBe('1234567VH5797S0001WX');
+    expect(result.data.operation_type).toBe('sale');
+    expect(result.data.property_type).toBe('Apartment');
+    expect(result.data.city).toBe('Madrid');
+    expect(result.data.bedrooms).toBe(3);
+    expect(result.data.bathrooms).toBe(2);
+    expect(result.data.square_meters).toBe(90);
+    expect(result.data.address).toContain('Mayor');
+    expect(result.data.price).toBe(420000);
+    expect(result.missing_fields).toEqual([]);
+    expect(result.ready_to_confirm).toBe(true);
+  });
+
+  it('merges a partial reply into the already-known draft', () => {
+    const known = {
+      catastro: '1234567VH5797S0001WX',
+      operation_type: 'sale' as const,
+      property_type: 'Apartment' as const,
+      city: 'Madrid',
+    };
+    const result = parsePropertyDraft('Son 3 habitaciones y 2 baños', known);
+
+    expect(result.data).toMatchObject({
+      catastro: '1234567VH5797S0001WX',
+      operation_type: 'sale',
+      property_type: 'Apartment',
+      city: 'Madrid',
+      bedrooms: 3,
+      bathrooms: 2,
+    });
+    expect(result.missing_fields).toEqual(
+      expect.arrayContaining(['price', 'square_meters', 'address'])
+    );
+    expect(result.ready_to_confirm).toBe(false);
+    expect(result.assistant_message).toContain('precio');
+    expect(result.assistant_message).not.toContain('Referencia catastral registrada');
+  });
+
+  it('recognizes rental intent', () => {
+    const result = parsePropertyDraft('Quiero alquilar mi estudio en Barcelona', {});
+    expect(result.data.operation_type).toBe('rent');
+    expect(result.data.property_type).toBe('Studio');
+    expect(result.data.city).toBe('Barcelona');
+  });
+
+  it('asks only for the cadastral reference when it is missing, even if other fields are also missing', () => {
+    const result = parsePropertyDraft('Quiero alquilar mi estudio en Barcelona', {});
+    expect(result.missing_fields).toContain('catastro');
+    expect(result.assistant_message).toContain('referencia catastral');
+    expect(result.assistant_message).not.toContain('precio');
+  });
+
+  it('extracts a standalone cadastral reference and moves on to the rest once it is set', () => {
+    const result = parsePropertyDraft('1234567VH5797S0001WX', {});
+    expect(result.data.catastro).toBe('1234567VH5797S0001WX');
+    expect(result.missing_fields).not.toContain('catastro');
+    expect(result.assistant_message).toContain('precio');
+  });
+
+  it('gives immediate feedback the moment a cadastral reference is newly provided', () => {
+    const result = parsePropertyDraft('1234567VH5797S0001WX', {});
+    expect(result.assistant_message).toContain('Referencia catastral registrada');
+  });
+
+  it('does not repeat the cadastral feedback once it was already known on a prior turn', () => {
+    const known = { catastro: '1234567VH5797S0001WX' };
+    const result = parsePropertyDraft('Son 3 habitaciones', known);
+    expect(result.assistant_message).not.toContain('Referencia catastral registrada');
+  });
+});
+
+describe('chatApi - intakeProperty', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('invokes property-intake Edge Function and returns its response on success', async () => {
+    const mockResponse = {
+      data: { operation_type: 'sale', property_type: 'Apartment' },
+      missing_fields: ['price'],
+      assistant_message: 'Me falta: precio.',
+      ready_to_confirm: false,
+    };
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: mockResponse,
+      error: null,
+    });
+
+    const result = await intakeProperty('vendo mi piso', {});
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('property-intake', {
+      body: { message: 'vendo mi piso', known: {} },
+    });
+    expect(result).toEqual(mockResponse);
+  });
+
+  it('falls back to local heuristic extraction when the Edge Function fails', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: null,
+      error: new Error('unreachable'),
+    });
+
+    const result = await intakeProperty('Quiero alquilar mi estudio en Barcelona', {});
+
+    expect(result.data.operation_type).toBe('rent');
+    expect(result.data.property_type).toBe('Studio');
+  });
+});
+
+describe('chatApi - publishProperty', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const completeDraft = {
+    operation_type: 'sale' as const,
+    property_type: 'Apartment' as const,
+    price: 420000,
+    bedrooms: 3,
+    bathrooms: 2,
+    square_meters: 90,
+    city: 'Madrid',
+    address: 'Calle Mayor 12',
+  };
+
+  it('invokes property-publish Edge Function and returns the created property', async () => {
+    const mockProperty = { id: 'new-prop-1', title: 'Piso en venta en Madrid', ...completeDraft, status: 'Available', image_url: '', images: [] };
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: { property: mockProperty },
+      error: null,
+    });
+
+    const result = await publishProperty(completeDraft);
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('property-publish', {
+      body: { property: completeDraft },
+    });
+    expect(result).toEqual(mockProperty);
+  });
+
+  it('falls back to a direct Supabase insert when the Edge Function is unreachable', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: null,
+      error: new Error('unreachable'),
+    });
+
+    const insertedRow = { id: 'new-prop-2', title: 'Piso en venta en Madrid', ...completeDraft, status: 'Available', images: [] };
+    const mockSingle = jest.fn().mockResolvedValueOnce({ data: insertedRow, error: null });
+    const mockSelect = jest.fn().mockReturnValue({ single: mockSingle });
+    const mockInsert = jest.fn().mockReturnValue({ select: mockSelect });
+    (supabase.from as jest.Mock).mockReturnValue({ insert: mockInsert });
+
+    const result = await publishProperty(completeDraft);
+
+    expect(supabase.from).toHaveBeenCalledWith('properties');
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ city: 'Madrid', status: 'Available' })
+    );
+    expect(result).toEqual(insertedRow);
+  });
+
+  it('passes images, coordinates and the AI description through to the direct insert fallback', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({ data: null, error: new Error('unreachable') });
+
+    const mockSingle = jest.fn().mockResolvedValueOnce({ data: {}, error: null });
+    const mockSelect = jest.fn().mockReturnValue({ single: mockSingle });
+    const mockInsert = jest.fn().mockReturnValue({ select: mockSelect });
+    (supabase.from as jest.Mock).mockReturnValue({ insert: mockInsert });
+
+    await publishProperty({
+      ...completeDraft,
+      images: ['https://storage.example.com/a.jpg'],
+      latitude: 40.4168,
+      longitude: -3.7038,
+      description: 'Piso luminoso en el centro de Madrid.',
+    });
+
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        images: ['https://storage.example.com/a.jpg'],
+        latitude: 40.4168,
+        longitude: -3.7038,
+        description: 'Piso luminoso en el centro de Madrid.',
+      })
+    );
+  });
+});
+
+describe('chatApi - generatePropertyDescription', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('invokes property-describe and returns the generated description', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: { description: 'Piso luminoso en el centro de Madrid.' },
+      error: null,
+    });
+
+    const known = { city: 'Madrid', property_type: 'Apartment' as const, price: 420000 };
+    const result = await generatePropertyDescription(known);
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('property-describe', {
+      body: { known },
+    });
+    expect(result).toEqual({ description: 'Piso luminoso en el centro de Madrid.' });
+  });
+
+  it('throws when the Edge Function fails, with no local fallback', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: null,
+      error: new Error('unreachable'),
+    });
+
+    await expect(generatePropertyDescription({})).rejects.toThrow();
   });
 });

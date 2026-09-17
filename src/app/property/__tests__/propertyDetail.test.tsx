@@ -4,7 +4,19 @@ import { fireEvent, render } from '@testing-library/react-native';
 import PropertyDetailScreen from '../[id]';
 
 const mockBack = jest.fn();
-let mockParams = {
+let mockParams: {
+  id: string;
+  title: string;
+  price: string;
+  city: string;
+  address: string;
+  bedrooms: string;
+  bathrooms: string;
+  square_meters: string;
+  image_url: string;
+  description?: string;
+  images?: string;
+} = {
   id: 'prop-123',
   title: 'Barrio de Salamanca, Madrid',
   price: '485000',
@@ -134,5 +146,21 @@ describe('PropertyDetailScreen', () => {
     fireEvent.press(backBtn);
 
     expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders real draft data and hides the fabricated sections when a description param is present', () => {
+    mockParams = {
+      ...mockParams,
+      description: 'Piso luminoso en el centro de Madrid.',
+      images: JSON.stringify(['https://storage.example.com/a.jpg', 'https://storage.example.com/b.jpg']),
+    };
+
+    const { getByText, queryByText } = render(<PropertyDetailScreen />);
+
+    expect(getByText('Piso luminoso en el centro de Madrid.')).toBeTruthy();
+    expect(getByText('1 de 2 fotos')).toBeTruthy();
+    expect(queryByText('Características de Accesibilidad y Confort')).toBeNull();
+    expect(queryByText('Cercanías a pie')).toBeNull();
+    expect(queryByText(/Vivienda totalmente exterior y luminosa/)).toBeNull();
   });
 });

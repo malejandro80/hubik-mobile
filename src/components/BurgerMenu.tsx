@@ -1,16 +1,16 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
   Modal,
   Platform,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { colors, shapes, spacing, typography } from '../theme/colors';
@@ -48,8 +48,8 @@ export const BurgerMenu: React.FC<BurgerMenuProps> = ({
   const theme = colors[colorScheme];
 
   const [modalVisible, setModalVisible] = useState(visible);
-  const slideAnim = useRef(new Animated.Value(DRAWER_WIDTH)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useMemo(() => new Animated.Value(DRAWER_WIDTH), []);
+  const fadeAnim = useMemo(() => new Animated.Value(0), []);
   const isClosingRef = useRef(false);
   const isTest = process.env.NODE_ENV === 'test';
 
@@ -206,7 +206,7 @@ export const BurgerMenu: React.FC<BurgerMenuProps> = ({
 
 const styles = StyleSheet.create({
   modalOverlay: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(2, 36, 31, 0.45)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2, 36, 31, 0.45)' },
   drawerWrapper: { width: '82%', maxWidth: DRAWER_WIDTH, height: '100%' },
   drawerPanel: {
     flex: 1,
