@@ -14,15 +14,20 @@ export interface HeaderProps {
   title?: string;
   onBackPress?: () => void;
   onMenuPress?: () => void;
+  showBack?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   title = 'Hubik',
   onBackPress,
   onMenuPress,
+  showBack,
 }) => {
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
+
+  const shouldShowBack =
+    showBack !== undefined ? showBack : Boolean(onBackPress);
 
   return (
     <View
@@ -35,18 +40,20 @@ export const Header: React.FC<HeaderProps> = ({
       ]}
     >
       {/* Left Action Button (Back) */}
-      <TouchableOpacity
-        style={[
-          styles.circleButton,
-          { backgroundColor: theme.surfaceContainerHigh },
-        ]}
-        onPress={onBackPress}
-        accessibilityRole="button"
-        accessibilityLabel="Regresar"
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      >
-        <Ionicons name="chevron-back" size={22} color={theme.text} />
-      </TouchableOpacity>
+      {shouldShowBack && (
+        <TouchableOpacity
+          style={[
+            styles.circleButton,
+            { backgroundColor: theme.surfaceContainerHigh },
+          ]}
+          onPress={onBackPress}
+          accessibilityRole="button"
+          accessibilityLabel="Regresar"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="chevron-back" size={22} color={theme.text} />
+        </TouchableOpacity>
+      )}
 
       {/* Center Brand Identity (Badge + Name) */}
       <View style={styles.brandContainer}>

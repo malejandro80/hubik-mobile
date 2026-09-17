@@ -18,6 +18,7 @@ export interface ChatInputBarProps {
   onChangeText: (text: string) => void;
   onSend: (text?: string) => void;
   onMicPress?: () => void;
+  isRecording?: boolean;
   placeholder?: string;
   loading?: boolean;
   accessibilityLabel?: string;
@@ -30,6 +31,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
   onChangeText,
   onSend,
   onMicPress,
+  isRecording = false,
   placeholder = 'Escriba su consulta aquí...',
   loading = false,
   accessibilityLabel = 'Campo de consulta',
@@ -84,30 +86,37 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
             if (isSendActive) onSend(value.trim());
           }}
           returnKeyType="send"
-          editable={!loading}
+          editable={!loading && !isRecording}
           accessibilityLabel={accessibilityLabel}
         />
       </View>
 
-      {/* Action Button (Mic / Send) */}
+      {/* Action Button (Mic / Recording / Send) */}
       <TouchableOpacity
         style={[
           styles.actionButton,
-          { backgroundColor: '#163931' },
+          { backgroundColor: isRecording ? '#B3261E' : '#163931' },
         ]}
         onPress={handleActionPress}
         disabled={loading}
         accessibilityRole="button"
         accessibilityLabel={
-          isSendActive ? 'Enviar consulta' : 'Hablar por micrófono'
+          isRecording
+            ? 'Detener grabación de nota de voz'
+            : isSendActive
+              ? 'Enviar consulta'
+              : 'Hablar por micrófono'
         }
         accessibilityState={{
           busy: loading,
+          selected: isRecording,
         }}
         hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
       >
         {loading ? (
           <ActivityIndicator size="small" color="#FFFFFF" />
+        ) : isRecording ? (
+          <Ionicons name="stop-circle" size={26} color="#FFFFFF" />
         ) : isSendActive ? (
           <Ionicons name="arrow-up" size={24} color="#FFFFFF" />
         ) : (

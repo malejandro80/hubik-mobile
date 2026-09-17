@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -17,6 +18,7 @@ import { BurgerMenu } from '../../components/BurgerMenu';
 import { ChatInputBar } from '../../components/ChatInputBar';
 import { Header } from '../../components/Header';
 import { useColorScheme } from '../../hooks/useColorScheme';
+import { generatePropertyDescription } from '../../services/chatApi';
 import { colors, shapes, spacing, typography } from '../../theme/colors';
 
 interface AccessibilityCardItem {
@@ -60,6 +62,10 @@ export default function PropertyDetailScreen() {
     bathrooms?: string;
     square_meters?: string;
     image_url?: string;
+    description?: string;
+    images?: string;
+    lat?: string;
+    lng?: string;
   }>();
 
   const colorScheme = useColorScheme();
@@ -77,9 +83,63 @@ export default function PropertyDetailScreen() {
   const bedrooms = params.bedrooms || '3';
   const bathrooms = params.bathrooms || '2';
   const squareMeters = params.square_meters || '120';
+  const realImages: string[] = (() => {
+    if (!params.images) return [];
+    try {
+      const parsed = JSON.parse(params.images);
+      return Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : [];
+    } catch {
+      return [];
+    }
+  })();
+  // A real registration draft is distinguished by carrying an AI-generated description;
+  // legacy/seeded properties (no description param) keep today's mockup content untouched.
+  const isRealDraft = Boolean(params.description);
   const imageUrl =
+    realImages[0] ||
     params.image_url ||
     'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80';
+  const photoCountLabel = isRealDraft
+    ? realImages.length > 0
+      ? `1 de ${realImages.length} foto${realImages.length === 1 ? '' : 's'}`
+      : 'Sin fotos'
+    : '1 de 8 fotos';
+
+  // Legacy/seeded properties carry no stored description - generate one from their real fields
+  // instead of showing static mockup copy (RFC 007 explicitly kept the mockup here originally;
+  // superseded by PR review feedback asking for no hardcoded content).
+  const [legacyDescription, setLegacyDescription] = useState<string | null>(null);
+  const [legacyDescriptionLoading, setLegacyDescriptionLoading] = useState(false);
+  const [legacyDescriptionError, setLegacyDescriptionError] = useState(false);
+
+  useEffect(() => {
+    if (isRealDraft) return;
+    let cancelled = false;
+    setLegacyDescriptionLoading(true);
+    setLegacyDescriptionError(false);
+    generatePropertyDescription({
+      title,
+      price: Number(params.price) || undefined,
+      bedrooms: Number(bedrooms) || undefined,
+      bathrooms: Number(bathrooms) || undefined,
+      square_meters: Number(squareMeters) || undefined,
+      city,
+      address,
+    })
+      .then(({ description }) => {
+        if (!cancelled) setLegacyDescription(description);
+      })
+      .catch(() => {
+        if (!cancelled) setLegacyDescriptionError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLegacyDescriptionLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRealDraft, params.id]);
 
   const accessibilityFeatures: AccessibilityCardItem[] = [
     {
@@ -135,7 +195,7 @@ export default function PropertyDetailScreen() {
   const handleMenuItemSelect = (key: string) => {
     setIsMenuOpen(false);
     if (key === 'register') {
-      router.push('/register');
+      router.push({ pathname: '/', params: { startRegistration: '1' } });
     } else if (key === 'new_chat' || key === 'search') {
       router.push('/');
     } else if (key === 'saved') {
@@ -180,11 +240,11 @@ export default function PropertyDetailScreen() {
           keyboardShouldPersistTaps="handled"
         >
         {/* Hero Image Container with Photo Count Badge */}
-        <View style={styles.imageWrapper}>
+        <View style={[styles.imageWrapper, { backgroundColor: theme.surfaceContainerHigh }]}>
           <Image source={{ uri: imageUrl }} style={styles.heroImage} resizeMode="cover" />
           <View style={styles.photoCountBadge}>
-            <Ionicons name="images-outline" size={14} color="#191C1B" style={styles.badgeIcon} />
-            <Text style={styles.photoCountText}>1 de 8 fotos</Text>
+            <Ionicons name="images-outline" size={14} color={theme.text} style={styles.badgeIcon} />
+            <Text style={[styles.photoCountText, { color: theme.text }]}>{photoCountLabel}</Text>
           </View>
         </View>
 
@@ -194,8 +254,8 @@ export default function PropertyDetailScreen() {
             {price}
           </Text>
 
-          <View style={styles.agencyBadge}>
-            <Text style={styles.agencyBadgeText}>Sin honorarios de agencia</Text>
+          <View style={[styles.agencyBadge, { backgroundColor: theme.secondaryContainer }]}>
+            <Text style={[styles.agencyBadgeText, { color: theme.onSecondaryContainer }]}>Sin honorarios de agencia</Text>
           </View>
 
           <View style={styles.locationRow}>
@@ -210,43 +270,48 @@ export default function PropertyDetailScreen() {
                 {title}
               </Text>
               <Text style={[styles.addressSubtitle, { color: theme.textSecondary }]}>
-                {address} · 2ª planta con ascensor cota cero
+                {isRealDraft ? address : `${address} · 2ª planta con ascensor cota cero`}
               </Text>
             </View>
           </View>
         </View>
 
         {/* Section: Características de Accesibilidad y Confort */}
-        <View style={styles.sectionContainer}>
-          <Text style={[styles.sectionTitle, { color: theme.primary }]}>
-            Características de Accesibilidad y Confort
-          </Text>
+        {/* Only shown for legacy/seeded properties - this copy is generic marketing
+            filler, not real per-property data, so it would be misleading next to an
+            actual user-submitted registration draft. */}
+        {!isRealDraft && (
+          <View style={styles.sectionContainer}>
+            <Text style={[styles.sectionTitle, { color: theme.primary }]}>
+              Características de Accesibilidad y Confort
+            </Text>
 
-          <View style={styles.gridContainer}>
-            {accessibilityFeatures.map((item, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.featureCard,
-                  {
-                    backgroundColor: theme.card,
-                    borderColor: theme.border,
-                  },
-                ]}
-              >
-                <View style={styles.featureIconBadge}>
-                  <Ionicons name={item.icon} size={20} color="#2C685A" />
+            <View style={styles.gridContainer}>
+              {accessibilityFeatures.map((item, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.featureCard,
+                    {
+                      backgroundColor: theme.card,
+                      borderColor: theme.border,
+                    },
+                  ]}
+                >
+                  <View style={[styles.featureIconBadge, { backgroundColor: theme.secondaryContainer }]}>
+                    <Ionicons name={item.icon} size={20} color={theme.secondary} />
+                  </View>
+                  <Text style={[styles.featureTitle, { color: theme.text }]}>
+                    {item.title}
+                  </Text>
+                  <Text style={[styles.featureSubtitle, { color: theme.textSecondary }]}>
+                    {item.subtitle}
+                  </Text>
                 </View>
-                <Text style={[styles.featureTitle, { color: theme.text }]}>
-                  {item.title}
-                </Text>
-                <Text style={[styles.featureSubtitle, { color: theme.textSecondary }]}>
-                  {item.subtitle}
-                </Text>
-              </View>
-            ))}
+              ))}
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Section: Descripción de la vivienda */}
         <View style={styles.sectionContainer}>
@@ -255,61 +320,73 @@ export default function PropertyDetailScreen() {
           </Text>
 
           <View style={styles.descriptionBlock}>
-            <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
-              Vivienda totalmente exterior y luminosa, ubicada en una finca señorial tranquila con portero físico y ascensor accesible a cota cero sin desniveles.
-            </Text>
-            <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
-              Dispone de un amplio salón con balcones orientados al este con sol matutino, suelo de parqué natural en espiga pulido y puertas anchas. La cocina es independiente, con espacio para mesa de comedor diario y acabados ergonómicos.
-            </Text>
-            <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
-              Los baños disponen de plato de ducha a nivel de suelo y asideros de diseño. Un entorno pensado para el descanso, la seguridad y el confort duradero.
-            </Text>
+            {isRealDraft ? (
+              <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
+                {params.description}
+              </Text>
+            ) : legacyDescriptionLoading ? (
+              <ActivityIndicator color={theme.primary} />
+            ) : legacyDescription ? (
+              <Text style={[styles.descriptionParagraph, { color: theme.text }]}>
+                {legacyDescription}
+              </Text>
+            ) : (
+              <Text style={[styles.descriptionParagraph, { color: theme.textSecondary }]}>
+                {legacyDescriptionError
+                  ? 'No se pudo generar la descripción en este momento.'
+                  : ''}
+              </Text>
+            )}
           </View>
         </View>
 
-        {/* Section: Cercanías a pie */}
-        <View style={styles.sectionContainer}>
-          <View
-            style={[
-              styles.amenitiesCard,
-              {
-                backgroundColor: theme.card,
-                borderColor: theme.border,
-              },
-            ]}
-          >
-            <Text style={[styles.amenitiesTitle, { color: theme.primary }]}>
-              Cercanías a pie
-            </Text>
+        {/* Section: Cercanías a pie - legacy/seeded properties only, same reasoning as above. */}
+        {!isRealDraft && (
+          <View style={styles.sectionContainer}>
+            <View
+              style={[
+                styles.amenitiesCard,
+                {
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <Text style={[styles.amenitiesTitle, { color: theme.primary }]}>
+                Cercanías a pie
+              </Text>
 
-            <View style={styles.amenitiesList}>
-              {NEARBY_AMENITIES.map((amenity, idx) => (
-                <View
-                  key={idx}
-                  style={[
-                    styles.amenityRow,
-                    idx < NEARBY_AMENITIES.length - 1 ? styles.amenityBorder : null,
-                  ]}
-                >
-                  <View style={styles.amenityLeft}>
-                    <Ionicons
-                      name={amenity.icon}
-                      size={20}
-                      color="#2C685A"
-                      style={styles.amenityIcon}
-                    />
-                    <Text style={[styles.amenityName, { color: theme.text }]}>
-                      {amenity.title}
+              <View style={styles.amenitiesList}>
+                {NEARBY_AMENITIES.map((amenity, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.amenityRow,
+                      idx < NEARBY_AMENITIES.length - 1
+                        ? [styles.amenityBorder, { borderBottomColor: theme.border }]
+                        : null,
+                    ]}
+                  >
+                    <View style={styles.amenityLeft}>
+                      <Ionicons
+                        name={amenity.icon}
+                        size={20}
+                        color={theme.secondary}
+                        style={styles.amenityIcon}
+                      />
+                      <Text style={[styles.amenityName, { color: theme.text }]}>
+                        {amenity.title}
+                      </Text>
+                    </View>
+                    <Text style={[styles.amenityDistance, { color: theme.textSecondary }]}>
+                      {amenity.distance}
                     </Text>
                   </View>
-                  <Text style={[styles.amenityDistance, { color: theme.textSecondary }]}>
-                    {amenity.distance}
-                  </Text>
-                </View>
-              ))}
+                ))}
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         {/* Extra spacing for fixed floating dock */}
         <View style={{ height: 140 }} />
@@ -326,7 +403,7 @@ export default function PropertyDetailScreen() {
         ]}
       >
         <TouchableOpacity
-          style={styles.contactButton}
+          style={[styles.contactButton, { backgroundColor: theme.primary }]}
           onPress={handleContactAdvisor}
           accessibilityRole="button"
           accessibilityLabel="Contactar asesor de Hubik"
@@ -334,10 +411,10 @@ export default function PropertyDetailScreen() {
           <Ionicons
             name="headset-outline"
             size={22}
-            color="#FFFFFF"
+            color={theme.onPrimary}
             style={styles.contactIcon}
           />
-          <Text style={styles.contactButtonText}>Contactar asesor</Text>
+          <Text style={[styles.contactButtonText, { color: theme.onPrimary }]}>Contactar asesor</Text>
         </TouchableOpacity>
 
         {/* Uniform ChatInputBar */}
@@ -382,7 +459,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     position: 'relative',
     marginBottom: 20,
-    backgroundColor: '#E5E7EB',
   },
   heroImage: {
     width: '100%',
@@ -410,7 +486,6 @@ const styles = StyleSheet.create({
   photoCountText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#191C1B',
   },
   priceLocationBlock: {
     marginBottom: 24,
@@ -423,14 +498,12 @@ const styles = StyleSheet.create({
   },
   agencyBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: '#D2F3EA',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: shapes.sm, // 4px
     marginBottom: 16,
   },
   agencyBadgeText: {
-    color: '#1A6354',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -491,7 +564,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: shapes.sm, // 8px
-    backgroundColor: '#D2F3EA',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
@@ -540,7 +612,6 @@ const styles = StyleSheet.create({
   },
   amenityBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: '#EDEEEC',
   },
   amenityLeft: {
     flexDirection: 'row',
@@ -580,14 +651,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 52,
     borderRadius: shapes.lg, // 16px
-    backgroundColor: '#163931',
     marginBottom: 10,
   },
   contactIcon: {
     marginRight: 8,
   },
   contactButtonText: {
-    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.2,

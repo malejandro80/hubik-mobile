@@ -35,7 +35,25 @@
           "root": "./src/app"
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Hubik necesita acceso al micrófono para que puedas enviar notas de voz en el chat."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Hubik necesita acceso a tus fotos para que puedas publicar imágenes de la propiedad."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Hubik necesita tu ubicación para centrar el mapa al fijar la ubicación de la propiedad."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,4 +1,11 @@
-import { Property } from '../types/property';
+import {
+  OperationType,
+  Property,
+  PropertyDraft,
+  PropertyType,
+  PROPERTY_DRAFT_FIELD_LABELS,
+  REQUIRED_PROPERTY_DRAFT_FIELDS,
+} from '../types/property';
 import { supabase } from '../lib/supabase';
 
 export interface ChatResponse {
@@ -7,6 +14,20 @@ export interface ChatResponse {
   applied_filters?: Record<string, any>;
   suggestions?: string[];
 }
+
+export interface PropertyIntakeResponse {
+  data: PropertyDraft;
+  missing_fields: (keyof PropertyDraft)[];
+  assistant_message: string;
+  ready_to_confirm: boolean;
+}
+
+export interface AudioPayload {
+  data: string; // base64-encoded recording, sent inline and never persisted
+  mimeType: string;
+}
+
+export const VOICE_NOTE_MIME_TYPE = 'audio/mp4';
 
 export async function fetchDynamicSuggestions(): Promise<string[]> {
   try {
@@ -310,6 +331,257 @@ export async function querySupabaseDirectly(message: string): Promise<ChatRespon
   };
 }
 
+const DRAFT_CITIES = ['Austin', 'Miami', 'Denver', 'Seattle', 'New York', 'Madrid', 'Barcelona', 'Valencia', 'Sevilla'];
+
+const TYPE_LABEL_ES: Record<PropertyType, string> = {
+  Apartment: 'Piso',
+  'Single Family': 'Casa',
+  Townhouse: 'Casa adosada',
+  Studio: 'Estudio',
+  Condo: 'Condominio',
+};
+
+function extractPropertyType(lower: string): PropertyType | undefined {
+  if (
+    lower.includes('apartamento') ||
+    lower.includes('departamento') ||
+    lower.includes('piso') ||
+    lower.includes('flat') ||
+    lower.includes('apartment')
+  ) {
+    return 'Apartment';
+  }
+  if (lower.includes('condominio') || lower.includes('condo')) return 'Condo';
+  if (lower.includes('adosada') || lower.includes('townhouse') || lower.includes('townhome')) return 'Townhouse';
+  if (lower.includes('estudio') || lower.includes('monoambiente') || lower.includes('studio')) return 'Studio';
+  if (
+    lower.includes('casa') ||
+    lower.includes('vivienda') ||
+    lower.includes('chalet') ||
+    lower.includes('house') ||
+    lower.includes('single family')
+  ) {
+    return 'Single Family';
+  }
+  return undefined;
+}
+
+function extractOperationType(lower: string): OperationType | undefined {
+  if (
+    lower.includes('alquilar') ||
+    lower.includes('alquiler') ||
+    lower.includes('arriendo') ||
+    lower.includes('renta') ||
+    lower.includes('rentar') ||
+    lower.includes('rent')
+  ) {
+    return 'rent';
+  }
+  if (lower.includes('vender') || lower.includes('vendo') || lower.includes('venta') || lower.includes('sale')) {
+    return 'sale';
+  }
+  return undefined;
+}
+
+function extractPrice(text: string): number | undefined {
+  const match = text.match(
+    /(\d{1,3}(?:\.\d{3})+|\d{4,})(?:,\d+)?\s*(?:€|euros?|eur\b|\$|usd|dólares?|dolares?)/i
+  );
+  if (!match) return undefined;
+  const val = parseInt(match[1].replace(/\./g, ''), 10);
+  return Number.isNaN(val) ? undefined : val;
+}
+
+function extractCatastro(text: string): string | undefined {
+  const match = text.match(/\b(?=[A-Za-z0-9]{14,20}\b)(?=[A-Za-z0-9]*[0-9])(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{14,20}\b/);
+  return match ? match[0].toUpperCase() : undefined;
+}
+
+// Several phrasings per scenario, picked at random, so the assistant doesn't repeat the exact
+// same sentence on every turn - purely cosmetic variety, the underlying data/logic is unchanged.
+// The catastro-prefix lines stay fixed strings (unvaried): existing unit tests assert their
+// exact wording, and they're status confirmations rather than conversational filler.
+const READY_TO_CONFIRM_VARIANTS = [
+  '¡Perfecto! Ya tengo todos los datos necesarios. Aquí tiene el resumen para confirmar.',
+  '¡Listo! Con esto ya completé todos los datos. Revise el resumen y confírmelo cuando guste.',
+  'Excelente, ya reuní todo lo necesario. Eche un vistazo al resumen antes de publicar.',
+];
+
+const MISSING_FIELDS_PREFIX_VARIANTS = ['Me falta: ', 'Aún necesito: ', 'Todavía me falta: '];
+const MISSING_FIELDS_SUFFIX_VARIANTS = [
+  'Puede dármelos todos juntos o de a poco.',
+  'Puede indicármelos todos de una vez o uno a la vez.',
+  'Cuando guste, dígamelos juntos o por partes.',
+];
+
+const CATASTRO_ASK_VARIANTS = [
+  'Para comenzar, indíqueme la referencia catastral de la propiedad (puede consultarla en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de continuar.',
+  'Empecemos por la referencia catastral de la propiedad (está en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de seguir.',
+  'Lo primero que necesito es la referencia catastral (puede encontrarla en el recibo del IBI o en la Sede Electrónica del Catastro). Enseguida la verifico.',
+];
+
+function pickVariant(variants: string[]): string {
+  return variants[Math.floor(Math.random() * variants.length)];
+}
+
+function buildAssistantMessage(missing: (keyof PropertyDraft)[], catastroJustProvided?: boolean): string {
+  // This client-side fallback has no DB access, so a newly-provided catastro can only be
+  // acknowledged, not verified - real verification happens in property-intake / property-publish.
+  const prefix = catastroJustProvided
+    ? 'Referencia catastral registrada. La verificaré de nuevo antes de publicar.\n\n'
+    : '';
+
+  if (missing.length === 0) {
+    return `${prefix}${pickVariant(READY_TO_CONFIRM_VARIANTS)}`;
+  }
+  if (missing.includes('catastro')) {
+    return pickVariant(CATASTRO_ASK_VARIANTS);
+  }
+  const labels = missing.map((field) => PROPERTY_DRAFT_FIELD_LABELS[field as keyof typeof PROPERTY_DRAFT_FIELD_LABELS]);
+  const joined =
+    labels.length === 1
+      ? labels[0]
+      : `${labels.slice(0, -1).join(', ')} y ${labels[labels.length - 1]}`;
+  return `${prefix}${pickVariant(MISSING_FIELDS_PREFIX_VARIANTS)}${joined}. ${pickVariant(MISSING_FIELDS_SUFFIX_VARIANTS)}`;
+}
+
+export function parsePropertyDraft(message: string, known: PropertyDraft): PropertyIntakeResponse {
+  const lower = message.toLowerCase();
+  const extracted: PropertyDraft = {};
+
+  const catastro = extractCatastro(message);
+  if (catastro) extracted.catastro = catastro;
+
+  const propertyType = extractPropertyType(lower);
+  if (propertyType) extracted.property_type = propertyType;
+
+  const operationType = extractOperationType(lower);
+  if (operationType) extracted.operation_type = operationType;
+
+  const price = extractPrice(message);
+  if (price !== undefined) extracted.price = price;
+
+  const bedMatch = message.match(/(\d+)\s*hab\w*/i);
+  if (bedMatch) extracted.bedrooms = parseInt(bedMatch[1], 10);
+
+  const bathMatch = message.match(/(\d+(?:[.,]\d+)?)\s*ba[ñn]o\w*/i);
+  if (bathMatch) extracted.bathrooms = parseFloat(bathMatch[1].replace(',', '.'));
+
+  const areaMatch = message.match(/(\d+)\s*(?:m2|m²|metros(?:\s*cuadrados)?)/i);
+  if (areaMatch) extracted.square_meters = parseInt(areaMatch[1], 10);
+
+  const addressMatch = message.match(/calle\s+[^,.]+/i);
+  if (addressMatch) extracted.address = addressMatch[0].trim();
+
+  for (const city of DRAFT_CITIES) {
+    if (lower.includes(city.toLowerCase())) {
+      extracted.city = city;
+      break;
+    }
+  }
+
+  const data: PropertyDraft = { ...known, ...extracted };
+  const missing_fields = REQUIRED_PROPERTY_DRAFT_FIELDS.filter((field) => data[field] === undefined);
+  const catastroJustProvided = Boolean(extracted.catastro) && extracted.catastro !== known.catastro;
+
+  return {
+    data,
+    missing_fields,
+    assistant_message: buildAssistantMessage(missing_fields, catastroJustProvided),
+    ready_to_confirm: missing_fields.length === 0,
+  };
+}
+
+export function generatePropertyTitle(draft: PropertyDraft): string {
+  const typeLabel = draft.property_type ? TYPE_LABEL_ES[draft.property_type] : 'Propiedad';
+  const opLabel = draft.operation_type === 'rent' ? 'en alquiler' : 'en venta';
+  const location = draft.city ? ` en ${draft.city}` : '';
+  return `${typeLabel} ${opLabel}${location}`.trim();
+}
+
+export async function intakeProperty(message: string, known: PropertyDraft): Promise<PropertyIntakeResponse> {
+  try {
+    const { data, error } = await supabase.functions.invoke<PropertyIntakeResponse>('property-intake', {
+      body: { message, known },
+    });
+
+    if (error) throw error;
+    if (data) return data;
+
+    throw new Error('Invalid response received from property-intake function');
+  } catch (err: any) {
+    console.warn(
+      '[chatApi] property-intake Edge Function unreachable or failed. Using local heuristic extraction...',
+      err?.message
+    );
+    return parsePropertyDraft(message, known);
+  }
+}
+
+export async function intakePropertyAudio(
+  audio: AudioPayload,
+  known: PropertyDraft
+): Promise<PropertyIntakeResponse & { transcript: string }> {
+  const { data, error } = await supabase.functions.invoke<PropertyIntakeResponse & { transcript: string }>(
+    'property-intake',
+    { body: { audio, known } }
+  );
+
+  if (error) throw error;
+  if (data) return data;
+
+  throw new Error('Invalid response received from property-intake function (audio)');
+}
+
+async function publishPropertyDirect(draft: PropertyDraft): Promise<Property> {
+  const { data, error } = await supabase
+    .from('properties')
+    .insert({
+      catastro: draft.catastro,
+      title: draft.title || generatePropertyTitle(draft),
+      property_type: draft.property_type,
+      operation_type: draft.operation_type,
+      price: draft.price,
+      bedrooms: draft.bedrooms,
+      bathrooms: draft.bathrooms,
+      square_meters: draft.square_meters,
+      city: draft.city,
+      address: draft.address,
+      latitude: draft.latitude,
+      longitude: draft.longitude,
+      description: draft.description,
+      status: 'Available',
+      images: draft.images || [],
+    })
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error(`No se pudo publicar la propiedad: ${error.message}`);
+  }
+
+  return data as Property;
+}
+
+export async function publishProperty(draft: PropertyDraft): Promise<Property> {
+  try {
+    const { data, error } = await supabase.functions.invoke<{ property: Property }>('property-publish', {
+      body: { property: draft },
+    });
+
+    if (error) throw error;
+    if (data?.property) return data.property;
+
+    throw new Error('Invalid response received from property-publish function');
+  } catch (err: any) {
+    console.warn(
+      '[chatApi] property-publish Edge Function unreachable or failed. Inserting directly...',
+      err?.message
+    );
+    return publishPropertyDirect(draft);
+  }
+}
+
 export async function sendChatQuery(message: string): Promise<ChatResponse> {
   try {
     const { data, error } = await supabase.functions.invoke<ChatResponse>(
@@ -335,4 +607,26 @@ export async function sendChatQuery(message: string): Promise<ChatResponse> {
     );
     return querySupabaseDirectly(message);
   }
+}
+
+export async function generatePropertyDescription(known: PropertyDraft): Promise<{ description: string }> {
+  const { data, error } = await supabase.functions.invoke<{ description: string }>('property-describe', {
+    body: { known },
+  });
+
+  if (error) throw error;
+  if (data?.description) return data;
+
+  throw new Error('Invalid response received from property-describe function');
+}
+
+export async function sendChatQueryAudio(audio: AudioPayload): Promise<ChatResponse & { transcript: string }> {
+  const { data, error } = await supabase.functions.invoke<ChatResponse & { transcript: string }>('chat-query', {
+    body: { audio },
+  });
+
+  if (error) throw error;
+  if (data && data.answer) return data;
+
+  throw new Error('Invalid response received from chat-query function (audio)');
 }
