@@ -1,42 +1,37 @@
 import { Platform } from 'react-native';
 
 export const sereneHearthLight = {
-  // Core Surfaces
-  background: '#FAFAF7', // Warm ivory canvas
+  background: '#FAFAF7',
   surface: '#F8FAF7',
-  surfaceContainer: '#F0EFEA', // Warm oat container
-  surfaceContainerLowest: '#FFFFFF', // Pure white plates
+  surfaceContainer: '#F0EFEA',
+  surfaceContainerLowest: '#FFFFFF',
   surfaceContainerLow: '#F2F4F2',
   surfaceContainerHigh: '#E7E9E6',
   surfaceContainerHighest: '#E1E3E1',
 
-  // Core Text & Content
-  text: '#191C1B', // Deep mineral charcoal (>13.8:1)
-  textSecondary: '#3F4845', // Charcoal slate (>7.4:1 AAA)
+  text: '#191C1B',
+  textSecondary: '#3F4845',
   onSurface: '#191C1B',
   onSurfaceVariant: '#3F4845',
 
-  // Brand Accents
-  primary: '#1A3A34', // Deep forest pine (>11.5:1)
+  primary: '#1A3A34',
   primaryText: '#FAFAF7',
   onPrimary: '#FFFFFF',
   primaryContainer: '#1A3A34',
   onPrimaryContainer: '#83A49C',
 
-  secondary: '#2C685A', // Rich sage emerald
+  secondary: '#2C685A',
   onSecondary: '#FFFFFF',
   secondaryContainer: '#B1EFDD',
   onSecondaryContainer: '#336E60',
 
-  tertiary: '#608076', // Soft botanical slate
+  tertiary: '#608076',
   onTertiary: '#FFFFFF',
 
-  // Borders & Structure
-  border: '#D1D5DB', // Crisp solid 1.5px boundary
+  border: '#D1D5DB',
   outline: '#D1D5DB',
   outlineVariant: '#CBD5E1',
 
-  // Functional Conversational Tokens
   card: '#FFFFFF',
   userBubble: '#E6E4DD',
   userBubbleBorder: '#CBD5E1',
@@ -50,7 +45,6 @@ export const sereneHearthLight = {
 };
 
 export const sereneHearthDark = {
-  // Dark Surfaces
   background: '#111413',
   surface: '#191C1B',
   surfaceContainer: '#232725',
@@ -59,13 +53,11 @@ export const sereneHearthDark = {
   surfaceContainerHigh: '#282D2B',
   surfaceContainerHighest: '#313734',
 
-  // Dark Text & Content
   text: '#F8FAF7',
   textSecondary: '#C1C8C5',
   onSurface: '#F8FAF7',
   onSurfaceVariant: '#C1C8C5',
 
-  // Dark Brand Accents
   primary: '#ABCEC5',
   primaryText: '#00201B',
   onPrimary: '#00201B',
@@ -80,12 +72,10 @@ export const sereneHearthDark = {
   tertiary: '#ACCEC2',
   onTertiary: '#002019',
 
-  // Dark Borders
   border: '#3F4845',
   outline: '#717976',
   outlineVariant: '#3F4845',
 
-  // Dark Conversational Tokens
   card: '#191C1B',
   userBubble: '#2E3130',
   userBubbleBorder: '#414846',
@@ -179,3 +169,12 @@ export const spacing = {
   touchMin: 52,
   touchDefault: 56,
 };
+
+export const hitSlop = {
+  compact: { top: 6, bottom: 6, left: 6, right: 8 },
+  default: { top: 8, bottom: 8, left: 8, right: 8 },
+  spacious: { top: 10, bottom: 10, left: 10, right: 10 },
+} as const;
+
+export const HIT_SLOP_DEFAULT = hitSlop.default;
+

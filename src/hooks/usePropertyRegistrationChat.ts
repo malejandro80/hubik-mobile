@@ -44,17 +44,14 @@ export function usePropertyRegistrationChat() {
     setState(INITIAL_STATE);
   }, []);
 
-  // When ready_to_confirm, the target mode depends on where the correction came from: a
-  // fresh completion (from 'collecting') moves on to 'photos' for the first time, but a
-  // correction made from 'confirming' (via "Corregir algo") must return to 'confirming' -
-  // otherwise every text edit would re-run the whole photos/location/description sub-flow.
-  const nextModeOnReady = state.mode === 'confirming' ? 'confirming' : 'photos';
+  const isAlreadyInConfirmingMode = state.mode === 'confirming';
+  const targetModeOnReady = isAlreadyInConfirmingMode ? 'confirming' : 'photos';
 
   const processMessage = useCallback(
     async (text: string) => {
       const response = await intakeProperty(text, state.draft);
       setState({
-        mode: response.ready_to_confirm ? nextModeOnReady : 'collecting',
+        mode: response.ready_to_confirm ? targetModeOnReady : 'collecting',
         draft: response.data,
       });
       return {
@@ -63,14 +60,14 @@ export function usePropertyRegistrationChat() {
         draft: response.data,
       };
     },
-    [state.draft, nextModeOnReady]
+    [state.draft, targetModeOnReady]
   );
 
   const processAudioMessage = useCallback(
     async (audio: AudioPayload) => {
       const response = await intakePropertyAudio(audio, state.draft);
       setState({
-        mode: response.ready_to_confirm ? nextModeOnReady : 'collecting',
+        mode: response.ready_to_confirm ? targetModeOnReady : 'collecting',
         draft: response.data,
       });
       return {
@@ -80,11 +77,9 @@ export function usePropertyRegistrationChat() {
         transcript: response.transcript,
       };
     },
-    [state.draft, nextModeOnReady]
+    [state.draft, targetModeOnReady]
   );
 
-  // Photos are staged locally (their picked file:// URIs) and only uploaded to Storage as a
-  // single batch in confirmPublish - avoids uploading photos the user later removes/reorders.
   const addPhotos = useCallback(
     (uris: string[]) => {
       const images = [...(state.draft.images || []), ...uris];

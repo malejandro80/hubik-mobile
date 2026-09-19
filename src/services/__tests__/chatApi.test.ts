@@ -78,13 +78,11 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
       },
     ];
 
-    // Edge Function fails
     (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
       data: null,
       error: new Error('Edge Function invocation error'),
     });
 
-    // Mock direct query chain
     const mockOrder = jest.fn().mockReturnThis();
     const mockLimit = jest.fn().mockResolvedValueOnce({ data: mockDbData, error: null });
     const mockSelect = jest.fn().mockReturnValue({
@@ -130,7 +128,6 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
     const filtersSqMetres = parsePromptFilters('Seattle home under 200 square meters');
     expect(filtersSqMetres.max_square_meters).toBe(200);
 
-    // Legacy feet query converts to metric m²
     const filtersFeet = parsePromptFilters('Denver house under 1000 sqft');
     expect(filtersFeet.max_square_meters).toBe(93);
   });

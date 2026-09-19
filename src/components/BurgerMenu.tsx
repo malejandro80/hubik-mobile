@@ -1,10 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   Animated,
-  Easing,
   Modal,
-  Platform,
-  StyleSheet,
   Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
@@ -13,31 +10,21 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { colors, shapes, spacing, typography } from '../theme/colors';
+import { useLabels } from '../hooks/useLabels';
+import { colors, hitSlop } from '../theme/colors';
+import { useDrawerAnimation } from '../hooks/useDrawerAnimation';
 
-export interface BurgerMenuItem {
-  key: string;
-  title: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  badge?: string;
-}
+import { MENU_ITEMS, type BurgerMenuItem, type BurgerMenuItemKey } from './BurgerMenu.items';
+import { DRAWER_WIDTH, getBurgerMenuStyles } from './BurgerMenu.styles';
+
+export type { BurgerMenuItem, BurgerMenuItemKey };
+export { MENU_ITEMS, DRAWER_WIDTH };
 
 export interface BurgerMenuProps {
   visible: boolean;
   onClose: () => void;
-  onSelectMenuItem?: (key: string) => void;
+  onSelectMenuItem?: (key: BurgerMenuItemKey | string) => void;
 }
-
-const MENU_ITEMS: BurgerMenuItem[] = [
-  { key: 'search', title: 'Buscar Propiedades', icon: 'search-outline' },
-  { key: 'register', title: 'Registrar Vivienda', icon: 'add-circle-outline', badge: 'Nuevo' },
-  { key: 'new_chat', title: 'Reiniciar Chat', icon: 'refresh-outline' },
-  { key: 'saved', title: 'Propiedades Guardadas', icon: 'bookmark-outline' },
-  { key: 'settings', title: 'Ajustes y Accesibilidad', icon: 'settings-outline' },
-  { key: 'help', title: 'Ayuda y Soporte', icon: 'help-circle-outline' },
-];
-
-const DRAWER_WIDTH = 340;
 
 export const BurgerMenu: React.FC<BurgerMenuProps> = ({
   visible,
@@ -46,78 +33,15 @@ export const BurgerMenu: React.FC<BurgerMenuProps> = ({
 }) => {
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
+  const labels = useLabels();
+  const styles = useMemo(() => getBurgerMenuStyles(theme), [theme]);
 
-  const [modalVisible, setModalVisible] = useState(visible);
-  const slideAnim = useMemo(() => new Animated.Value(DRAWER_WIDTH), []);
-  const fadeAnim = useMemo(() => new Animated.Value(0), []);
-  const isClosingRef = useRef(false);
-  const isTest = process.env.NODE_ENV === 'test';
-
-  const animateClose = useCallback((callback?: () => void) => {
-    if (isClosingRef.current) return;
-    isClosingRef.current = true;
-
-    if (isTest) {
-      setModalVisible(false);
-      isClosingRef.current = false;
-      callback?.();
-      return;
-    }
-
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        easing: Easing.in(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: DRAWER_WIDTH,
-        duration: 220,
-        easing: Easing.bezier(0.4, 0, 1, 1),
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      setModalVisible(false);
-      isClosingRef.current = false;
-      callback?.();
+  const { modalVisible, slideAnim, fadeAnim, animateClose, handleClose } =
+    useDrawerAnimation({
+      visible,
+      onClose,
+      drawerWidth: DRAWER_WIDTH,
     });
-  }, [fadeAnim, isTest, slideAnim]);
-
-  const handleClose = useCallback(() => {
-    animateClose(onClose);
-  }, [animateClose, onClose]);
-
-  useEffect(() => {
-    if (visible) {
-      isClosingRef.current = false;
-      setModalVisible(true);
-      if (isTest) {
-        slideAnim.setValue(0);
-        fadeAnim.setValue(1);
-        return;
-      }
-      slideAnim.setValue(DRAWER_WIDTH);
-      fadeAnim.setValue(0);
-
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 260,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 280,
-          easing: Easing.bezier(0.16, 1, 0.3, 1),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else if (modalVisible && !isClosingRef.current) {
-      handleClose();
-    }
-  }, [visible, modalVisible, handleClose, fadeAnim, slideAnim, isTest]);
 
   const handleItemPress = (key: string) => {
     animateClose(() => {
@@ -137,55 +61,58 @@ export const BurgerMenu: React.FC<BurgerMenuProps> = ({
       statusBarTranslucent
     >
       <View style={styles.modalOverlay}>
-        <TouchableWithoutFeedback onPress={handleClose} accessibilityLabel="Cerrar menú">
+        <TouchableWithoutFeedback onPress={handleClose} accessibilityLabel={labels.burgerMenu.backdropA11y}>
           <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} />
         </TouchableWithoutFeedback>
 
         <Animated.View style={[styles.drawerWrapper, { transform: [{ translateX: slideAnim }] }]}>
-          <SafeAreaView style={[styles.drawerPanel, { backgroundColor: theme.background, borderLeftColor: theme.outlineVariant }]}>
-            {/* Header */}
+          <SafeAreaView style={styles.drawerPanel}>
             <View style={styles.drawerHeader}>
               <View style={styles.brandRow}>
-                <View style={styles.logoBadge}><Ionicons name="home" size={18} color="#FFFFFF" /></View>
-                <Text style={[styles.brandTitle, { color: theme.primary }]}>Hubik</Text>
+                <View style={styles.logoBadge}>
+                  <Ionicons name="home" size={18} color={theme.onSecondary} />
+                </View>
+                <Text style={styles.brandTitle}>{labels.burgerMenu.brandTitle}</Text>
               </View>
               <TouchableOpacity
-                style={[styles.closeButton, { backgroundColor: theme.surfaceContainerHigh }]}
+                style={styles.closeButton}
                 onPress={handleClose}
                 accessibilityRole="button"
-                accessibilityLabel="Cerrar menú lateral"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel={labels.burgerMenu.closeA11y}
+                hitSlop={hitSlop.default}
               >
                 <Ionicons name="close" size={22} color={theme.text} />
               </TouchableOpacity>
             </View>
 
-            {/* User Profile */}
-            <View style={[styles.profileCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              <View style={styles.avatarCircle}><Text style={styles.avatarText}>DC</Text></View>
+            <View style={styles.profileCard}>
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>{labels.burgerMenu.avatarInitials}</Text>
+              </View>
               <View style={styles.profileInfo}>
-                <Text style={[styles.profileName, { color: theme.text }]}>Don Carlos</Text>
-                <Text style={[styles.profileRole, { color: theme.textSecondary }]}>Inversor & Búsqueda</Text>
+                <Text style={styles.profileName}>{labels.burgerMenu.profileName}</Text>
+                <Text style={styles.profileRole}>{labels.burgerMenu.profileRole}</Text>
               </View>
             </View>
 
-            {/* Menu Items */}
             <View style={styles.menuItemsContainer}>
               {MENU_ITEMS.map((item) => (
                 <TouchableOpacity
                   key={item.key}
-                  style={[styles.menuItemRow, { backgroundColor: theme.surfaceContainerLow, borderColor: theme.outlineVariant }]}
+                  style={styles.menuItemRow}
                   onPress={() => handleItemPress(item.key)}
                   accessibilityRole="button"
                   accessibilityLabel={item.title}
                 >
                   <View style={styles.menuItemLeft}>
                     <Ionicons name={item.icon} size={22} color={theme.secondary} style={styles.itemIcon} />
-                    <Text style={[styles.menuItemText, { color: theme.text }]}>{item.title}</Text>
+                    <Text style={styles.menuItemText}>{item.title}</Text>
                   </View>
                   <View style={styles.menuItemRight}>
                     {item.badge && (
-                      <View style={styles.badge}><Text style={styles.badgeText}>{item.badge}</Text></View>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{item.badge}</Text>
+                      </View>
                     )}
                     <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
                   </View>
@@ -193,9 +120,8 @@ export const BurgerMenu: React.FC<BurgerMenuProps> = ({
               ))}
             </View>
 
-            {/* Footer */}
             <View style={styles.drawerFooter}>
-              <Text style={[styles.versionText, { color: theme.textSecondary }]}>Hubik Real Estate AI • v1.0</Text>
+              <Text style={styles.versionText}>{labels.burgerMenu.version}</Text>
             </View>
           </SafeAreaView>
         </Animated.View>
@@ -204,85 +130,3 @@ export const BurgerMenu: React.FC<BurgerMenuProps> = ({
   );
 };
 
-const styles = StyleSheet.create({
-  modalOverlay: { flex: 1, flexDirection: 'row', justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(2, 36, 31, 0.45)' },
-  drawerWrapper: { width: '82%', maxWidth: DRAWER_WIDTH, height: '100%' },
-  drawerPanel: {
-    flex: 1,
-    borderLeftWidth: 1.5,
-    paddingHorizontal: spacing.marginMobile,
-    paddingVertical: 16,
-    justifyContent: 'space-between',
-    elevation: 16,
-    shadowColor: '#02241F',
-    shadowOffset: { width: -4, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-  },
-  drawerHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E5E1',
-  },
-  brandRow: { flexDirection: 'row', alignItems: 'center' },
-  logoBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: shapes.default,
-    backgroundColor: '#2C685A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  brandTitle: {
-    fontFamily: Platform.select({ ios: 'Georgia', android: 'serif', default: 'serif' }),
-    fontSize: 22,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  closeButton: { width: 44, height: 44, borderRadius: shapes.full, alignItems: 'center', justifyContent: 'center' },
-  profileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 14,
-    borderRadius: shapes.lg,
-    borderWidth: 1.5,
-    marginVertical: 18,
-  },
-  avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: shapes.full,
-    backgroundColor: '#163931',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  avatarText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', letterSpacing: 0.5 },
-  profileInfo: { flex: 1 },
-  profileName: { ...typography.labelLG, fontSize: 17, fontWeight: '700' },
-  profileRole: { fontSize: 13, marginTop: 2 },
-  menuItemsContainer: { flex: 1 },
-  menuItemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    height: spacing.touchMin,
-    borderRadius: shapes.md,
-    borderWidth: 1,
-    marginBottom: 10,
-  },
-  menuItemLeft: { flexDirection: 'row', alignItems: 'center' },
-  menuItemRight: { flexDirection: 'row', alignItems: 'center' },
-  itemIcon: { marginRight: 12 },
-  menuItemText: { ...typography.bodyLG, fontSize: 16, fontWeight: '500' },
-  badge: { backgroundColor: '#D2F3EA', paddingHorizontal: 8, paddingVertical: 2, borderRadius: shapes.full, marginRight: 8 },
-  badgeText: { color: '#163931', fontSize: 11, fontWeight: '700' },
-  drawerFooter: { paddingTop: 16, borderTopWidth: 1, borderTopColor: '#E2E5E1', alignItems: 'center' },
-  versionText: { fontSize: 12, fontWeight: '500' },
-});

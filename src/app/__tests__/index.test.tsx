@@ -89,11 +89,9 @@ describe('HomeScreen (Chat UI)', () => {
     expect(getByText('botón verde del micrófono')).toBeTruthy();
     expect(getByPlaceholderText('Escriba su consulta aquí...')).toBeTruthy();
 
-    // Verify paperclip and camera icons are removed
     expect(queryByLabelText('Adjuntar archivo o documento')).toBeNull();
     expect(queryByLabelText('Tomar foto o imagen')).toBeNull();
 
-    // Verify back button is hidden on main chat screen
     expect(queryByLabelText('Regresar')).toBeNull();
   });
 
@@ -158,16 +156,13 @@ describe('HomeScreen (Chat UI)', () => {
     const menuButton = getByLabelText('Menú de opciones');
     fireEvent.press(menuButton);
 
-    // Verify BurgerMenu content is now visible
     expect(getByText('Buscar Propiedades')).toBeTruthy();
     expect(getByText('Reiniciar Chat')).toBeTruthy();
     expect(getByText('Propiedades Guardadas')).toBeTruthy();
 
-    // Tap to restart chat
     const restartItem = getByText('Reiniciar Chat');
     fireEvent.press(restartItem);
 
-    // Initial greeting remains
     expect(getByText('Buenos días, Don Carlos.')).toBeTruthy();
   });
 
@@ -308,7 +303,7 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
       images: [],
     });
 
-    const { getByPlaceholderText, getByText, getByLabelText } = render(<HomeScreen />);
+    const { getByPlaceholderText, getByText } = render(<HomeScreen />);
     const input = getByPlaceholderText('Escriba su consulta aquí...');
 
     fireEvent.changeText(input, '/agregar-propiedad');
@@ -410,17 +405,14 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
     fireEvent.changeText(input, 'Adjuntar fotos');
     fireEvent.press(getByText('Enviar'));
 
-    // Photos are staged locally - no Storage upload happens on pick.
     await waitFor(() => {
       expect(getByText('Portada')).toBeTruthy();
     });
     expect(propertyImages.uploadPropertyImages).not.toHaveBeenCalled();
 
-    // Remove one staged photo via the grid's per-thumbnail control.
     fireEvent.press(getByLabelText('Eliminar foto 2'));
     expect(propertyImages.uploadPropertyImages).not.toHaveBeenCalled();
 
-    // Continue to location via text command
     fireEvent.changeText(input, 'Continuar');
     fireEvent.press(getByText('Enviar'));
 
@@ -462,7 +454,7 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
     (ImagePicker.getMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({ granted: false });
     (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({ granted: false });
 
-    const { getByPlaceholderText, getByText, getByLabelText } = render(<HomeScreen />);
+    const { getByPlaceholderText, getByText } = render(<HomeScreen />);
     const input = getByPlaceholderText('Escriba su consulta aquí...');
 
     fireEvent.changeText(input, '/agregar-propiedad');
@@ -546,7 +538,6 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
 
     const micButton = getByLabelText('Hablar por micrófono');
 
-    // Send property data via voice note
     fireEvent.press(micButton);
     fireEvent.press(micButton);
 
@@ -554,7 +545,6 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
       expect(getByText(/¿Desea agregar fotos de la propiedad\?/)).toBeTruthy();
     });
 
-    // Send "Continuar sin fotos" via voice note
     fireEvent.press(micButton);
     fireEvent.press(micButton);
 
@@ -562,7 +552,6 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
       expect(getByText(/fijar ubicación/i)).toBeTruthy();
     });
 
-    // Send "Fijar ubicación" via voice note
     fireEvent.press(micButton);
     fireEvent.press(micButton);
 
@@ -576,7 +565,6 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
       expect(getByText(/¿Los datos son correctos\?/)).toBeTruthy();
     });
 
-    // Send "Confirmar y publicar" via voice note
     fireEvent.press(micButton);
     fireEvent.press(micButton);
 

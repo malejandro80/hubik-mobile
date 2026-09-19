@@ -2,8 +2,12 @@ import React, { useMemo } from 'react';
 import { FlatList, Image, Text, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { colors } from '../theme/colors';
-import { styles } from './PropertyPhotoGrid.styles';
+import { useLabels } from '../hooks/useLabels';
+import { colors, hitSlop } from '../theme/colors';
+import { buildPhotoGridData, GridItem } from '../lib/photoGrid';
+import { getPropertyPhotoGridStyles } from './PropertyPhotoGrid.styles';
+
+export type { GridItem };
 
 export interface PropertyPhotoGridProps {
   images: string[];
@@ -12,12 +16,6 @@ export interface PropertyPhotoGridProps {
   onMove: (index: number, direction: 'up' | 'down') => void;
   onAddPress: () => void;
 }
-
-const HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
-
-type GridItem =
-  | { type: 'photo'; uri: string; index: number }
-  | { type: 'add' };
 
 export const PropertyPhotoGrid: React.FC<PropertyPhotoGridProps> = ({
   images,
@@ -28,11 +26,16 @@ export const PropertyPhotoGrid: React.FC<PropertyPhotoGridProps> = ({
 }) => {
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
+  const labels = useLabels();
+  const { styles, addIconColor } = useMemo(
+    () => getPropertyPhotoGridStyles(theme),
+    [theme]
+  );
 
-  const data: GridItem[] = useMemo(() => {
-    const photoItems: GridItem[] = images.map((uri, index) => ({ type: 'photo', uri, index }));
-    return images.length < maxImages ? [...photoItems, { type: 'add' }] : photoItems;
-  }, [images, maxImages]);
+  const data = useMemo(
+    () => buildPhotoGridData(images, maxImages),
+    [images, maxImages]
+  );
 
   return (
     <View style={styles.container}>
@@ -46,13 +49,13 @@ export const PropertyPhotoGrid: React.FC<PropertyPhotoGridProps> = ({
           if (item.type === 'add') {
             return (
               <TouchableOpacity
-                style={[styles.addCell, { borderColor: theme.outline }]}
+                style={styles.addCell}
                 onPress={onAddPress}
                 accessibilityRole="button"
-                accessibilityLabel="Añadir más fotos"
+                accessibilityLabel={labels.photoGrid.addA11y}
               >
-                <Ionicons name="add" size={24} color={theme.secondary} />
-                <Text style={[styles.addCellText, { color: theme.secondary }]}>Añadir</Text>
+                <Ionicons name="add" size={24} color={addIconColor} />
+                <Text style={styles.addCellText}>{labels.photoGrid.add}</Text>
               </TouchableOpacity>
             );
           }
@@ -65,17 +68,17 @@ export const PropertyPhotoGrid: React.FC<PropertyPhotoGridProps> = ({
               <Image source={{ uri }} style={styles.thumbnail} resizeMode="cover" />
 
               {isCover && (
-                <View style={[styles.coverBadge, { backgroundColor: theme.primary }]}>
-                  <Text style={styles.coverBadgeText}>Portada</Text>
+                <View style={styles.coverBadge}>
+                  <Text style={styles.coverBadgeText}>{labels.photoGrid.cover}</Text>
                 </View>
               )}
 
               <TouchableOpacity
                 style={styles.removeButton}
                 onPress={() => onRemove(index)}
-                hitSlop={HIT_SLOP}
+                hitSlop={hitSlop.spacious}
                 accessibilityRole="button"
-                accessibilityLabel={`Eliminar foto ${index + 1}`}
+                accessibilityLabel={labels.photoGrid.removeA11y(index + 1)}
               >
                 <Ionicons name="close" size={16} color="#FFFFFF" />
               </TouchableOpacity>
@@ -85,9 +88,9 @@ export const PropertyPhotoGrid: React.FC<PropertyPhotoGridProps> = ({
                   style={[styles.moveButton, index === 0 && styles.moveButtonDisabled]}
                   onPress={() => onMove(index, 'up')}
                   disabled={index === 0}
-                  hitSlop={HIT_SLOP}
+                  hitSlop={hitSlop.spacious}
                   accessibilityRole="button"
-                  accessibilityLabel={`Mover foto ${index + 1} hacia atrás`}
+                  accessibilityLabel={labels.photoGrid.moveBackA11y(index + 1)}
                   accessibilityState={{ disabled: index === 0 }}
                 >
                   <Ionicons name="chevron-back" size={16} color="#FFFFFF" />
@@ -96,9 +99,9 @@ export const PropertyPhotoGrid: React.FC<PropertyPhotoGridProps> = ({
                   style={[styles.moveButton, index === images.length - 1 && styles.moveButtonDisabled]}
                   onPress={() => onMove(index, 'down')}
                   disabled={index === images.length - 1}
-                  hitSlop={HIT_SLOP}
+                  hitSlop={hitSlop.spacious}
                   accessibilityRole="button"
-                  accessibilityLabel={`Mover foto ${index + 1} hacia adelante`}
+                  accessibilityLabel={labels.photoGrid.moveForwardA11y(index + 1)}
                   accessibilityState={{ disabled: index === images.length - 1 }}
                 >
                   <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />

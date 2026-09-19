@@ -1,9 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Image,
-  Platform,
   Share,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -11,7 +9,9 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { PROPERTY_TYPE_LABEL_ES, Property } from '../types/property';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { colors, shapes, typography } from '../theme/colors';
+import { useLabels } from '../hooks/useLabels';
+import { colors } from '../theme/colors';
+import { getPropertyCardStyles } from './PropertyCard.styles';
 
 interface PropertyCardProps {
   property: Property;
@@ -24,19 +24,22 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
 }) => {
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
+  const labels = useLabels();
+  const { styles, iconColorText, iconColorPrimaryText } = useMemo(
+    () => getPropertyCardStyles(theme),
+    [theme]
+  );
 
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'Available':
-        return 'Disponible';
-      case 'Pending':
-        return 'Pendiente';
-      case 'Sold':
-        return 'Vendido';
-      default:
-        return status;
-    }
-  };
+  const statusLabels: Record<string, string> = useMemo(
+    () => ({
+      Available: labels.propertyCard.status.available,
+      Pending: labels.propertyCard.status.pending,
+      Sold: labels.propertyCard.status.sold,
+    }),
+    [labels]
+  );
+
+  const statusLabel = statusLabels[property.status] ?? property.status;
 
   const formattedPrice = `$${Number(property.price).toLocaleString('en-US')}`;
   const formattedArea = Number(property.square_meters).toLocaleString('en-US');
@@ -45,21 +48,19 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
     try {
       await Share.share({
         title: property.title,
-        message: `Mira esta propiedad en Hubik: ${property.title} por ${formattedPrice} en ${property.city}.\nDirección: ${property.address}`,
+        message: labels.propertyCard.shareMessage(
+          property.title,
+          formattedPrice,
+          property.city,
+          property.address
+        ),
       });
     } catch {
-      // User dismissed share dialog
     }
   };
 
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: theme.card, borderColor: theme.border },
-      ]}
-    >
-      {/* Property Cover Image & Badges */}
+    <View style={styles.card}>
       <View style={styles.imageContainer}>
         <Image
           source={{
@@ -71,127 +72,113 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
           resizeMode="cover"
         />
 
-        {/* Top Overlaid Badges */}
         <View style={styles.topBadgesRow}>
           <View style={styles.exclusiveBadge}>
             <Text style={styles.exclusiveDot}>● </Text>
             <Text style={styles.exclusiveText}>
-              {getStatusLabel(property.status)}
+              {statusLabel}
             </Text>
-            <Text style={styles.exclusivePercent}> · 3%</Text>
+            <Text style={styles.exclusivePercent}>{labels.propertyCard.commission}</Text>
           </View>
         </View>
 
-        {/* Bottom Right Photo Count Badge */}
         <View style={styles.photoCountBadge}>
           <Ionicons
             name="camera-outline"
             size={13}
-            color="#191C1B"
+            color={iconColorText}
             style={styles.cameraIcon}
           />
           <Text style={styles.photoCountText}>
             {property.images && property.images.length > 1
-              ? `${property.images.length} fotos`
-              : '14 fotos'}
+              ? labels.propertyCard.photosCount(property.images.length)
+              : labels.propertyCard.defaultPhotosCount}
           </Text>
         </View>
       </View>
 
-      {/* Property Content Area */}
       <View style={styles.content}>
-        {/* Title Row */}
         <View style={styles.titleRow}>
           <Text
-            style={[styles.title, { color: theme.text }]}
+            style={styles.title}
             numberOfLines={2}
           >
             {property.title}
           </Text>
         </View>
 
-        {/* Address / Location Line */}
         <Text
-          style={[styles.address, { color: theme.textSecondary }]}
+          style={styles.address}
           numberOfLines={1}
         >
-          {property.address} · {property.city} · Exterior con ascensor
+          {property.address} · {property.city}{labels.propertyCard.exteriorElevator}
         </Text>
 
-        {/* Specs Row */}
         <View style={styles.specsRow}>
           <Text
-            style={[styles.specText, { color: theme.textSecondary }]}
-            accessibilityLabel={`${property.square_meters} metros cuadrados`}
+            style={styles.specText}
+            accessibilityLabel={labels.propertyCard.sqmLabel(property.square_meters)}
           >
-            {formattedArea} m²
+            {formattedArea} {labels.propertyCard.sqmSuffix}
           </Text>
-          <Text style={[styles.specDot, { color: theme.textSecondary }]}>
+          <Text style={styles.specDot}>
             {' '}·{' '}
           </Text>
-          <Text style={[styles.specText, { color: theme.textSecondary }]}>
-            {property.bedrooms === 0 ? 'Estudio' : `${property.bedrooms} hab.`}
+          <Text style={styles.specText}>
+            {property.bedrooms === 0 ? labels.propertyCard.studio : labels.propertyCard.bedroomShort(property.bedrooms)}
           </Text>
-          <Text style={[styles.specDot, { color: theme.textSecondary }]}>
+          <Text style={styles.specDot}>
             {' '}·{' '}
           </Text>
-          <Text style={[styles.specText, { color: theme.textSecondary }]}>
-            {property.bathrooms === 1 ? '1 baño' : `${property.bathrooms} baños`}
+          <Text style={styles.specText}>
+            {labels.propertyCard.bathrooms(property.bathrooms)}
           </Text>
-          <Text style={[styles.specDot, { color: theme.textSecondary }]}>
+          <Text style={styles.specDot}>
             {' '}·{' '}
           </Text>
-          <Text style={[styles.specText, { color: theme.textSecondary }]}>
+          <Text style={styles.specText}>
             {PROPERTY_TYPE_LABEL_ES[property.property_type] || property.property_type}
           </Text>
         </View>
 
-        {/* Financial Block (Price) */}
         <View style={styles.financialRow}>
           <View style={styles.priceCol}>
-            <Text style={[styles.price, { color: theme.primary }]}>
+            <Text style={styles.price}>
               {formattedPrice}
             </Text>
           </View>
         </View>
 
-        {/* Action Buttons Row */}
         <View style={styles.actionsRow}>
           <TouchableOpacity
-            style={[styles.primaryAction, { backgroundColor: '#163931' }]}
+            style={styles.primaryAction}
             onPress={() => onPress && onPress(property)}
             accessibilityRole="button"
-            accessibilityLabel={`Ver detalle de ${property.title}`}
+            accessibilityLabel={labels.propertyCard.viewDetailsA11y(property.title)}
           >
             <Ionicons
               name="eye-outline"
               size={18}
-              color="#FFFFFF"
+              color={iconColorPrimaryText}
               style={styles.actionBtnIcon}
             />
-            <Text style={styles.primaryActionText}>Ver detalle</Text>
+            <Text style={styles.primaryActionText}>{labels.propertyCard.viewDetails}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[
-              styles.secondaryAction,
-              {
-                backgroundColor: theme.surfaceContainerLow,
-                borderColor: theme.outlineVariant,
-              },
-            ]}
+            style={styles.secondaryAction}
             onPress={handleShare}
             accessibilityRole="button"
-            accessibilityLabel={`Compartir ${property.title}`}
+            accessibilityLabel={labels.propertyCard.shareA11y(property.title)}
           >
             <Ionicons
               name="share-social-outline"
               size={18}
-              color={theme.text}
+              color={iconColorText}
               style={styles.actionBtnIcon}
             />
-            <Text style={[styles.secondaryActionText, { color: theme.text }]}>
-              Compartir
+            <Text style={styles.secondaryActionText}>
+              {labels.propertyCard.share}
             </Text>
           </TouchableOpacity>
         </View>
@@ -201,176 +188,3 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
 });
 
 PropertyCard.displayName = 'PropertyCard';
-
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: shapes.xl, // 24px
-    borderWidth: 1.5,
-    overflow: 'hidden',
-    marginBottom: 22,
-    shadowColor: '#1A3A34',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  imageContainer: {
-    width: '100%',
-    height: 210,
-    position: 'relative',
-    backgroundColor: '#E5E7EB',
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  topBadgesRow: {
-    position: 'absolute',
-    top: 14,
-    left: 14,
-    right: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  exclusiveBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#14352D', // Deep forest pine
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: shapes.full,
-    marginRight: 8,
-  },
-  exclusiveDot: {
-    color: '#52D1A8', // Mint green indicator
-    fontSize: 10,
-  },
-  exclusiveText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 12,
-    letterSpacing: 0.2,
-  },
-  exclusivePercent: {
-    color: '#E1E3E1',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  photoCountBadge: {
-    position: 'absolute',
-    bottom: 12,
-    right: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.94)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: shapes.full,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cameraIcon: {
-    marginRight: 4,
-  },
-  photoCountText: {
-    color: '#191C1B',
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  content: {
-    padding: 20,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 6,
-  },
-  title: {
-    flex: 1,
-    fontFamily: Platform.select({
-      ios: 'Georgia',
-      android: 'serif',
-      default: 'serif',
-    }),
-    fontSize: 22,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    lineHeight: 28,
-  },
-  address: {
-    fontSize: 15,
-    fontWeight: '600',
-    lineHeight: 22,
-    marginBottom: 10,
-  },
-  specsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    marginBottom: 16,
-  },
-  specText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  specDot: {
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  financialRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    paddingVertical: 4,
-    marginBottom: 18,
-  },
-  priceCol: {
-    flex: 1,
-  },
-  price: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.5,
-    marginBottom: 2,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  primaryAction: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 48,
-    borderRadius: shapes.md, // 12px
-    marginRight: 10,
-  },
-  actionBtnIcon: {
-    marginRight: 6,
-  },
-  primaryActionText: {
-    color: '#FFFFFF',
-    ...typography.labelMD,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  secondaryAction: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 48,
-    borderRadius: shapes.md, // 12px
-    borderWidth: 1,
-  },
-  secondaryActionText: {
-    ...typography.labelMD,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-});

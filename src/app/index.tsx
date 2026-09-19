@@ -5,7 +5,6 @@ import {
   KeyboardAvoidingView,
   ListRenderItem,
   Platform,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -21,175 +20,41 @@ import { ChatMessageItem } from '../components/ChatMessageItem';
 import { Header } from '../components/Header';
 import { PropertyPhotoGrid } from '../components/PropertyPhotoGrid';
 import { useColorScheme } from '../hooks/useColorScheme';
+import { useLabels } from '../hooks/useLabels';
 import { usePropertyRegistrationChat } from '../hooks/usePropertyRegistrationChat';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import {
   AudioPayload,
-  generatePropertyTitle,
   sendChatQuery,
   sendChatQueryAudio,
   VOICE_NOTE_MIME_TYPE,
 } from '../services/chatApi';
 import { MAX_PROPERTY_IMAGES } from '../services/propertyImages';
-import { colors, shapes, spacing, typography } from '../theme/colors';
-import { ChatMessage, Property, PROPERTY_TYPE_LABEL_ES, PropertyDraft } from '../types/property';
-
-const REGISTER_COMMAND = '/agregar-propiedad';
-const CANCEL_PHRASES = ['cancelar registro', 'cancelar'];
-
-function isConfirmIntent(text: string): boolean {
-  const lower = text.toLowerCase().trim().replace(/[.,!¡?¿]/g, '');
-  const phrases = [
-    'confirmar y publicar',
-    'confirmar',
-    'publicar',
-    'confirmo',
-    'publicala',
-    'publicalo',
-    'publicar propiedad',
-    'sí',
-    'si',
-    'adelante',
-    'todo bien',
-    'de acuerdo',
-    'correcto',
-    'está bien',
-    'esta bien',
-    'dale',
-    'perfecto',
-    'listo',
-    'ok',
-    'proceder',
-  ];
-  return phrases.some((p) => lower === p || lower.startsWith(p + ' ') || lower.endsWith(' ' + p));
-}
-
-function isContinueIntent(text: string): boolean {
-  const lower = text.toLowerCase().trim().replace(/[.,!¡?¿]/g, '');
-  const phrases = [
-    'continuar sin fotos',
-    'continuar',
-    'sin fotos',
-    'no tengo fotos',
-    'no quiero fotos',
-    'omitir fotos',
-    'omitir',
-    'seguir',
-    'pasar',
-    'siguiente',
-    'después',
-    'despues',
-    'más tarde',
-    'mas tarde',
-    'ninguna',
-    'no por ahora',
-    'no',
-  ];
-  return phrases.some((p) => lower === p || lower.startsWith(p + ' ') || lower.endsWith(' ' + p));
-}
-
-function isLocationIntent(text: string): boolean {
-  const lower = text.toLowerCase().trim().replace(/[.,!¡?¿]/g, '');
-  const phrases = [
-    'fijar ubicación',
-    'fijar ubicacion',
-    'marcar ubicación',
-    'marcar ubicacion',
-    'abrir mapa',
-    'ver mapa',
-    'mapa',
-    'ubicar',
-    'ubicación',
-    'ubicacion',
-    'poner ubicación',
-    'poner ubicacion',
-    'localización',
-    'localizacion',
-  ];
-  return phrases.some((p) => lower === p || lower.includes(p));
-}
-
-function isPhotosIntent(text: string): boolean {
-  if (isContinueIntent(text)) return false;
-  const lower = text.toLowerCase().trim().replace(/[.,!¡?¿]/g, '');
-  const phrases = [
-    'adjuntar fotos',
-    'adjuntar más fotos',
-    'adjuntar mas fotos',
-    'agregar fotos',
-    'subir fotos',
-    'poner fotos',
-    'cambiar fotos',
-    'añadir fotos',
-    'anadir fotos',
-    'fotos',
-    'imágenes',
-    'imagenes',
-  ];
-  return phrases.some((p) => lower === p || lower.includes(p));
-}
-
-const REGISTER_EXAMPLE =
-  'Para comenzar, indíqueme la referencia catastral de la propiedad (puede consultarla en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré para asegurarnos de que no esté ya registrada antes de seguir. Después de eso, puede describir el resto de la propiedad de una sola vez, por voz o por texto (tipo, precio, habitaciones, baños, metros, ciudad y dirección) — no hace falta ir dato por dato.';
-
-function formatDraftSummary(draft: PropertyDraft): string {
-  const opLabel = draft.operation_type === 'rent' ? 'Alquiler' : 'Venta';
-  const typeLabel = draft.property_type ? PROPERTY_TYPE_LABEL_ES[draft.property_type] : '—';
-  const currencySymbol = draft.currency === 'USD' ? '$' : draft.currency === 'VES' ? 'Bs.' : '€';
-  const priceLabel = draft.price !== undefined ? `${draft.price.toLocaleString('es-ES')} ${currencySymbol}` : '—';
-
-  return [
-    `**Referencia catastral:** ${draft.catastro || '—'}`,
-    `**Operación:** ${opLabel}`,
-    `**Tipo:** ${typeLabel}`,
-    `**Precio:** ${priceLabel}`,
-    `**Habitaciones:** ${draft.bedrooms ?? '—'} · **Baños:** ${draft.bathrooms ?? '—'}`,
-    `**Metros:** ${draft.square_meters ?? '—'} m²`,
-    `**Ubicación:** ${draft.address || '—'}, ${draft.city || '—'}`,
-  ].join('\n\n');
-}
-
-function generateMessageId(prefix: 'user' | 'assistant'): string {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function buildDraftPreviewProperty(draft: PropertyDraft): Property {
-  return {
-    id: 'draft-preview',
-    catastro: draft.catastro,
-    title: draft.title || generatePropertyTitle(draft),
-    property_type: draft.property_type!,
-    operation_type: draft.operation_type,
-    price: draft.price ?? 0,
-    bedrooms: draft.bedrooms ?? 0,
-    bathrooms: draft.bathrooms ?? 0,
-    square_meters: draft.square_meters ?? 0,
-    city: draft.city ?? '',
-    address: draft.address ?? '',
-    latitude: draft.latitude,
-    longitude: draft.longitude,
-    description: draft.description,
-    status: 'Available',
-    image_url: draft.images?.[0] || '',
-    images: draft.images || [],
-  };
-}
-
-const INITIAL_MESSAGES: ChatMessage[] = [
-  {
-    id: 'welcome-1',
-    sender: 'assistant',
-    title: 'Buenos días, Don Carlos.',
-    text: '¿En qué puedo ayudarle hoy con sus propiedades o búsqueda de vivienda?\n\nPuede pulsar el **botón verde del micrófono** para hablar con tranquilidad, o escribir si lo prefiere.',
-    timestamp: '10:30',
-  },
-];
+import { colors } from '../theme/colors';
+import { ChatMessage, Property, PropertyDraft } from '../types/property';
+import { getIndexStyles } from './index.styles';
+import {
+  buildDraftPreviewProperty,
+  buildPropertyRouteParams,
+  CANCEL_PHRASES,
+  formatDraftSummary,
+  formatOutcomeMessage,
+  generateMessageId,
+  INITIAL_MESSAGES,
+  isConfirmIntent,
+  isContinueIntent,
+  isLocationIntent,
+  isPhotosIntent,
+  REGISTER_COMMAND,
+} from '../lib/chatRegistration';
 
 export default function HomeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ startRegistration?: string }>();
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
+  const labels = useLabels();
+  const styles = useMemo(() => getIndexStyles(theme), [theme]);
 
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
@@ -205,23 +70,7 @@ export default function HomeScreen() {
     (property: Property) => {
       router.push({
         pathname: '/property/[id]',
-        params: {
-          id: property.id,
-          title: property.title,
-          price: property.price.toString(),
-          city: property.city,
-          address: property.address,
-          bedrooms: property.bedrooms.toString(),
-          bathrooms: property.bathrooms.toString(),
-          square_meters: property.square_meters.toString(),
-          image_url: property.image_url,
-          ...(property.description ? { description: property.description } : {}),
-          ...(property.images && property.images.length > 0
-            ? { images: JSON.stringify(property.images) }
-            : {}),
-          ...(property.latitude !== undefined ? { lat: property.latitude.toString() } : {}),
-          ...(property.longitude !== undefined ? { lng: property.longitude.toString() } : {}),
-        },
+        params: buildPropertyRouteParams(property),
       });
     },
     [router]
@@ -236,11 +85,11 @@ export default function HomeScreen() {
           sender: 'assistant',
           text,
           properties,
-          timestamp: 'Just now',
+          timestamp: labels.chat.justNow,
         },
       ]);
     },
-    []
+    [labels]
   );
 
   const handleSend = useCallback(
@@ -255,28 +104,25 @@ export default function HomeScreen() {
           id: generateMessageId('user'),
           sender: 'user',
           text: textToSend,
-          timestamp: 'Just now',
+          timestamp: labels.chat.justNow,
         },
       ];
 
       setMessages(newMessages);
       setInputText('');
 
-      // Start the guided property registration flow.
       if (lower === REGISTER_COMMAND) {
         registration.start();
-        appendAssistantMessage(newMessages, REGISTER_EXAMPLE);
+        appendAssistantMessage(newMessages, labels.chat.registerExample);
         return;
       }
 
-      // Cancel the flow from any in-progress state.
       if (registration.state.mode !== 'idle' && CANCEL_PHRASES.includes(lower)) {
         registration.cancel();
-        appendAssistantMessage(newMessages, 'De acuerdo, cancelé el registro. Puede volver a intentarlo cuando quiera.');
+        appendAssistantMessage(newMessages, labels.chat.cancelRegistrationConfirmation);
         return;
       }
 
-      // Confirmation / correction handling once the draft is complete.
       if (registration.state.mode === 'confirming') {
         if (isConfirmIntent(lower)) {
           setLoading(true);
@@ -284,13 +130,13 @@ export default function HomeScreen() {
             const property = await registration.confirmPublish();
             appendAssistantMessage(
               newMessages,
-              `¡Listo! Publiqué "${property.title}" en Hubik.`,
+              labels.chat.publishedSuccess(property.title),
               [property]
             );
           } catch (err: any) {
             appendAssistantMessage(
               newMessages,
-              `⚠️ No pude publicar la propiedad (${err?.message || 'error desconocido'}). Sus datos siguen guardados, puede intentar de nuevo.`
+              labels.chat.publishError(err?.message || 'error desconocido')
             );
           } finally {
             setLoading(false);
@@ -300,7 +146,7 @@ export default function HomeScreen() {
 
         if (isPhotosIntent(lower)) {
           registration.editPhotos();
-          appendAssistantMessage(newMessages, '¿Desea agregar o cambiar las fotos de la propiedad? Diga "adjuntar fotos", o "continuar" para mantener las que tiene.');
+          appendAssistantMessage(newMessages, labels.chat.photosPrompt);
           return;
         }
 
@@ -311,18 +157,17 @@ export default function HomeScreen() {
         }
 
         if (lower.includes('corregir') || lower.includes('cambiar') || lower.includes('modificar')) {
-          appendAssistantMessage(newMessages, '¿Qué dato desea corregir? Cuéntemelo y lo actualizo.');
+          appendAssistantMessage(newMessages, labels.chat.correctionPrompt);
           return;
         }
       }
 
-      // Photos step: either open the picker or move on (with or without photos already staged).
       if (registration.state.mode === 'photos') {
         if (isContinueIntent(lower)) {
           registration.skipPhotos();
           appendAssistantMessage(
             newMessages,
-            'Perfecto. Ahora diga o escriba "fijar ubicación" o "abrir mapa" para marcar en el mapa dónde está la propiedad.'
+            labels.chat.photosContinueLocationPrompt
           );
           return;
         }
@@ -330,11 +175,6 @@ export default function HomeScreen() {
         if (isPhotosIntent(lower)) {
           setLoading(true);
           try {
-            // Request permission explicitly before launching the picker - asking for it
-            // up front (rather than relying on launchImageLibraryAsync's implicit request)
-            // avoids the OS permission prompt interrupting the picker call itself, which on
-            // some devices makes that first launch return canceled right after the user taps
-            // "OK" on the permission note, silently blocking the flow.
             const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
             const granted = permission.granted
               ? true
@@ -343,7 +183,7 @@ export default function HomeScreen() {
             if (!granted) {
               appendAssistantMessage(
                 newMessages,
-                'Necesito permiso para acceder a sus fotos. Actívelo desde los ajustes del dispositivo para adjuntar imágenes, o diga "continuar sin fotos".'
+                labels.chat.photosPermissionRequired
               );
               return;
             }
@@ -360,15 +200,15 @@ export default function HomeScreen() {
               const { images } = registration.addPhotos(uris);
               appendAssistantMessage(
                 newMessages,
-                `Añadí ${uris.length} foto(s). Tiene ${images.length} en total (se subirán al publicar). Puede decir o escribir "continuar" para seguir con el registro, o agregar más fotos.`
+                labels.chat.photosAdded(uris.length, images.length)
               );
             } else {
-              appendAssistantMessage(newMessages, 'No se seleccionó ninguna foto. Puede intentarlo de nuevo o decir "continuar sin fotos".');
+              appendAssistantMessage(newMessages, labels.chat.photosNoneSelected);
             }
           } catch (err: any) {
             appendAssistantMessage(
               newMessages,
-              `⚠️ No pude seleccionar esas fotos (${err?.message || 'error desconocido'}). Intente de nuevo.`
+              labels.chat.photosSelectionError(err?.message || 'error desconocido')
             );
           } finally {
             setLoading(false);
@@ -380,31 +220,27 @@ export default function HomeScreen() {
         }
       }
 
-      // Location step: opens the map picker modal; confirming it is handled separately.
       if (registration.state.mode === 'location' && isLocationIntent(lower)) {
         setMapPickerVisible(true);
         return;
       }
 
-      // Any other message while a draft is in progress is treated as new/updated info.
       if (registration.state.mode !== 'idle') {
         const wasConfirming = registration.state.mode === 'confirming';
         setLoading(true);
         try {
           const outcome = await registration.processMessage(textToSend);
-          // Correcting a field from the confirmation screen returns straight there (see the
-          // hook's nextModeOnReady) - show the updated summary instead of re-asking for photos,
-          // which only makes sense the first time the draft becomes complete.
-          const text = outcome.readyToConfirm
-            ? wasConfirming
-              ? `${outcome.assistantMessage}\n\n${formatDraftSummary(outcome.draft)}\n\n¿Los datos son correctos? Diga o escriba "confirmar" o "publicar" para publicarla, o indíqueme qué desea corregir.`
-              : `${outcome.assistantMessage}\n\n¿Desea agregar fotos de la propiedad? Puede decir "adjuntar fotos" (hasta ${MAX_PROPERTY_IMAGES}), o decir "continuar sin fotos" para seguir adelante.`
-            : outcome.assistantMessage;
+          const text = formatOutcomeMessage(
+            outcome.readyToConfirm,
+            wasConfirming,
+            outcome.assistantMessage,
+            outcome.draft
+          );
           appendAssistantMessage(newMessages, text);
         } catch (err: any) {
           appendAssistantMessage(
             newMessages,
-            `⚠️ No pude procesar esos datos (${err?.message || 'Verifica la conexión'}). Intente nuevamente.`
+            labels.chat.processDataError(err?.message || 'Verifica la conexión')
           );
         } finally {
           setLoading(false);
@@ -419,7 +255,7 @@ export default function HomeScreen() {
       } catch (err: any) {
         appendAssistantMessage(
           newMessages,
-          `⚠️ No se pudo conectar con el servicio de IA (${err?.message || 'Verifica la conexión'}). Por favor intenta nuevamente.`
+          labels.chat.serviceError(err?.message || 'Verifica la conexión')
         );
       } finally {
         setLoading(false);
@@ -428,7 +264,7 @@ export default function HomeScreen() {
         }, 100);
       }
     },
-    [inputText, loading, messages, registration, appendAssistantMessage]
+    [inputText, loading, messages, registration, appendAssistantMessage, labels]
   );
 
   const handleSendAudio = useCallback(
@@ -447,68 +283,63 @@ export default function HomeScreen() {
           const transcript = (outcome.transcript || '').trim();
           const lowerTranscript = transcript.toLowerCase();
 
-          // Check cancel
           if (CANCEL_PHRASES.some((p) => lowerTranscript.includes(p))) {
             registration.cancel();
             const newMessages: ChatMessage[] = [
               ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
             ];
-            appendAssistantMessage(newMessages, 'De acuerdo, cancelé el registro. Puede volver a intentarlo cuando quiera.');
+            appendAssistantMessage(newMessages, labels.chat.cancelRegistrationConfirmation);
             return;
           }
 
-          // Check confirm in confirming mode
           if (registration.state.mode === 'confirming' && isConfirmIntent(lowerTranscript)) {
             const newMessages: ChatMessage[] = [
               ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
             ];
             setMessages(newMessages);
             try {
               const property = await registration.confirmPublish();
               appendAssistantMessage(
                 newMessages,
-                `¡Listo! Publiqué "${property.title}" en Hubik.`,
+                labels.chat.publishedSuccess(property.title),
                 [property]
               );
             } catch (err: any) {
               appendAssistantMessage(
                 newMessages,
-                `⚠️ No pude publicar la propiedad (${err?.message || 'error desconocido'}). Sus datos siguen guardados, puede intentar de nuevo.`
+                labels.chat.publishError(err?.message || 'error desconocido')
               );
             }
             return;
           }
 
-          // Check photos in confirming mode
           if (registration.state.mode === 'confirming' && isPhotosIntent(lowerTranscript)) {
             registration.editPhotos();
             const newMessages: ChatMessage[] = [
               ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
             ];
-            appendAssistantMessage(newMessages, '¿Desea agregar o cambiar las fotos de la propiedad? Diga "adjuntar fotos", o "continuar" para mantener las que tiene.');
+            appendAssistantMessage(newMessages, labels.chat.photosPrompt);
             return;
           }
 
-          // Check location in confirming mode
           if (registration.state.mode === 'confirming' && isLocationIntent(lowerTranscript)) {
             registration.editLocation();
             const newMessages: ChatMessage[] = [
               ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
             ];
             setMessages(newMessages);
             setMapPickerVisible(true);
             return;
           }
 
-          // Check photos in photos mode (voice note to add photos)
           if (registration.state.mode === 'photos' && isPhotosIntent(lowerTranscript)) {
             const newMessages: ChatMessage[] = [
               ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
             ];
             setMessages(newMessages);
             try {
@@ -520,7 +351,7 @@ export default function HomeScreen() {
               if (!granted) {
                 appendAssistantMessage(
                   newMessages,
-                  'Necesito permiso para acceder a sus fotos. Actívelo desde los ajustes del dispositivo para adjuntar imágenes, o diga "continuar sin fotos".'
+                  labels.chat.photosPermissionRequired
                 );
                 return;
               }
@@ -537,56 +368,54 @@ export default function HomeScreen() {
                 const { images } = registration.addPhotos(uris);
                 appendAssistantMessage(
                   newMessages,
-                  `Añadí ${uris.length} foto(s). Tiene ${images.length} en total (se subirán al publicar). Puede decir o escribir "continuar" para seguir con el registro, o agregar más fotos.`
+                  labels.chat.photosAdded(uris.length, images.length)
                 );
               } else {
-                appendAssistantMessage(newMessages, 'No se seleccionó ninguna foto. Puede intentarlo de nuevo o decir "continuar sin fotos".');
+                appendAssistantMessage(newMessages, labels.chat.photosNoneSelected);
               }
             } catch (err: any) {
               appendAssistantMessage(
                 newMessages,
-                `⚠️ No pude seleccionar esas fotos (${err?.message || 'error desconocido'}). Intente de nuevo.`
+                labels.chat.photosSelectionError(err?.message || 'error desconocido')
               );
             }
             return;
           }
 
-          // Check continue in photos mode
           if (registration.state.mode === 'photos' && isContinueIntent(lowerTranscript)) {
             registration.skipPhotos();
             const newMessages: ChatMessage[] = [
               ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
             ];
             appendAssistantMessage(
               newMessages,
-              'Perfecto. Ahora diga o escriba "fijar ubicación" o "abrir mapa" para marcar en el mapa dónde está la propiedad.'
+              labels.chat.photosContinueLocationPrompt
             );
             return;
           }
 
-          // Check location in location mode
           if (registration.state.mode === 'location' && isLocationIntent(lowerTranscript)) {
             const newMessages: ChatMessage[] = [
               ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
             ];
             setMessages(newMessages);
             setMapPickerVisible(true);
             return;
           }
 
-          // Normal draft field extraction outcome:
           const wasConfirming = registration.state.mode === 'confirming';
           const newMessages: ChatMessage[] = [
             ...messages,
-            { id: generateMessageId('user'), sender: 'user', text: transcript || '🎤 Nota de voz', timestamp: 'Just now' },
+            { id: generateMessageId('user'), sender: 'user', text: transcript || labels.chat.voiceNote, timestamp: labels.chat.justNow },
           ];
-          const text = outcome.readyToConfirm
-            ? wasConfirming
-              ? `${outcome.assistantMessage}\n\n${formatDraftSummary(outcome.draft)}\n\n¿Los datos son correctos? Diga o escriba "confirmar" o "publicar" para publicarla, o indíqueme qué desea corregir.`
-              : `${outcome.assistantMessage}\n\n¿Desea agregar fotos de la propiedad? Puede decir "adjuntar fotos" (hasta ${MAX_PROPERTY_IMAGES}), o decir "continuar sin fotos" para seguir adelante.`
-            : outcome.assistantMessage;
+          const text = formatOutcomeMessage(
+            outcome.readyToConfirm,
+            wasConfirming,
+            outcome.assistantMessage,
+            outcome.draft
+          );
           appendAssistantMessage(newMessages, text);
           return;
         }
@@ -594,17 +423,17 @@ export default function HomeScreen() {
         const response = await sendChatQueryAudio(audio);
         const newMessages: ChatMessage[] = [
           ...messages,
-          { id: generateMessageId('user'), sender: 'user', text: response.transcript, timestamp: 'Just now' },
+          { id: generateMessageId('user'), sender: 'user', text: response.transcript, timestamp: labels.chat.justNow },
         ];
         appendAssistantMessage(newMessages, response.answer, response.data);
       } catch (err: any) {
         const newMessages: ChatMessage[] = [
           ...messages,
-          { id: generateMessageId('user'), sender: 'user', text: '🎤 Nota de voz', timestamp: 'Just now' },
+          { id: generateMessageId('user'), sender: 'user', text: labels.chat.voiceNote, timestamp: labels.chat.justNow },
         ];
         appendAssistantMessage(
           newMessages,
-          `⚠️ No pude procesar la nota de voz (${err?.message || 'Verifica la conexión'}). Intenta grabar de nuevo o escribir tu mensaje.`
+          labels.chat.voiceProcessError(err?.message || 'Verifica la conexión')
         );
       } finally {
         setLoading(false);
@@ -613,7 +442,7 @@ export default function HomeScreen() {
         }, 100);
       }
     },
-    [loading, messages, registration, appendAssistantMessage]
+    [loading, messages, registration, appendAssistantMessage, labels]
   );
 
   const handleLocationConfirmed = useCallback(
@@ -629,7 +458,6 @@ export default function HomeScreen() {
           addressLine = [place.street, place.city].filter(Boolean).join(', ') || addressLine;
         }
       } catch {
-        // Reverse geocoding is a nicety only; fall back to raw coordinates above.
       }
 
       const withLocationMessages: ChatMessage[] = [
@@ -637,8 +465,8 @@ export default function HomeScreen() {
         {
           id: generateMessageId('assistant'),
           sender: 'assistant',
-          text: `📍 Ubicación confirmada: ${addressLine}. Generando la descripción de la propiedad...`,
-          timestamp: 'Just now',
+          text: labels.chat.locationConfirmedNotice(addressLine),
+          timestamp: labels.chat.justNow,
         },
       ];
       setMessages(withLocationMessages);
@@ -649,23 +477,21 @@ export default function HomeScreen() {
         const finalDraft: PropertyDraft = { ...registration.state.draft, latitude, longitude, description };
         appendAssistantMessage(
           withLocationMessages,
-          `¡Listo! Aquí tiene la vista previa. Puede editar cualquier dato antes de publicar.\n\n${formatDraftSummary(finalDraft)}\n\n¿Los datos son correctos? Diga o escriba "confirmar" o "publicar" para publicarla, o indíqueme qué desea corregir.`,
+          labels.chat.previewSummary(formatDraftSummary(finalDraft)),
           [buildDraftPreviewProperty(finalDraft)]
         );
       } catch (err: any) {
         appendAssistantMessage(
           withLocationMessages,
-          `⚠️ No pude generar la descripción (${err?.message || 'error desconocido'}). Diga o escriba "fijar ubicación" para intentar de nuevo.`
+          labels.chat.descriptionGenError(err?.message || 'error desconocido')
         );
       } finally {
         setLoading(false);
       }
     },
-    [registration, messages, appendAssistantMessage]
+    [registration, messages, appendAssistantMessage, labels]
   );
 
-  // Entry point from other screens (e.g. property detail), which route back
-  // here with `startRegistration=1` instead of a dedicated register screen.
   useEffect(() => {
     if (params.startRegistration && !hasAutoStartedRef.current) {
       hasAutoStartedRef.current = true;
@@ -688,39 +514,42 @@ export default function HomeScreen() {
       await recorder.start();
     } catch {
       Alert.alert(
-        'Micrófono no disponible',
-        'No pudimos acceder al micrófono. Revisa los permisos de la app o escribe tu mensaje.',
-        [{ text: 'Entendido' }]
+        labels.chat.micNotAvailableTitle,
+        labels.chat.micNotAvailableMessage,
+        [{ text: labels.common.understood }]
       );
     }
-  }, [recorder, handleSendAudio]);
+  }, [recorder, handleSendAudio, labels]);
 
   const handleMenu = () => {
     setIsMenuOpen(true);
   };
 
   const handleMenuItemSelect = (key: string) => {
-    if (key === 'register') {
-      handleSend(REGISTER_COMMAND);
-    } else if (key === 'new_chat') {
-      setMessages(INITIAL_MESSAGES);
-      setInputText('');
-    } else if (key === 'saved') {
-      Alert.alert(
-        'Propiedades Guardadas',
-        'Aún no ha guardado propiedades en sus favoritos.'
-      );
-    } else if (key === 'settings') {
-      Alert.alert(
-        'Ajustes',
-        'Configuraciones de voz, lectura y accesibilidad para Don Carlos.'
-      );
-    } else if (key === 'help') {
-      Alert.alert(
-        'Ayuda y Soporte',
-        'Comuníquese con el equipo de soporte de Hubik o su asesor personal.'
-      );
-    }
+    const menuActions: Record<string, () => void> = {
+      register: () => handleSend(REGISTER_COMMAND),
+      new_chat: () => {
+        setMessages(INITIAL_MESSAGES);
+        setInputText('');
+      },
+      saved: () =>
+        Alert.alert(
+          labels.burgerMenu.savedDraftsTitle,
+          labels.burgerMenu.savedDraftsMessage
+        ),
+      settings: () =>
+        Alert.alert(
+          labels.burgerMenu.settingsTitle,
+          labels.burgerMenu.settingsMessage
+        ),
+      help: () =>
+        Alert.alert(
+          labels.burgerMenu.helpTitle,
+          labels.burgerMenu.helpMessage
+        ),
+    };
+
+    menuActions[key]?.();
   };
 
   const renderMessageItem: ListRenderItem<ChatMessage> = useCallback(
@@ -736,21 +565,14 @@ export default function HomeScreen() {
   const renderListHeader = useCallback(
     () => (
       <View style={styles.listHeader}>
-        <View
-          style={[
-            styles.dateCapsule,
-            { backgroundColor: theme.surfaceContainerHigh },
-          ]}
-        >
-          <Text
-            style={[styles.dateCapsuleText, { color: theme.textSecondary }]}
-          >
-            Hoy, 10:30
+        <View style={styles.dateCapsule}>
+          <Text style={styles.dateCapsuleText}>
+            {labels.common.todayTime}
           </Text>
         </View>
       </View>
     ),
-    [theme.surfaceContainerHigh, theme.textSecondary]
+    [styles.listHeader, styles.dateCapsule, styles.dateCapsuleText, labels]
   );
 
   const stagedImages = useMemo(() => registration.state.draft.images || [], [registration.state.draft.images]);
@@ -763,7 +585,7 @@ export default function HomeScreen() {
             maxImages={MAX_PROPERTY_IMAGES}
             onRemove={registration.removePhoto}
             onMove={registration.movePhoto}
-            onAddPress={() => handleSend('Adjuntar más fotos')}
+            onAddPress={() => handleSend(labels.chat.attachMorePhotos)}
           />
         </View>
       );
@@ -773,19 +595,19 @@ export default function HomeScreen() {
   }, [
     registration.state.mode,
     stagedImages,
+    styles.photoGridWrapper,
     registration.removePhoto,
     registration.movePhoto,
     handleSend,
+    labels,
   ]);
 
   return (
     <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: theme.background }]}
+      style={styles.safeArea}
       edges={['top', 'left', 'right', 'bottom']}
     >
-      {/* Serene Hearth Architectural Header */}
       <Header
-        title="Hubik"
         showBack={false}
         onMenuPress={handleMenu}
       />
@@ -795,7 +617,6 @@ export default function HomeScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
       >
-        {/* Message Feed with Top Date Capsule Header */}
         <FlatList
           ref={flatListRef}
           data={messages}
@@ -808,28 +629,23 @@ export default function HomeScreen() {
           initialNumToRender={50}
         />
 
-
-
-        {/* Don Carlos Serene Hearth Input Dock */}
         <ChatInputBar
           value={inputText}
           onChangeText={setInputText}
           onSend={handleSend}
           onMicPress={handleMicPress}
           isRecording={recorder.state.status === 'recording'}
-          placeholder="Escriba su consulta aquí..."
+          placeholder={labels.chat.inputPlaceholder}
           loading={loading || recorder.state.status === 'processing'}
         />
       </KeyboardAvoidingView>
 
-      {/* Slide-in Burger Menu */}
       <BurgerMenu
         visible={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
         onSelectMenuItem={handleMenuItemSelect}
       />
 
-      {/* Location picker for property registration */}
       <ChatMapPicker
         visible={mapPickerVisible}
         initialLatitude={registration.state.draft.latitude}
@@ -840,37 +656,3 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  photoGridWrapper: {
-    paddingHorizontal: spacing.marginMobile,
-  },
-  listHeader: {
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  dateCapsule: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: shapes.full, // 9999
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  dateCapsuleText: {
-    ...typography.labelMD,
-    fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: 0.1,
-  },
-  feedContent: {
-    paddingHorizontal: spacing.marginMobile, // 20px
-    paddingTop: 8,
-    paddingBottom: 24,
-  },
-});

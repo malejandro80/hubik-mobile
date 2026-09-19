@@ -1,11 +1,14 @@
-import React, { useCallback, useMemo } from 'react';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Modal, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
+import * as Location from 'expo-location';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
+import { useLabels } from '../hooks/useLabels';
 import { colors } from '../theme/colors';
-import { styles } from './ChatMapPicker.styles';
+import { buildMapHtml, DEFAULT_CENTER } from '../lib/mapPicker';
+import { getChatMapPickerStyles } from './ChatMapPicker.styles';
 
 export interface ChatMapPickerProps {
   visible: boolean;
@@ -15,47 +18,35 @@ export interface ChatMapPickerProps {
   onClose: () => void;
 }
 
-const DEFAULT_CENTER = { latitude: 40.4168, longitude: -3.7038 }; // Madrid, used only if no geocode hint exists
+export { DEFAULT_CENTER };
 
-function buildMapHtml(latitude: number, longitude: number): string {
-  return `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    html, body, #map { height: 100%; margin: 0; padding: 0; }
-  </style>
-</head>
-<body>
-  <div id="map"></div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const map = L.map('map').setView([${latitude}, ${longitude}], 16);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(map);
-    const marker = L.marker([${latitude}, ${longitude}], { draggable: true }).addTo(map);
+export async function resolveUserLocation(): Promise<{ latitude: number; longitude: number }> {
+  try {
+    if (typeof Location.requestForegroundPermissionsAsync === 'function') {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const lastKnown =
+          typeof Location.getLastKnownPositionAsync === 'function'
+            ? await Location.getLastKnownPositionAsync()
+            : null;
 
-    function post(lat, lng) {
-      window.ReactNativeWebView.postMessage(JSON.stringify({ lat, lng }));
+        const position =
+          lastKnown ??
+          (typeof Location.getCurrentPositionAsync === 'function'
+            ? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced })
+            : null);
+
+        if (position) {
+          return {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+        }
+      }
     }
-
-    marker.on('dragend', () => {
-      const pos = marker.getLatLng();
-      post(pos.lat, pos.lng);
-    });
-
-    map.on('click', (e) => {
-      marker.setLatLng(e.latlng);
-      post(e.latlng.lat, e.latlng.lng);
-    });
-
-    post(${latitude}, ${longitude});
-  </script>
-</body>
-</html>`;
+  } catch {
+  }
+  return DEFAULT_CENTER;
 }
 
 export const ChatMapPicker: React.FC<ChatMapPickerProps> = ({
@@ -67,12 +58,61 @@ export const ChatMapPicker: React.FC<ChatMapPickerProps> = ({
 }) => {
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
-  const [pin, setPin] = React.useState({
-    latitude: initialLatitude ?? DEFAULT_CENTER.latitude,
-    longitude: initialLongitude ?? DEFAULT_CENTER.longitude,
+  const labels = useLabels();
+  const { styles, iconColor, primaryColor } = useMemo(
+    () => getChatMapPickerStyles(theme),
+    [theme]
+  );
+
+  const [center, setCenter] = useState<{ latitude: number; longitude: number } | null>(() => {
+    if (initialLatitude !== undefined && initialLongitude !== undefined) {
+      return { latitude: initialLatitude, longitude: initialLongitude };
+    }
+    return null;
   });
 
-  const html = useMemo(() => buildMapHtml(pin.latitude, pin.longitude), [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [pin, setPin] = useState<{ latitude: number; longitude: number }>(() => {
+    if (initialLatitude !== undefined && initialLongitude !== undefined) {
+      return { latitude: initialLatitude, longitude: initialLongitude };
+    }
+    return DEFAULT_CENTER;
+  });
+
+  const [loadingLocation, setLoadingLocation] = useState(
+    initialLatitude === undefined || initialLongitude === undefined
+  );
+
+  useEffect(() => {
+    if (!visible) return;
+
+    if (initialLatitude !== undefined && initialLongitude !== undefined) {
+      const explicitCoords = { latitude: initialLatitude, longitude: initialLongitude };
+      setPin(explicitCoords);
+      setCenter(explicitCoords);
+      setLoadingLocation(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setLoadingLocation(true);
+
+    resolveUserLocation().then((coords) => {
+      if (!isCancelled) {
+        setPin(coords);
+        setCenter(coords);
+        setLoadingLocation(false);
+      }
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [visible, initialLatitude, initialLongitude]);
+
+  const html = useMemo(() => {
+    if (!center) return '';
+    return buildMapHtml(center.latitude, center.longitude);
+  }, [center]);
 
   const handleMessage = useCallback((event: WebViewMessageEvent) => {
     try {
@@ -81,41 +121,47 @@ export const ChatMapPicker: React.FC<ChatMapPickerProps> = ({
         setPin({ latitude: lat, longitude: lng });
       }
     } catch {
-      // ignore malformed messages from the map page
     }
   }, []);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity
             onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel="Cerrar mapa"
+            accessibilityLabel={labels.mapPicker.closeA11y}
             style={styles.closeButton}
           >
-            <Ionicons name="close" size={26} color={theme.text} />
+            <Ionicons name="close" size={26} color={iconColor} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: theme.text }]}>Fijar ubicación</Text>
+          <Text style={styles.title}>{labels.mapPicker.title}</Text>
           <View style={styles.closeButton} />
         </View>
 
-        <WebView
-          key={visible ? 'open' : 'closed'}
-          source={{ html }}
-          onMessage={handleMessage}
-          style={styles.webview}
-        />
+        {loadingLocation || !center ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={primaryColor} testID="map-location-loader" />
+            <Text style={styles.loadingText}>{labels.mapPicker.loadingLocation}</Text>
+          </View>
+        ) : (
+          <WebView
+            key={`${center.latitude}-${center.longitude}`}
+            source={{ html }}
+            onMessage={handleMessage}
+            style={styles.webview}
+          />
+        )}
 
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.confirmButton, { backgroundColor: '#163931' }]}
+            style={styles.confirmButton}
             onPress={() => onConfirm(pin.latitude, pin.longitude)}
             accessibilityRole="button"
-            accessibilityLabel="Confirmar ubicación"
+            accessibilityLabel={labels.mapPicker.confirmA11y}
           >
-            <Text style={styles.confirmButtonText}>Confirmar ubicación</Text>
+            <Text style={styles.confirmButtonText}>{labels.mapPicker.confirm}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

@@ -98,7 +98,6 @@ describe('PropertyDetailScreen', () => {
   it('renders an AI-generated property description (not hardcoded) and walking distance amenities', async () => {
     const { getByText } = render(<PropertyDetailScreen />);
 
-    // Description Section - generated via property-describe, grounded in the real known fields
     expect(getByText('Descripción de la vivienda')).toBeTruthy();
     expect(chatApi.generatePropertyDescription).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'Barrio de Salamanca, Madrid', city: 'Madrid' })
@@ -108,7 +107,6 @@ describe('PropertyDetailScreen', () => {
     });
     expect(getByText(/portero físico y ascensor accesible a cota cero/)).toBeTruthy();
 
-    // Nearby Amenities Section
     expect(getByText('Cercanías a pie')).toBeTruthy();
     expect(getByText('Farmacia 24 horas')).toBeTruthy();
     expect(getByText('A 80 metros')).toBeTruthy();

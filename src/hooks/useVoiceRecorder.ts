@@ -1,5 +1,3 @@
-/** @format */
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   RecordingPresets,

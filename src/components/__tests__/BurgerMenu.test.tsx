@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import { BurgerMenu } from '../BurgerMenu';
+import { MENU_ITEMS } from '../BurgerMenu.items';
 
 describe('BurgerMenu Component', () => {
   it('renders correctly when visible and allows closing', () => {
@@ -15,7 +16,6 @@ describe('BurgerMenu Component', () => {
       />
     );
 
-    // Profile & Header
     expect(getByText('Don Carlos')).toBeTruthy();
     expect(getByText('Buscar Propiedades')).toBeTruthy();
     expect(getByText('Registrar Vivienda')).toBeTruthy();
@@ -24,7 +24,6 @@ describe('BurgerMenu Component', () => {
     expect(getByText('Ajustes y Accesibilidad')).toBeTruthy();
     expect(getByText('Ayuda y Soporte')).toBeTruthy();
 
-    // Close button
     const closeBtn = getByLabelText('Cerrar menú lateral');
     expect(closeBtn).toBeTruthy();
     fireEvent.press(closeBtn);
@@ -49,4 +48,18 @@ describe('BurgerMenu Component', () => {
     expect(handleClose).toHaveBeenCalledTimes(1);
     expect(handleSelect).toHaveBeenCalledWith('new_chat');
   });
+
+  it('exports MENU_ITEMS with unique keys, valid titles, and icons', () => {
+    expect(MENU_ITEMS.length).toBeGreaterThan(0);
+    const keys = MENU_ITEMS.map((item) => item.key);
+    const uniqueKeys = new Set(keys);
+    expect(uniqueKeys.size).toBe(keys.length);
+
+    for (const item of MENU_ITEMS) {
+      expect(item.key).toBeTruthy();
+      expect(item.title).toBeTruthy();
+      expect(item.icon).toBeTruthy();
+    }
+  });
 });
+

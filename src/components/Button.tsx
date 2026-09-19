@@ -1,20 +1,20 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Pressable,
   Text,
-  StyleSheet,
   ActivityIndicator,
   ViewStyle,
   TextStyle,
   StyleProp,
 } from 'react-native';
-import { colors, shapes, spacing, typography } from '../theme/colors';
+import { colors } from '../theme/colors';
 import { useColorScheme } from '../hooks/useColorScheme';
+import { getButtonStyles, ButtonVariant } from './Button.styles';
 
 export interface ButtonProps {
   title: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary';
+  variant?: ButtonVariant;
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -37,21 +37,10 @@ export const Button: React.FC<ButtonProps> = ({
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
 
-  const isPrimary = variant === 'primary';
-  const backgroundColor = isPrimary
-    ? disabled
-      ? theme.disabled
-      : theme.primary
-    : theme.surfaceContainer;
-
-  const textColor = isPrimary
-    ? theme.primaryText
-    : disabled
-    ? theme.disabled
-    : theme.primary;
-
-  const borderColor = isPrimary ? undefined : theme.primary;
-  const borderWidth = isPrimary ? 0 : 2;
+  const { styles, textColor } = useMemo(
+    () => getButtonStyles(theme, variant, disabled),
+    [theme, variant, disabled]
+  );
 
   return (
     <Pressable
@@ -63,11 +52,6 @@ export const Button: React.FC<ButtonProps> = ({
       accessibilityState={{ disabled: disabled || loading }}
       style={({ pressed }) => [
         styles.container,
-        {
-          backgroundColor,
-          borderColor,
-          borderWidth,
-        },
         pressed && styles.pressed,
         style,
       ]}
@@ -79,32 +63,10 @@ export const Button: React.FC<ButtonProps> = ({
           size="small"
         />
       ) : (
-        <Text style={[styles.text, { color: textColor }, textStyle]}>
+        <Text style={[styles.text, textStyle]}>
           {title}
         </Text>
       )}
     </Pressable>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    minHeight: spacing.touchDefault, // 56px
-    minWidth: 120,
-    paddingHorizontal: 22,
-    paddingVertical: 14,
-    borderRadius: shapes.lg, // 16px
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  pressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.98 }],
-  },
-  text: {
-    ...typography.labelLG,
-    textAlign: 'center',
-    letterSpacing: 0.2,
-  },
-});
