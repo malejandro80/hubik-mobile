@@ -1,9 +1,17 @@
 # RFC 005: Voice Notes for Chat & Property Registration
 
 - **Author**: AI Agent (Claude Code)
-- **Status**: Approved
+- **Status**: Approved (transcription vendor superseded, see note below)
 - **Created**: 2026-09-16
 - **Target Release / Milestone**: MVP 1.0 - AI Real Estate Assistant
+
+> **Superseded (2026-09-18, RFC 009)**: every "Gemini transcribes the audio" statement below is
+> now inaccurate - transcription moved to Groq's Whisper API (`_shared/groqAudio.ts`,
+> `_shared/geminiAudio.ts` deleted) after hitting a real Gemini free-tier quota ceiling and a
+> `gemini-2.5-flash-lite` audio-input 404 in production. The recording UI, 60s cap, mic-toggle
+> UX, transient-audio handling, and error-message principles documented here are all still
+> accurate and unchanged - only *which vendor* transcribes the audio changed. See RFC 009 for the
+> current architecture.
 
 ---
 

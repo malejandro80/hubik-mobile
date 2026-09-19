@@ -35,8 +35,16 @@ describe('PropertyCard Component', () => {
     expect(getByText(/2 hab\./)).toBeTruthy();
     expect(getByText(/2 baños/)).toBeTruthy();
     expect(getByText(/102 m²/)).toBeTruthy();
-    expect(getByText('Apto')).toBeTruthy();
+    expect(getByText('Piso')).toBeTruthy();
     expect(getByLabelText('102 metros cuadrados')).toBeTruthy();
+  });
+
+  it('renders the real property_type label, not a hardcoded one', () => {
+    const { getByText } = render(
+      <PropertyCard property={{ ...mockProperty, property_type: 'Single Family' }} />
+    );
+
+    expect(getByText('Casa')).toBeTruthy();
   });
 
   it('renders property status badge in Spanish', () => {

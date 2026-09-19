@@ -23,12 +23,24 @@
   `supabase/migrations/20260916_add_catastro.sql` (applied as `20260916231753_add_catastro`),
   `supabase/migrations/20260916_catastro_not_null.sql` (written, NOT applied),
   `supabase/migrations/20260916_add_media_location_description.sql` (written, NOT applied).
-- **Next**: All 12 PR #3 review comments addressed locally (session 033 in `session-log.md`) —
-  photo staging/grid, semantic search fallback, prompt centralization/translation, theme/hardcoding
-  fixes, docs translation, catastro indexing verified. Still pending: manual on-device verification
-  of the full flow (photos grid, deferred upload, map pin, AI description for legacy properties,
-  semantic search, publish with embedding), a real voice recording round-trip through Gemini, and
-  explicit user approval before committing/pushing/replying on PR #3.
+- **Next**: All 12 PR #3 review comments addressed locally (session 033). RFC 008 (cascading
+  search/intake, `gemini-2.5-flash-lite`, `match_properties_hybrid`, `LivingDraftCard`) deployed
+  and verified (sessions 039-040), including a live-confirmed fix for dynamic (non-hardcoded) city
+  matching (session 042/043) - "propiedades en Valencia" now correctly returns only Valencia
+  rows, and the same mechanism covers any city/region (LatAm included) automatically once at
+  least one property is registered there. RFC 009 (sessions 044-045): audio transcription moved
+  from Gemini to Groq/Whisper (`whisper-large-v3-turbo`) after hitting Gemini's 20-requests/day
+  free-tier quota and a `gemini-2.5-flash-lite` audio 404 - **deployed and verified live**
+  (`chat-query` v11, `property-intake` v9), `GROQ_API_KEY` set as a Supabase secret, confirmed via
+  synthesized-voice `curl` smoke tests that Groq/Whisper transcription works end-to-end in
+  production for both functions. Text extraction/embeddings/descriptions stay on Gemini - only
+  transcription moved.
+  Still pending overall: on-device verification of the full flow (photos grid, deferred upload,
+  map pin, AI description for legacy properties, hybrid search, `LivingDraftCard`, publish with
+  embedding, a real on-device voice round-trip with an actual recording), the optional
+  `responseSchema` fix for Gemini's zero-listing-city extraction gap, the Valencia-embedding
+  backfill, and explicit user approval before committing/pushing/replying on PR #3 - nothing from
+  any session this far has been committed to git yet.
 - **See also**: `.agents/rules/07-feature-graph.md` for how RFC 004/006/007 and their modules
   relate to each other.
 

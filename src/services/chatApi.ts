@@ -4,6 +4,7 @@ import {
   PropertyDraft,
   PropertyType,
   PROPERTY_DRAFT_FIELD_LABELS,
+  PROPERTY_TYPE_LABEL_ES,
   REQUIRED_PROPERTY_DRAFT_FIELDS,
 } from '../types/property';
 import { supabase } from '../lib/supabase';
@@ -333,14 +334,6 @@ export async function querySupabaseDirectly(message: string): Promise<ChatRespon
 
 const DRAFT_CITIES = ['Austin', 'Miami', 'Denver', 'Seattle', 'New York', 'Madrid', 'Barcelona', 'Valencia', 'Sevilla'];
 
-const TYPE_LABEL_ES: Record<PropertyType, string> = {
-  Apartment: 'Piso',
-  'Single Family': 'Casa',
-  Townhouse: 'Casa adosada',
-  Studio: 'Estudio',
-  Condo: 'Condominio',
-};
-
 function extractPropertyType(lower: string): PropertyType | undefined {
   if (
     lower.includes('apartamento') ||
@@ -384,17 +377,87 @@ function extractOperationType(lower: string): OperationType | undefined {
 }
 
 function extractPrice(text: string): number | undefined {
-  const match = text.match(
-    /(\d{1,3}(?:\.\d{3})+|\d{4,})(?:,\d+)?\s*(?:€|euros?|eur\b|\$|usd|dólares?|dolares?)/i
+  const lower = text.toLowerCase();
+
+  // 1. "80 mil", "80mil", "80 k", "80k" with optional currency (e.g. "80 mil dólares", "$80 mil", "80k €")
+  const milMatch = lower.match(
+    /(?:(?:precio|valor|cuesta|por|en|pido)?\s*(?:es\s*(?:de\s*)?)?)?(?:\$|€)?\s*(\d+(?:[.,]\d+)?)\s*(?:mil|k)\b(?:\s*(?:€|euros?|eur|\$|usd|dólares?|dolares?|pesos?))?/i
   );
-  if (!match) return undefined;
-  const val = parseInt(match[1].replace(/\./g, ''), 10);
-  return Number.isNaN(val) ? undefined : val;
+  if (milMatch && milMatch[1]) {
+    const rawNum = parseFloat(milMatch[1].replace(',', '.'));
+    if (!Number.isNaN(rawNum) && rawNum > 0) {
+      return Math.round(rawNum * 1000);
+    }
+  }
+
+  // 2. "80 millones" (e.g. LatAm)
+  const millonesMatch = lower.match(
+    /(?:(?:precio|valor|cuesta|por|en|pido)?\s*(?:es\s*(?:de\s*)?)?)?(?:\$|€)?\s*(\d+(?:[.,]\d+)?)\s*(?:millones?|m)\b(?:\s*(?:€|euros?|eur|\$|usd|dólares?|dolares?|pesos?))?/i
+  );
+  if (millonesMatch && millonesMatch[1]) {
+    const rawNum = parseFloat(millonesMatch[1].replace(',', '.'));
+    if (!Number.isNaN(rawNum) && rawNum > 0) {
+      return Math.round(rawNum * 1000000);
+    }
+  }
+
+  // 3. Number with explicit currency suffix (e.g. "420.000 euros", "80,000 $", "80000 eur")
+  const suffixMatch = lower.match(
+    /(\d{1,3}(?:[.,]\d{3})+|\d{3,})(?:[.,]\d{1,2})?\s*(?:€|euros?|eur\b|\$|usd|dólares?|dolares?|pesos?)/i
+  );
+  if (suffixMatch) {
+    const raw = suffixMatch[1].replace(/[.,]/g, '');
+    const val = parseInt(raw, 10);
+    if (!Number.isNaN(val) && val > 0) return val;
+  }
+
+  // 4. Number with explicit currency prefix (e.g. "$420,000", "€80.000")
+  const prefixMatch = lower.match(/(?:[$€])\s*(\d{1,3}(?:[.,]\d{3})+|\d{3,})(?:[.,]\d{1,2})?/i);
+  if (prefixMatch) {
+    const raw = prefixMatch[1].replace(/[.,]/g, '');
+    const val = parseInt(raw, 10);
+    if (!Number.isNaN(val) && val > 0) return val;
+  }
+
+  // 5. Keyword preceded price (e.g. "precio es de 420000", "precio: 80000", "cuesta 95000")
+  const keywordMatch = lower.match(
+    /(?:precio|valor|cuesta|pido)\s*(?:es\s*(?:de\s*)?|:\s*)?\s*(\d{1,3}(?:[.,]\d{3})+|\d{3,})/i
+  );
+  if (keywordMatch) {
+    const raw = keywordMatch[1].replace(/[.,]/g, '');
+    const val = parseInt(raw, 10);
+    if (!Number.isNaN(val) && val > 0) return val;
+  }
+
+  return undefined;
 }
 
 function extractCatastro(text: string): string | undefined {
-  const match = text.match(/\b(?=[A-Za-z0-9]{14,20}\b)(?=[A-Za-z0-9]*[0-9])(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{14,20}\b/);
-  return match ? match[0].toUpperCase() : undefined;
+  // 1. Match legacy/seeded references generated during migrations (e.g. LEGACY-E1F2A3B479302)
+  const legacyMatch = text.match(/\bLEGACY-[A-Za-z0-9]{5,13}\b/i);
+  if (legacyMatch) return legacyMatch[0].toUpperCase();
+
+  // 2. Match standard Spanish cadastral references (14-20 alphanumeric characters, possibly with hyphens)
+  const match = text.match(
+    /\b(?=[A-Za-z0-9-]{14,20}\b)(?=[A-Za-z0-9-]*[0-9])(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9-]{14,20}\b/
+  );
+  if (match) return match[0].toUpperCase();
+
+  // 3. Match user pasting the reference directly (with optional surrounding whitespace)
+  const trimmed = text.trim();
+  if (/^[A-Za-z0-9-]{14,20}$/.test(trimmed) && /[0-9]/.test(trimmed) && /[A-Za-z]/.test(trimmed)) {
+    return trimmed.toUpperCase();
+  }
+
+  // 4. Match cadastral reference formatted with spaces (e.g. "9872023 VH5797S 0001 WX" or "9872023VH5797S 0001 WX")
+  const spacedMatch = text.match(
+    /\b([A-Za-z0-9]{7}\s+[A-Za-z0-9]{7}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2}|[A-Za-z0-9]{14}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2})\b/
+  );
+  if (spacedMatch) {
+    return spacedMatch[0].replace(/\s+/g, '').toUpperCase();
+  }
+
+  return undefined;
 }
 
 // Several phrasings per scenario, picked at random, so the assistant doesn't repeat the exact
@@ -493,7 +556,7 @@ export function parsePropertyDraft(message: string, known: PropertyDraft): Prope
 }
 
 export function generatePropertyTitle(draft: PropertyDraft): string {
-  const typeLabel = draft.property_type ? TYPE_LABEL_ES[draft.property_type] : 'Propiedad';
+  const typeLabel = draft.property_type ? PROPERTY_TYPE_LABEL_ES[draft.property_type] : 'Propiedad';
   const opLabel = draft.operation_type === 'rent' ? 'en alquiler' : 'en venta';
   const location = draft.city ? ` en ${draft.city}` : '';
   return `${typeLabel} ${opLabel}${location}`.trim();

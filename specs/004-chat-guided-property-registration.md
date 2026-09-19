@@ -27,7 +27,7 @@ Property owners (e.g. Don Carlos) need to register a new listing without filling
 
 ### Non-Goals (Out of Scope)
 - ~~Vector embedding generation for the new property.~~ **Superseded by RFC 007**: `property-publish`
-  now computes a real Gemini `text-embedding-004` embedding from the description at publish time.
+  now computes a real Gemini embedding from the description at publish time.
   **Superseded by this document's own PR-review amendment below**: `chat-query` now also has a
   semantic-search fallback that queries by that embedding via `match_properties`.
 - Photo upload, cadastral reference lookup, and owner PII capture (previously Steps 2 & 3 of the old wizard). These are not modeled in the `properties` schema and are out of scope for this RFC.
@@ -39,10 +39,22 @@ Every published property already carries a real embedding (RFC 007), but nothing
 `chat-query` only ever ran structured SQL filters, so `match_properties` (present since the first
 migration) had zero callers. `chat-query/index.ts` now falls back to it: when the structured
 filter query returns zero rows and a Gemini key is configured, the user's message (or transcript)
-is embedded with the same `text-embedding-004` model and passed to `match_properties`; a non-empty
-result is returned as "similar properties" instead of the plain empty-results message. This is
-Edge-Function-only (same asymmetry the audio path already has vs. the client-side heuristic
-fallback) — there is no local/offline equivalent since embedding requires the Gemini API.
+is embedded and passed to `match_properties`; a non-empty result is returned as "similar
+properties" instead of the plain empty-results message. This is Edge-Function-only (same asymmetry
+the audio path already has vs. the client-side heuristic fallback) — there is no local/offline
+equivalent since embedding requires the Gemini API.
+
+### Amendment (bug report, 2026-09-17): embedding model migration
+`text-embedding-004` (used since this project's first migration) was shut down by Google on
+2026-01-14 — Gemini started returning 404 for it, and `computeEmbedding`'s `if (!res.ok) return
+null` swallowed that silently, so **every property published since RFC 007 shipped had
+`embedding: NULL`** despite the code "succeeding". Fixed by centralizing embedding calls in
+`supabase/functions/_shared/geminiEmbedding.ts`, migrated to `gemini-embedding-001` with
+`outputDimensionality: 768` (its new default is 3072 - the `properties.embedding` column and
+`match_properties`'s HNSW index are fixed at `vector(768)`) and manual L2 normalization (this model
+doesn't auto-normalize non-default output dimensions, unlike the newer `gemini-embedding-2`). Also
+added logging on non-OK Gemini responses so a future model deprecation is diagnosable from Edge
+Function logs instead of silently producing `NULL` embeddings again.
 
 ---
 

@@ -29,8 +29,10 @@ real semantic embedding stored at publish time.
 - [x] A rich, fully editable preview (styled like `property/[id].tsx`) is shown before publish,
       with chips to publish, correct text fields, change photos, or change location.
 - [x] `property-publish` stores `images`, `latitude`/`longitude`, `description`, and computes a
-      real `embedding` (Gemini `text-embedding-004`, 768 dims — matches the existing column)
-      server-side from the description before inserting.
+      real `embedding` (Gemini `gemini-embedding-001`, truncated+normalized to 768 dims — matches
+      the existing column; see the 2026-09-17 amendment below, this was originally
+      `text-embedding-004` until Google deprecated it) server-side from the description before
+      inserting.
 
 ### Non-Goals (Out of Scope)
 - Replacing `react-native-maps`/AWS S3 was considered and explicitly rejected — see Architecture.
@@ -157,6 +159,29 @@ no way to delete, reorder, or change the cover photo from the chat. Changed to:
 - **"Edit position" (line 27 comment)**: already covered by the existing "Cambiar ubicación" chip
   (`index.tsx`, wired to `registration.editLocation()`) on the confirming screen, plus the
   draggable pin inside `ChatMapPicker` itself — verified on-device, no new control added.
+
+### Amendment (bug reports, 2026-09-17): permission handling, chip labels, correction loop, embedding
+Four issues surfaced from on-device testing of the flow above:
+- **Photo-picker permission**: `launchImageLibraryAsync` relied on its implicit permission
+  request; on some devices the OS permission prompt consumed that first call, returning
+  `canceled` right after the user tapped "OK" and silently blocking the flow. Fixed by requesting
+  `getMediaLibraryPermissionsAsync`/`requestMediaLibraryPermissionsAsync` explicitly before
+  launching the picker, with a clear chat message (and "Continuar sin fotos" still available) if
+  denied.
+- **Misleading chip labels**: once photos were staged, the chips still read "Adjuntar fotos" /
+  "Continuar **sin** fotos" - the latter reads as "discard the photos", even though
+  `skipPhotos()` never clears `draft.images`. Fixed by relabeling to "Adjuntar más fotos" /
+  "Continuar" once `stagedImages.length > 0`.
+- **Correction loop re-running photos/location**: "Corregir algo" from the confirming screen fed
+  the correction through `processMessage`, whose mode transition always went to `'photos'` once
+  `ready_to_confirm` was true again - forcing the whole photos → location → description sub-flow
+  to repeat for a single-field edit. Fixed: `processMessage`/`processAudioMessage` now return to
+  `'confirming'` (not `'photos'`) when the correction was made *from* `'confirming'`; `index.tsx`
+  shows the updated draft summary instead of re-asking about photos in that case.
+- **Missing embeddings**: see RFC 004's matching 2026-09-17 amendment - `text-embedding-004` was
+  deprecated by Google, silently producing `embedding: NULL` for every real registration. Fixed by
+  migrating to `gemini-embedding-001` (`outputDimensionality: 768`, manually L2-normalized) in the
+  new shared `supabase/functions/_shared/geminiEmbedding.ts`.
 
 ### Notable fix made along the way
 While wiring the richer preview flow, the chat's message `id`s (`` `assistant-${Date.now()}` ``)

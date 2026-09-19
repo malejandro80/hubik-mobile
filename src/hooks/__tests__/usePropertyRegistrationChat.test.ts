@@ -25,7 +25,6 @@ describe('usePropertyRegistrationChat', () => {
 
     expect(result.current.state.mode).toBe('idle');
     expect(result.current.state.draft).toEqual({});
-    expect(result.current.state.missingFields).toEqual([]);
   });
 
   it('start() enters collecting mode with a clean draft', () => {
@@ -58,7 +57,6 @@ describe('usePropertyRegistrationChat', () => {
     expect(chatApi.intakeProperty).toHaveBeenCalledWith('vendo mi piso', {});
     expect(result.current.state.mode).toBe('collecting');
     expect(result.current.state.draft).toEqual({ operation_type: 'sale', property_type: 'Apartment' });
-    expect(result.current.state.missingFields).toEqual(['price', 'city']);
     expect(outcome).toEqual({
       assistantMessage: 'Me falta: precio y ciudad.',
       readyToConfirm: false,
@@ -82,7 +80,6 @@ describe('usePropertyRegistrationChat', () => {
     });
 
     expect(result.current.state.mode).toBe('photos');
-    expect(result.current.state.missingFields).toEqual([]);
   });
 
   it('addPhotos() stages local URIs without uploading or leaving the photos step', async () => {
@@ -191,6 +188,44 @@ describe('usePropertyRegistrationChat', () => {
     );
     expect(result.current.state.draft.description).toBe('Piso luminoso en el centro de Madrid.');
     expect(result.current.state.mode).toBe('confirming');
+  });
+
+  it('processMessage() called from confirming (a correction) returns to confirming, not photos', async () => {
+    (chatApi.generatePropertyDescription as jest.Mock).mockResolvedValueOnce({
+      description: 'Piso luminoso en el centro de Madrid.',
+    });
+
+    const { result } = renderHook(() => usePropertyRegistrationChat());
+    act(() => result.current.start());
+    act(() => result.current.skipPhotos());
+    act(() => result.current.setLocation(40.4168, -3.7038));
+    await act(async () => {
+      await result.current.generateDescription();
+    });
+    expect(result.current.state.mode).toBe('confirming');
+
+    (chatApi.intakeProperty as jest.Mock).mockResolvedValueOnce({
+      data: {
+        latitude: 40.4168,
+        longitude: -3.7038,
+        description: 'Piso luminoso en el centro de Madrid.',
+        price: 450000,
+      },
+      missing_fields: [],
+      assistant_message: 'Actualicé el precio.',
+      ready_to_confirm: true,
+    });
+
+    await act(async () => {
+      await result.current.processMessage('el precio es 450000');
+    });
+
+    expect(chatApi.intakeProperty).toHaveBeenCalledWith(
+      'el precio es 450000',
+      expect.objectContaining({ description: 'Piso luminoso en el centro de Madrid.' })
+    );
+    expect(result.current.state.mode).toBe('confirming');
+    expect(result.current.state.draft.price).toBe(450000);
   });
 
   it('generateDescription() reverts to location on failure so the user can retry', async () => {
@@ -374,6 +409,5 @@ describe('usePropertyRegistrationChat', () => {
 
     expect(result.current.state.mode).toBe('idle');
     expect(result.current.state.draft).toEqual({});
-    expect(result.current.state.missingFields).toEqual([]);
   });
 });

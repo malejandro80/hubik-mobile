@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -20,7 +20,6 @@ import { ChatMapPicker } from '../components/ChatMapPicker';
 import { ChatMessageItem } from '../components/ChatMessageItem';
 import { Header } from '../components/Header';
 import { PropertyPhotoGrid } from '../components/PropertyPhotoGrid';
-import { SuggestionChips } from '../components/SuggestionChips';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { usePropertyRegistrationChat } from '../hooks/usePropertyRegistrationChat';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
@@ -33,33 +32,111 @@ import {
 } from '../services/chatApi';
 import { MAX_PROPERTY_IMAGES } from '../services/propertyImages';
 import { colors, shapes, spacing, typography } from '../theme/colors';
-import { ChatMessage, Property, PropertyDraft } from '../types/property';
+import { ChatMessage, Property, PROPERTY_TYPE_LABEL_ES, PropertyDraft } from '../types/property';
 
 const REGISTER_COMMAND = '/agregar-propiedad';
 const CANCEL_PHRASES = ['cancelar registro', 'cancelar'];
-const ADD_PHOTOS_CHIP = 'Adjuntar fotos';
-const SKIP_PHOTOS_CHIP = 'Continuar sin fotos';
-const SET_LOCATION_CHIP = 'Fijar ubicación';
-const CONFIRM_CHIP = 'Confirmar y publicar';
-const CORRECT_CHIP = 'Corregir algo';
-const CHANGE_PHOTOS_CHIP = 'Cambiar fotos';
-const CHANGE_LOCATION_CHIP = 'Cambiar ubicación';
+
+function isConfirmIntent(text: string): boolean {
+  const lower = text.toLowerCase().trim().replace(/[.,!¡?¿]/g, '');
+  const phrases = [
+    'confirmar y publicar',
+    'confirmar',
+    'publicar',
+    'confirmo',
+    'publicala',
+    'publicalo',
+    'publicar propiedad',
+    'sí',
+    'si',
+    'adelante',
+    'todo bien',
+    'de acuerdo',
+    'correcto',
+    'está bien',
+    'esta bien',
+    'dale',
+    'perfecto',
+    'listo',
+    'ok',
+    'proceder',
+  ];
+  return phrases.some((p) => lower === p || lower.startsWith(p + ' ') || lower.endsWith(' ' + p));
+}
+
+function isContinueIntent(text: string): boolean {
+  const lower = text.toLowerCase().trim().replace(/[.,!¡?¿]/g, '');
+  const phrases = [
+    'continuar sin fotos',
+    'continuar',
+    'sin fotos',
+    'no tengo fotos',
+    'no quiero fotos',
+    'omitir fotos',
+    'omitir',
+    'seguir',
+    'pasar',
+    'siguiente',
+    'después',
+    'despues',
+    'más tarde',
+    'mas tarde',
+    'ninguna',
+    'no por ahora',
+    'no',
+  ];
+  return phrases.some((p) => lower === p || lower.startsWith(p + ' ') || lower.endsWith(' ' + p));
+}
+
+function isLocationIntent(text: string): boolean {
+  const lower = text.toLowerCase().trim().replace(/[.,!¡?¿]/g, '');
+  const phrases = [
+    'fijar ubicación',
+    'fijar ubicacion',
+    'marcar ubicación',
+    'marcar ubicacion',
+    'abrir mapa',
+    'ver mapa',
+    'mapa',
+    'ubicar',
+    'ubicación',
+    'ubicacion',
+    'poner ubicación',
+    'poner ubicacion',
+    'localización',
+    'localizacion',
+  ];
+  return phrases.some((p) => lower === p || lower.includes(p));
+}
+
+function isPhotosIntent(text: string): boolean {
+  if (isContinueIntent(text)) return false;
+  const lower = text.toLowerCase().trim().replace(/[.,!¡?¿]/g, '');
+  const phrases = [
+    'adjuntar fotos',
+    'adjuntar más fotos',
+    'adjuntar mas fotos',
+    'agregar fotos',
+    'subir fotos',
+    'poner fotos',
+    'cambiar fotos',
+    'añadir fotos',
+    'anadir fotos',
+    'fotos',
+    'imágenes',
+    'imagenes',
+  ];
+  return phrases.some((p) => lower === p || lower.includes(p));
+}
 
 const REGISTER_EXAMPLE =
-  'Para comenzar, indíqueme la referencia catastral de la propiedad (puede consultarla en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré para asegurarnos de que no esté ya registrada antes de seguir.';
-
-const PROPERTY_TYPE_LABEL_ES: Record<string, string> = {
-  Apartment: 'Piso',
-  'Single Family': 'Casa',
-  Townhouse: 'Casa adosada',
-  Studio: 'Estudio',
-  Condo: 'Condominio',
-};
+  'Para comenzar, indíqueme la referencia catastral de la propiedad (puede consultarla en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré para asegurarnos de que no esté ya registrada antes de seguir. Después de eso, puede describir el resto de la propiedad de una sola vez, por voz o por texto (tipo, precio, habitaciones, baños, metros, ciudad y dirección) — no hace falta ir dato por dato.';
 
 function formatDraftSummary(draft: PropertyDraft): string {
   const opLabel = draft.operation_type === 'rent' ? 'Alquiler' : 'Venta';
   const typeLabel = draft.property_type ? PROPERTY_TYPE_LABEL_ES[draft.property_type] : '—';
-  const priceLabel = draft.price !== undefined ? `${draft.price.toLocaleString('es-ES')} €` : '—';
+  const currencySymbol = draft.currency === 'USD' ? '$' : draft.currency === 'VES' ? 'Bs.' : '€';
+  const priceLabel = draft.price !== undefined ? `${draft.price.toLocaleString('es-ES')} ${currencySymbol}` : '—';
 
   return [
     `**Referencia catastral:** ${draft.catastro || '—'}`,
@@ -201,7 +278,7 @@ export default function HomeScreen() {
 
       // Confirmation / correction handling once the draft is complete.
       if (registration.state.mode === 'confirming') {
-        if (textToSend === CONFIRM_CHIP) {
+        if (isConfirmIntent(lower)) {
           setLoading(true);
           try {
             const property = await registration.confirmPublish();
@@ -221,29 +298,56 @@ export default function HomeScreen() {
           return;
         }
 
-        if (textToSend === CORRECT_CHIP) {
-          appendAssistantMessage(newMessages, '¿Qué dato desea corregir? Cuéntemelo y lo actualizo.');
-          return;
-        }
-
-        if (textToSend === CHANGE_PHOTOS_CHIP) {
+        if (isPhotosIntent(lower)) {
           registration.editPhotos();
-          appendAssistantMessage(newMessages, '¿Desea agregar o cambiar las fotos de la propiedad?');
+          appendAssistantMessage(newMessages, '¿Desea agregar o cambiar las fotos de la propiedad? Diga "adjuntar fotos", o "continuar" para mantener las que tiene.');
           return;
         }
 
-        if (textToSend === CHANGE_LOCATION_CHIP) {
+        if (isLocationIntent(lower)) {
           registration.editLocation();
-          appendAssistantMessage(newMessages, 'Toque "Fijar ubicación" para ajustar el pin en el mapa.');
+          setMapPickerVisible(true);
+          return;
+        }
+
+        if (lower.includes('corregir') || lower.includes('cambiar') || lower.includes('modificar')) {
+          appendAssistantMessage(newMessages, '¿Qué dato desea corregir? Cuéntemelo y lo actualizo.');
           return;
         }
       }
 
-      // Photos step: either open the picker or move on without photos.
+      // Photos step: either open the picker or move on (with or without photos already staged).
       if (registration.state.mode === 'photos') {
-        if (textToSend === ADD_PHOTOS_CHIP) {
+        if (isContinueIntent(lower)) {
+          registration.skipPhotos();
+          appendAssistantMessage(
+            newMessages,
+            'Perfecto. Ahora diga o escriba "fijar ubicación" o "abrir mapa" para marcar en el mapa dónde está la propiedad.'
+          );
+          return;
+        }
+
+        if (isPhotosIntent(lower)) {
           setLoading(true);
           try {
+            // Request permission explicitly before launching the picker - asking for it
+            // up front (rather than relying on launchImageLibraryAsync's implicit request)
+            // avoids the OS permission prompt interrupting the picker call itself, which on
+            // some devices makes that first launch return canceled right after the user taps
+            // "OK" on the permission note, silently blocking the flow.
+            const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
+            const granted = permission.granted
+              ? true
+              : (await ImagePicker.requestMediaLibraryPermissionsAsync()).granted;
+
+            if (!granted) {
+              appendAssistantMessage(
+                newMessages,
+                'Necesito permiso para acceder a sus fotos. Actívelo desde los ajustes del dispositivo para adjuntar imágenes, o diga "continuar sin fotos".'
+              );
+              return;
+            }
+
             const remaining = MAX_PROPERTY_IMAGES - (registration.state.draft.images?.length || 0);
             const result = await ImagePicker.launchImageLibraryAsync({
               mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -256,45 +360,45 @@ export default function HomeScreen() {
               const { images } = registration.addPhotos(uris);
               appendAssistantMessage(
                 newMessages,
-                `Añadí ${uris.length} foto(s). Tiene ${images.length} en total (se subirán al publicar). Puede reordenarlas o eliminarlas abajo, agregar más (hasta ${MAX_PROPERTY_IMAGES}), o tocar "${SKIP_PHOTOS_CHIP}" para continuar.`
+                `Añadí ${uris.length} foto(s). Tiene ${images.length} en total (se subirán al publicar). Puede decir o escribir "continuar" para seguir con el registro, o agregar más fotos.`
               );
             } else {
-              appendAssistantMessage(newMessages, 'No se seleccionó ninguna foto. Puede intentarlo de nuevo o continuar sin fotos.');
+              appendAssistantMessage(newMessages, 'No se seleccionó ninguna foto. Puede intentarlo de nuevo o decir "continuar sin fotos".');
             }
           } catch (err: any) {
             appendAssistantMessage(
               newMessages,
-              `⚠️ No pude subir esas fotos (${err?.message || 'error desconocido'}). Intente de nuevo.`
+              `⚠️ No pude seleccionar esas fotos (${err?.message || 'error desconocido'}). Intente de nuevo.`
             );
           } finally {
             setLoading(false);
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
           }
-          return;
-        }
-
-        if (textToSend === SKIP_PHOTOS_CHIP) {
-          registration.skipPhotos();
-          appendAssistantMessage(
-            newMessages,
-            `Perfecto. Ahora toque "${SET_LOCATION_CHIP}" para marcar en el mapa dónde está la propiedad.`
-          );
           return;
         }
       }
 
       // Location step: opens the map picker modal; confirming it is handled separately.
-      if (registration.state.mode === 'location' && textToSend === SET_LOCATION_CHIP) {
+      if (registration.state.mode === 'location' && isLocationIntent(lower)) {
         setMapPickerVisible(true);
         return;
       }
 
       // Any other message while a draft is in progress is treated as new/updated info.
       if (registration.state.mode !== 'idle') {
+        const wasConfirming = registration.state.mode === 'confirming';
         setLoading(true);
         try {
           const outcome = await registration.processMessage(textToSend);
+          // Correcting a field from the confirmation screen returns straight there (see the
+          // hook's nextModeOnReady) - show the updated summary instead of re-asking for photos,
+          // which only makes sense the first time the draft becomes complete.
           const text = outcome.readyToConfirm
-            ? `${outcome.assistantMessage}\n\n¿Desea agregar fotos de la propiedad? Puede subir hasta ${MAX_PROPERTY_IMAGES}, o continuar sin fotos.`
+            ? wasConfirming
+              ? `${outcome.assistantMessage}\n\n${formatDraftSummary(outcome.draft)}\n\n¿Los datos son correctos? Diga o escriba "confirmar" o "publicar" para publicarla, o indíqueme qué desea corregir.`
+              : `${outcome.assistantMessage}\n\n¿Desea agregar fotos de la propiedad? Puede decir "adjuntar fotos" (hasta ${MAX_PROPERTY_IMAGES}), o decir "continuar sin fotos" para seguir adelante.`
             : outcome.assistantMessage;
           appendAssistantMessage(newMessages, text);
         } catch (err: any) {
@@ -340,12 +444,148 @@ export default function HomeScreen() {
 
         if (registration.state.mode !== 'idle') {
           const outcome = await registration.processAudioMessage(audio);
+          const transcript = (outcome.transcript || '').trim();
+          const lowerTranscript = transcript.toLowerCase();
+
+          // Check cancel
+          if (CANCEL_PHRASES.some((p) => lowerTranscript.includes(p))) {
+            registration.cancel();
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+            ];
+            appendAssistantMessage(newMessages, 'De acuerdo, cancelé el registro. Puede volver a intentarlo cuando quiera.');
+            return;
+          }
+
+          // Check confirm in confirming mode
+          if (registration.state.mode === 'confirming' && isConfirmIntent(lowerTranscript)) {
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+            ];
+            setMessages(newMessages);
+            try {
+              const property = await registration.confirmPublish();
+              appendAssistantMessage(
+                newMessages,
+                `¡Listo! Publiqué "${property.title}" en Hubik.`,
+                [property]
+              );
+            } catch (err: any) {
+              appendAssistantMessage(
+                newMessages,
+                `⚠️ No pude publicar la propiedad (${err?.message || 'error desconocido'}). Sus datos siguen guardados, puede intentar de nuevo.`
+              );
+            }
+            return;
+          }
+
+          // Check photos in confirming mode
+          if (registration.state.mode === 'confirming' && isPhotosIntent(lowerTranscript)) {
+            registration.editPhotos();
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+            ];
+            appendAssistantMessage(newMessages, '¿Desea agregar o cambiar las fotos de la propiedad? Diga "adjuntar fotos", o "continuar" para mantener las que tiene.');
+            return;
+          }
+
+          // Check location in confirming mode
+          if (registration.state.mode === 'confirming' && isLocationIntent(lowerTranscript)) {
+            registration.editLocation();
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+            ];
+            setMessages(newMessages);
+            setMapPickerVisible(true);
+            return;
+          }
+
+          // Check photos in photos mode (voice note to add photos)
+          if (registration.state.mode === 'photos' && isPhotosIntent(lowerTranscript)) {
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+            ];
+            setMessages(newMessages);
+            try {
+              const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
+              const granted = permission.granted
+                ? true
+                : (await ImagePicker.requestMediaLibraryPermissionsAsync()).granted;
+
+              if (!granted) {
+                appendAssistantMessage(
+                  newMessages,
+                  'Necesito permiso para acceder a sus fotos. Actívelo desde los ajustes del dispositivo para adjuntar imágenes, o diga "continuar sin fotos".'
+                );
+                return;
+              }
+
+              const remaining = MAX_PROPERTY_IMAGES - (registration.state.draft.images?.length || 0);
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsMultipleSelection: true,
+                selectionLimit: remaining,
+                quality: 0.6,
+              });
+              if (!result.canceled && result.assets.length > 0) {
+                const uris = result.assets.map((asset) => asset.uri);
+                const { images } = registration.addPhotos(uris);
+                appendAssistantMessage(
+                  newMessages,
+                  `Añadí ${uris.length} foto(s). Tiene ${images.length} en total (se subirán al publicar). Puede decir o escribir "continuar" para seguir con el registro, o agregar más fotos.`
+                );
+              } else {
+                appendAssistantMessage(newMessages, 'No se seleccionó ninguna foto. Puede intentarlo de nuevo o decir "continuar sin fotos".');
+              }
+            } catch (err: any) {
+              appendAssistantMessage(
+                newMessages,
+                `⚠️ No pude seleccionar esas fotos (${err?.message || 'error desconocido'}). Intente de nuevo.`
+              );
+            }
+            return;
+          }
+
+          // Check continue in photos mode
+          if (registration.state.mode === 'photos' && isContinueIntent(lowerTranscript)) {
+            registration.skipPhotos();
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+            ];
+            appendAssistantMessage(
+              newMessages,
+              'Perfecto. Ahora diga o escriba "fijar ubicación" o "abrir mapa" para marcar en el mapa dónde está la propiedad.'
+            );
+            return;
+          }
+
+          // Check location in location mode
+          if (registration.state.mode === 'location' && isLocationIntent(lowerTranscript)) {
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: 'Just now' },
+            ];
+            setMessages(newMessages);
+            setMapPickerVisible(true);
+            return;
+          }
+
+          // Normal draft field extraction outcome:
+          const wasConfirming = registration.state.mode === 'confirming';
           const newMessages: ChatMessage[] = [
             ...messages,
-            { id: generateMessageId('user'), sender: 'user', text: outcome.transcript, timestamp: 'Just now' },
+            { id: generateMessageId('user'), sender: 'user', text: transcript || '🎤 Nota de voz', timestamp: 'Just now' },
           ];
           const text = outcome.readyToConfirm
-            ? `${outcome.assistantMessage}\n\n¿Desea agregar fotos de la propiedad? Puede subir hasta ${MAX_PROPERTY_IMAGES}, o continuar sin fotos.`
+            ? wasConfirming
+              ? `${outcome.assistantMessage}\n\n${formatDraftSummary(outcome.draft)}\n\n¿Los datos son correctos? Diga o escriba "confirmar" o "publicar" para publicarla, o indíqueme qué desea corregir.`
+              : `${outcome.assistantMessage}\n\n¿Desea agregar fotos de la propiedad? Puede decir "adjuntar fotos" (hasta ${MAX_PROPERTY_IMAGES}), o decir "continuar sin fotos" para seguir adelante.`
             : outcome.assistantMessage;
           appendAssistantMessage(newMessages, text);
           return;
@@ -409,13 +649,13 @@ export default function HomeScreen() {
         const finalDraft: PropertyDraft = { ...registration.state.draft, latitude, longitude, description };
         appendAssistantMessage(
           withLocationMessages,
-          `¡Listo! Aquí tiene la vista previa. Puede editar cualquier dato antes de publicar.\n\n${formatDraftSummary(finalDraft)}`,
+          `¡Listo! Aquí tiene la vista previa. Puede editar cualquier dato antes de publicar.\n\n${formatDraftSummary(finalDraft)}\n\n¿Los datos son correctos? Diga o escriba "confirmar" o "publicar" para publicarla, o indíqueme qué desea corregir.`,
           [buildDraftPreviewProperty(finalDraft)]
         );
       } catch (err: any) {
         appendAssistantMessage(
           withLocationMessages,
-          `⚠️ No pude generar la descripción (${err?.message || 'error desconocido'}). Toque "${SET_LOCATION_CHIP}" para intentar de nuevo.`
+          `⚠️ No pude generar la descripción (${err?.message || 'error desconocido'}). Diga o escriba "fijar ubicación" para intentar de nuevo.`
         );
       } finally {
         setLoading(false);
@@ -513,6 +753,31 @@ export default function HomeScreen() {
     [theme.surfaceContainerHigh, theme.textSecondary]
   );
 
+  const stagedImages = useMemo(() => registration.state.draft.images || [], [registration.state.draft.images]);
+  const renderListFooter = useCallback(() => {
+    if (registration.state.mode === 'photos' && stagedImages.length > 0) {
+      return (
+        <View style={styles.photoGridWrapper}>
+          <PropertyPhotoGrid
+            images={stagedImages}
+            maxImages={MAX_PROPERTY_IMAGES}
+            onRemove={registration.removePhoto}
+            onMove={registration.movePhoto}
+            onAddPress={() => handleSend('Adjuntar más fotos')}
+          />
+        </View>
+      );
+    }
+
+    return null;
+  }, [
+    registration.state.mode,
+    stagedImages,
+    registration.removePhoto,
+    registration.movePhoto,
+    handleSend,
+  ]);
+
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: theme.background }]}
@@ -537,46 +802,13 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderMessageItem}
           ListHeaderComponent={renderListHeader}
+          ListFooterComponent={renderListFooter}
           contentContainerStyle={styles.feedContent}
           keyboardShouldPersistTaps="handled"
           initialNumToRender={50}
         />
 
-        {/* Registration step quick actions */}
-        {registration.state.mode === 'photos' && (
-          <>
-            {(registration.state.draft.images?.length || 0) > 0 && (
-              <View style={styles.photoGridWrapper}>
-                <PropertyPhotoGrid
-                  images={registration.state.draft.images || []}
-                  maxImages={MAX_PROPERTY_IMAGES}
-                  onRemove={registration.removePhoto}
-                  onMove={registration.movePhoto}
-                  onAddPress={() => handleSend(ADD_PHOTOS_CHIP)}
-                />
-              </View>
-            )}
-            <SuggestionChips
-              chips={[ADD_PHOTOS_CHIP, SKIP_PHOTOS_CHIP]}
-              onSelectChip={handleSend}
-              disabled={loading}
-            />
-          </>
-        )}
-        {registration.state.mode === 'location' && (
-          <SuggestionChips
-            chips={[SET_LOCATION_CHIP]}
-            onSelectChip={handleSend}
-            disabled={loading}
-          />
-        )}
-        {registration.state.mode === 'confirming' && (
-          <SuggestionChips
-            chips={[CONFIRM_CHIP, CORRECT_CHIP, CHANGE_PHOTOS_CHIP, CHANGE_LOCATION_CHIP]}
-            onSelectChip={handleSend}
-            disabled={loading}
-          />
-        )}
+
 
         {/* Don Carlos Serene Hearth Input Dock */}
         <ChatInputBar

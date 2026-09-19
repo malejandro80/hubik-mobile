@@ -20,13 +20,11 @@ export type RegistrationMode =
 export interface RegistrationState {
   mode: RegistrationMode;
   draft: PropertyDraft;
-  missingFields: (keyof PropertyDraft)[];
 }
 
 const INITIAL_STATE: RegistrationState = {
   mode: 'idle',
   draft: {},
-  missingFields: [],
 };
 
 function generateDraftId(): string {
@@ -39,20 +37,25 @@ export function usePropertyRegistrationChat() {
 
   const start = useCallback(() => {
     draftIdRef.current = generateDraftId();
-    setState({ mode: 'collecting', draft: {}, missingFields: [] });
+    setState({ mode: 'collecting', draft: {} });
   }, []);
 
   const cancel = useCallback(() => {
     setState(INITIAL_STATE);
   }, []);
 
+  // When ready_to_confirm, the target mode depends on where the correction came from: a
+  // fresh completion (from 'collecting') moves on to 'photos' for the first time, but a
+  // correction made from 'confirming' (via "Corregir algo") must return to 'confirming' -
+  // otherwise every text edit would re-run the whole photos/location/description sub-flow.
+  const nextModeOnReady = state.mode === 'confirming' ? 'confirming' : 'photos';
+
   const processMessage = useCallback(
     async (text: string) => {
       const response = await intakeProperty(text, state.draft);
       setState({
-        mode: response.ready_to_confirm ? 'photos' : 'collecting',
+        mode: response.ready_to_confirm ? nextModeOnReady : 'collecting',
         draft: response.data,
-        missingFields: response.missing_fields,
       });
       return {
         assistantMessage: response.assistant_message,
@@ -60,16 +63,15 @@ export function usePropertyRegistrationChat() {
         draft: response.data,
       };
     },
-    [state.draft]
+    [state.draft, nextModeOnReady]
   );
 
   const processAudioMessage = useCallback(
     async (audio: AudioPayload) => {
       const response = await intakePropertyAudio(audio, state.draft);
       setState({
-        mode: response.ready_to_confirm ? 'photos' : 'collecting',
+        mode: response.ready_to_confirm ? nextModeOnReady : 'collecting',
         draft: response.data,
-        missingFields: response.missing_fields,
       });
       return {
         assistantMessage: response.assistant_message,
@@ -78,7 +80,7 @@ export function usePropertyRegistrationChat() {
         transcript: response.transcript,
       };
     },
-    [state.draft]
+    [state.draft, nextModeOnReady]
   );
 
   // Photos are staged locally (their picked file:// URIs) and only uploaded to Storage as a

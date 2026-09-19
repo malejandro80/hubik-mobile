@@ -12,6 +12,7 @@ interface PropertyDraft {
   property_type?: string;
   operation_type?: string;
   price?: number;
+  currency?: string;
   bedrooms?: number;
   bathrooms?: number;
   square_meters?: number;
@@ -20,6 +21,31 @@ interface PropertyDraft {
   images?: string[];
   latitude?: number;
   longitude?: number;
+}
+
+function generateFallbackDescription(known: PropertyDraft): string {
+  const typeMap: Record<string, string> = {
+    Apartment: 'apartamento',
+    'Single Family': 'casa',
+    Townhouse: 'casa adosada',
+    Studio: 'estudio',
+    Condo: 'condominio',
+  };
+  const typeLabel = (known.property_type && typeMap[known.property_type]) || 'propiedad';
+  const opLabel = known.operation_type === 'rent' ? 'en alquiler' : 'en venta';
+  const location = [known.address, known.city].filter(Boolean).join(', ');
+
+  const features: string[] = [];
+  if (known.bedrooms) features.push(`${known.bedrooms} habitaciones`);
+  if (known.bathrooms) features.push(`${known.bathrooms} baños`);
+  if (known.square_meters) features.push(`${known.square_meters} m²`);
+  const featuresStr = features.length > 0 ? ` Distribuida en ${features.join(', ')}.` : '';
+
+  const priceFormatted = known.price ? known.price.toLocaleString('es-ES') : '';
+  const currencyStr = known.currency === 'USD' ? 'USD' : known.currency === 'VES' ? 'Bs.' : '€';
+  const priceStr = priceFormatted ? ` Precio: ${priceFormatted} ${currencyStr}.` : '';
+
+  return `Excelente oportunidad de ${typeLabel} ${opLabel}${location ? ` ubicada en ${location}` : ''}.${featuresStr}${priceStr} Lista para habitar con excelente distribución.`;
 }
 
 Deno.serve(async (req: Request) => {
@@ -33,38 +59,85 @@ Deno.serve(async (req: Request) => {
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
     const hasGeminiKey = Boolean(geminiKey) && geminiKey !== 'your_gemini_api_key_here';
+    const groqKey = Deno.env.get('GROQ_API_KEY');
 
-    if (!hasGeminiKey) {
-      return new Response(
-        JSON.stringify({ error: 'La generación de descripciones requiere que Gemini esté configurado en el servidor' }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    let description: string | undefined;
 
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Genera la descripción del anuncio.' }] }],
-          systemInstruction: { parts: [{ text: propertyDescribeInstruction(known) }] },
-          generationConfig: { responseMimeType: 'application/json' },
-        }),
+    // 1. Try Gemini
+    if (hasGeminiKey) {
+      try {
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: 'Genera la descripción del anuncio.' }] }],
+              systemInstruction: { parts: [{ text: propertyDescribeInstruction(known) }] },
+              generationConfig: { responseMimeType: 'application/json' },
+            }),
+          }
+        );
+
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+          const parsed = text ? JSON.parse(text) : null;
+          if (typeof parsed?.description === 'string' && parsed.description.trim()) {
+            description = parsed.description.trim();
+          }
+        } else {
+          console.warn('[property-describe] Gemini returned non-ok status:', geminiRes.status);
+        }
+      } catch (geminiErr) {
+        console.warn('[property-describe] Gemini error:', geminiErr);
       }
-    );
-
-    if (!geminiRes.ok) {
-      throw new Error(`Gemini respondió con estado ${geminiRes.status}`);
     }
 
-    const geminiData = await geminiRes.json();
-    const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-    const parsed = text ? JSON.parse(text) : null;
-    const description = typeof parsed?.description === 'string' ? parsed.description.trim() : '';
+    // 2. Try Groq fallback if Gemini is rate-limited (e.g. 429) or unavailable
+    if (!description && groqKey) {
+      try {
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${groqKey}`,
+          },
+          body: JSON.stringify({
+            model: 'qwen/qwen3.8-27b',
+            messages: [
+              {
+                role: 'system',
+                content: propertyDescribeInstruction(known),
+              },
+              {
+                role: 'user',
+                content: 'Genera la descripción del anuncio.',
+              },
+            ],
+            max_tokens: 300,
+            response_format: { type: 'json_object' },
+          }),
+        });
 
+        if (groqRes.ok) {
+          const groqData = await groqRes.json();
+          const content = groqData.choices?.[0]?.message?.content;
+          const parsed = content ? JSON.parse(content) : null;
+          if (typeof parsed?.description === 'string' && parsed.description.trim()) {
+            description = parsed.description.trim();
+          }
+        } else {
+          console.warn('[property-describe] Groq returned non-ok status:', groqRes.status);
+        }
+      } catch (groqErr) {
+        console.warn('[property-describe] Groq error:', groqErr);
+      }
+    }
+
+    // 3. Fallback to clean deterministic description if all external AI services fail
     if (!description) {
-      throw new Error('Gemini no devolvió una descripción válida');
+      description = generateFallbackDescription(known);
     }
 
     return new Response(

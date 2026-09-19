@@ -38,6 +38,8 @@ jest.mock('expo-file-system/legacy', () => ({
 
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: jest.fn(),
+  getMediaLibraryPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
+  requestMediaLibraryPermissionsAsync: jest.fn().mockResolvedValue({ granted: true }),
   MediaTypeOptions: { Images: 'Images' },
 }));
 
@@ -320,14 +322,16 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
     fireEvent.press(getByText('Enviar'));
 
     await waitFor(() => {
-      expect(getByLabelText('Search for Continuar sin fotos')).toBeTruthy();
+      expect(getByText(/¿Desea agregar fotos de la propiedad\?/)).toBeTruthy();
     });
-    fireEvent.press(getByLabelText('Search for Continuar sin fotos'));
+    fireEvent.changeText(input, 'Continuar sin fotos');
+    fireEvent.press(getByText('Enviar'));
 
     await waitFor(() => {
-      expect(getByLabelText('Search for Fijar ubicación')).toBeTruthy();
+      expect(getByText(/fijar ubicación/i)).toBeTruthy();
     });
-    fireEvent.press(getByLabelText('Search for Fijar ubicación'));
+    fireEvent.changeText(input, 'Fijar ubicación');
+    fireEvent.press(getByText('Enviar'));
 
     await waitFor(() => {
       expect(getByText(/Confirmar ubicación/)).toBeTruthy();
@@ -336,13 +340,13 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
 
     await waitFor(() => {
       expect(chatApi.generatePropertyDescription).toHaveBeenCalled();
-      expect(getByText(/Confirmar y publicar/)).toBeTruthy();
-      expect(getByText(/Corregir algo/)).toBeTruthy();
+      expect(getByText(/¿Los datos son correctos\?/)).toBeTruthy();
     });
 
     expect(chatApi.publishProperty).not.toHaveBeenCalled();
 
-    fireEvent.press(getByText(/Confirmar y publicar/));
+    fireEvent.changeText(input, 'Confirmar y publicar');
+    fireEvent.press(getByText('Enviar'));
 
     await waitFor(() => {
       expect(chatApi.publishProperty).toHaveBeenCalledWith(
@@ -401,9 +405,10 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
     fireEvent.press(getByText('Enviar'));
 
     await waitFor(() => {
-      expect(getByLabelText('Search for Adjuntar fotos')).toBeTruthy();
+      expect(getByText(/¿Desea agregar fotos de la propiedad\?/)).toBeTruthy();
     });
-    fireEvent.press(getByLabelText('Search for Adjuntar fotos'));
+    fireEvent.changeText(input, 'Adjuntar fotos');
+    fireEvent.press(getByText('Enviar'));
 
     // Photos are staged locally - no Storage upload happens on pick.
     await waitFor(() => {
@@ -415,11 +420,15 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
     fireEvent.press(getByLabelText('Eliminar foto 2'));
     expect(propertyImages.uploadPropertyImages).not.toHaveBeenCalled();
 
-    fireEvent.press(getByLabelText('Search for Continuar sin fotos'));
+    // Continue to location via text command
+    fireEvent.changeText(input, 'Continuar');
+    fireEvent.press(getByText('Enviar'));
+
     await waitFor(() => {
-      expect(getByLabelText('Search for Fijar ubicación')).toBeTruthy();
+      expect(getByText(/fijar ubicación/i)).toBeTruthy();
     });
-    fireEvent.press(getByLabelText('Search for Fijar ubicación'));
+    fireEvent.changeText(input, 'Fijar ubicación');
+    fireEvent.press(getByText('Enviar'));
 
     await waitFor(() => {
       expect(getByText(/Confirmar ubicación/)).toBeTruthy();
@@ -427,9 +436,10 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
     fireEvent.press(getByText(/Confirmar ubicación/));
 
     await waitFor(() => {
-      expect(getByText(/Confirmar y publicar/)).toBeTruthy();
+      expect(getByText(/¿Los datos son correctos\?/)).toBeTruthy();
     });
-    fireEvent.press(getByText(/Confirmar y publicar/));
+    fireEvent.changeText(input, 'Confirmar y publicar');
+    fireEvent.press(getByText('Enviar'));
 
     await waitFor(() => {
       expect(propertyImages.uploadPropertyImages).toHaveBeenCalledWith(
@@ -439,6 +449,140 @@ describe('HomeScreen (Chat-Guided Property Registration)', () => {
       expect(chatApi.publishProperty).toHaveBeenCalledWith(
         expect.objectContaining({ images: ['https://storage.example.com/a.jpg'] })
       );
+    });
+  });
+
+  it('asks for media library permission before opening the picker, and stops cleanly when denied', async () => {
+    (chatApi.intakeProperty as jest.Mock).mockResolvedValueOnce({
+      data: completeDraft,
+      missing_fields: [],
+      assistant_message: '¡Perfecto! Ya tengo todos los datos necesarios. Aquí tiene el resumen para confirmar.',
+      ready_to_confirm: true,
+    });
+    (ImagePicker.getMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({ granted: false });
+    (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValueOnce({ granted: false });
+
+    const { getByPlaceholderText, getByText, getByLabelText } = render(<HomeScreen />);
+    const input = getByPlaceholderText('Escriba su consulta aquí...');
+
+    fireEvent.changeText(input, '/agregar-propiedad');
+    fireEvent.press(getByText('Enviar'));
+    await waitFor(() => getByText(/referencia catastral/));
+
+    fireEvent.changeText(
+      input,
+      'Vendo mi piso en Madrid, calle Mayor 12, 3 habitaciones, 2 baños, 90 metros cuadrados, por 420.000 euros'
+    );
+    fireEvent.press(getByText('Enviar'));
+
+    await waitFor(() => {
+      expect(getByText(/¿Desea agregar fotos de la propiedad\?/)).toBeTruthy();
+    });
+    fireEvent.changeText(input, 'Adjuntar fotos');
+    fireEvent.press(getByText('Enviar'));
+
+    await waitFor(() => {
+      expect(ImagePicker.requestMediaLibraryPermissionsAsync).toHaveBeenCalled();
+      expect(getByText(/permiso para acceder a sus fotos/)).toBeTruthy();
+    });
+    expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
+  });
+
+  it('completes the flow using voice notes (conversational audio)', async () => {
+    (chatApi.intakePropertyAudio as jest.Mock)
+      .mockResolvedValueOnce({
+        transcript: 'Quiero registrar un piso en Madrid calle Mayor 12 por 420000 euros con 3 habitaciones y 2 baños',
+        data: completeDraft,
+        missing_fields: [],
+        assistant_message: '¡Perfecto! Ya tengo todos los datos necesarios.',
+        ready_to_confirm: true,
+      })
+      .mockResolvedValueOnce({
+        transcript: 'Continuar sin fotos',
+        data: completeDraft,
+        missing_fields: [],
+        assistant_message: '',
+        ready_to_confirm: true,
+      })
+      .mockResolvedValueOnce({
+        transcript: 'Fijar ubicación',
+        data: completeDraft,
+        missing_fields: [],
+        assistant_message: '',
+        ready_to_confirm: true,
+      })
+      .mockResolvedValueOnce({
+        transcript: 'Confirmar y publicar',
+        data: completeDraft,
+        missing_fields: [],
+        assistant_message: '',
+        ready_to_confirm: true,
+      });
+
+    (chatApi.generatePropertyDescription as jest.Mock).mockResolvedValueOnce({
+      description: 'Piso luminoso en el centro de Madrid.',
+    });
+    (chatApi.publishProperty as jest.Mock).mockResolvedValueOnce({
+      id: 'voice-prop-1',
+      title: 'Piso en venta en Madrid',
+      property_type: 'Apartment',
+      price: 420000,
+      bedrooms: 3,
+      bathrooms: 2,
+      square_meters: 90,
+      city: 'Madrid',
+      address: 'Calle Mayor 12',
+      status: 'Available',
+      image_url: '',
+      images: [],
+    });
+
+    const { getByPlaceholderText, getByText, getByLabelText } = render(<HomeScreen />);
+    const input = getByPlaceholderText('Escriba su consulta aquí...');
+
+    fireEvent.changeText(input, '/agregar-propiedad');
+    fireEvent.press(getByText('Enviar'));
+    await waitFor(() => getByText(/referencia catastral/));
+
+    const micButton = getByLabelText('Hablar por micrófono');
+
+    // Send property data via voice note
+    fireEvent.press(micButton);
+    fireEvent.press(micButton);
+
+    await waitFor(() => {
+      expect(getByText(/¿Desea agregar fotos de la propiedad\?/)).toBeTruthy();
+    });
+
+    // Send "Continuar sin fotos" via voice note
+    fireEvent.press(micButton);
+    fireEvent.press(micButton);
+
+    await waitFor(() => {
+      expect(getByText(/fijar ubicación/i)).toBeTruthy();
+    });
+
+    // Send "Fijar ubicación" via voice note
+    fireEvent.press(micButton);
+    fireEvent.press(micButton);
+
+    await waitFor(() => {
+      expect(getByText(/Confirmar ubicación/)).toBeTruthy();
+    });
+    fireEvent.press(getByText(/Confirmar ubicación/));
+
+    await waitFor(() => {
+      expect(chatApi.generatePropertyDescription).toHaveBeenCalled();
+      expect(getByText(/¿Los datos son correctos\?/)).toBeTruthy();
+    });
+
+    // Send "Confirmar y publicar" via voice note
+    fireEvent.press(micButton);
+    fireEvent.press(micButton);
+
+    await waitFor(() => {
+      expect(chatApi.publishProperty).toHaveBeenCalled();
+      expect(getByText(/Publiqué "Piso en venta en Madrid"/)).toBeTruthy();
     });
   });
 

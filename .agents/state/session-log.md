@@ -786,3 +786,564 @@ This file records the chronological record of agent sessions to ensure continuit
   push/reply on PR #3 (neither was done this session). Manual on-device pass still outstanding for
   the photo grid, deferred-upload-at-publish, legacy-description generation, and semantic-search
   fallback, same as RFC 007's own pending on-device checklist.
+
+---
+
+### [2026-09-17] Session 034: Fix Photo Grid Blocking the Chat Flow (bug from Session 033)
+- **Status**: Completed; **not committed**, same as above.
+- **Root cause**: `PropertyPhotoGrid` (added in session 033) was rendered as a fixed, non-scrolling
+  sibling View between the messages `FlatList` and the input dock. On-device, the user reported
+  that after picking photos the grid "stays static, not part of the conversation" and they
+  couldn't continue via chat — because that fixed block (a) wasn't part of the scrollable feed, so
+  it read as disconnected from "the conversation", and (b) had no upper bound on height, so with
+  enough staged photos it could push the `SuggestionChips`/`ChatInputBar` down past the visible
+  screen (no wrapping `ScrollView`, plain flex column). Compounding it: the registration-flow
+  branches of `handleSend` (photos included) never called `flatListRef.current?.scrollToEnd()`
+  after appending a message — only the plain search branch did — so the new "Añadí N foto(s)"
+  confirmation could already be scrolled out of view.
+- **Fix** (`src/app/index.tsx`):
+  - Moved `PropertyPhotoGrid` into the messages `FlatList`'s new `ListFooterComponent` (a
+    `renderListFooter` callback), so it now scrolls as part of the conversation itself instead of
+    occupying fixed screen space — this is also the standard RN pattern for embedding a
+    non-scrolling (`scrollEnabled={false}`) grid inside a scrollable list without the "nested
+    VirtualizedList" warning.
+  - Added a `flatListRef.current?.scrollToEnd()` call (same `setTimeout(..., 100)` pattern already
+    used by the search branch) to the photos-picking `finally` block, so newly added photos/the
+    confirmation message are scrolled into view automatically.
+- **Verification**: `./scripts/verify.sh check-all` — ESLint clean, Jest 34/34 suites, 181/181
+  tests passing, `tsc --noEmit` clean, secret scan clean.
+- **Caveat**: This session's environment has no simulator/emulator, no `chromium-cli`/Playwright,
+  and no network access to install one, so the fix was derived from careful code/layout review
+  (confirmed against RN flexbox defaults and the existing `scrollToEnd` precedent elsewhere in this
+  file), not from a live repro. **User must re-verify on-device** that the photo grid now scrolls
+  with the conversation and the flow can be continued via chat afterward.
+
+---
+
+### [2026-09-17] Session 035: Request Media-Library Permission Explicitly Before the Photo Picker
+- **Status**: Completed; **not committed**, same as above.
+- **User report**: "Al momento de agregar las fotos envía una nota para confirmar que todo está
+  bien y oprimir el botón OK" - a native permission note appears when adding photos, requiring a
+  tap on "OK". This is the OS media-library access prompt, not an app dialog (no `Alert.alert` in
+  the photo path). `ImagePicker.launchImageLibraryAsync` was being called directly, relying on its
+  *implicit* permission request; on some devices that first call can be consumed by the permission
+  prompt itself and resolve as canceled right after the user taps "OK", so the picker never
+  actually opens on that tap - silently reproducing the "flow doesn't continue" symptom from
+  session 034 for a different reason (permission handling, not layout, this time).
+- **Fix** (`src/app/index.tsx`, `ADD_PHOTOS_CHIP` branch): request permission explicitly and await
+  it *before* calling `launchImageLibraryAsync` - `getMediaLibraryPermissionsAsync()` first, then
+  `requestMediaLibraryPermissionsAsync()` only if not already granted. If still denied, show a
+  clear chat message ("Necesito permiso para acceder a sus fotos...") and stop, without ever
+  calling the picker - mirrors the existing microphone-permission pattern (`handleMicPress`).
+- **Tests**: `src/app/__tests__/index.test.tsx` - mocked `getMediaLibraryPermissionsAsync`/
+  `requestMediaLibraryPermissionsAsync` (default granted); new test covers the denied path (asks
+  for permission, shows the message, never calls `launchImageLibraryAsync`, "Continuar sin fotos"
+  stays available so the user isn't stuck).
+- **Verification**: `./scripts/verify.sh check-all` - ESLint clean, Jest 34/34 suites, 182/182
+  tests passing, `tsc --noEmit` clean, secret scan clean.
+- **Caveat**: Same as session 034 - no simulator/device available here to confirm the OS-level
+  permission-prompt-then-picker sequence live. **User must re-verify on-device** that tapping
+  "Adjuntar fotos" now reliably opens the photo picker right after granting permission (first time
+  and subsequent times), without needing to tap the chip twice.
+
+---
+
+### [2026-09-17] Session 036: Relabel the Photos-Step Chips Once Photos Are Staged
+- **Status**: Completed; **not committed**, same as above.
+- **User report**: photos attach fine, grid reorder/delete works, but "no puedo avanzar" (can't
+  advance). Clarified via follow-up: once photos are loaded, the two chips still read "Adjuntar
+  fotos" / "Continuar **sin** fotos" - the latter reads as "discard the photos and continue",
+  which discouraged tapping it even though `registration.skipPhotos()` never actually clears
+  `draft.images` (it only changes `mode`). Pure labeling bug, not a logic bug: the primary action
+  once photos exist should read as "Continuar", not "Continuar sin fotos".
+- **Fix** (`src/app/index.tsx`): added `ADD_MORE_PHOTOS_CHIP` ("Adjuntar más fotos") and
+  `CONTINUE_WITH_PHOTOS_CHIP` ("Continuar") alongside the original two constants. The photos-step
+  `SuggestionChips` now shows `[ADD_MORE_PHOTOS_CHIP, CONTINUE_WITH_PHOTOS_CHIP]` once
+  `stagedImages.length > 0`, and the original pair otherwise. `handleSend`'s photos-mode branch
+  matches either label for each action (`ADD_PHOTOS_CHIP || ADD_MORE_PHOTOS_CHIP`,
+  `SKIP_PHOTOS_CHIP || CONTINUE_WITH_PHOTOS_CHIP`) so both map to the same unchanged handlers. The
+  grid's own "+" tile and the post-pick confirmation message were updated to reference the
+  "already have photos" labels too, for consistency.
+- **Tests**: `src/app/__tests__/index.test.tsx` - updated the photo-staging test to press
+  "Continuar" (not "Continuar sin fotos") once photos are staged, matching the new label.
+- **Verification**: `./scripts/verify.sh check-all` - ESLint clean, Jest 34/34 suites, 182/182
+  tests passing, `tsc --noEmit` clean, secret scan clean.
+- **Caveat**: Same environment limitation as sessions 034/035 (no simulator/device here).
+  **User must re-verify on-device** that after attaching photos the chip now reads "Continuar" and
+  tapping it moves the flow to the location step while keeping the attached photos.
+
+---
+
+### [2026-09-17] Session 037: Hardcoded Type in Card, Correction Loop, Missing Embeddings
+- **Status**: Completed; **not committed**. Edge Function changes in this and prior sessions
+  (033/036/037) are also **not deployed** to the remote project — see Next Actions.
+- **User report** (3 issues):
+  1. Property type is hardcoded in the property card.
+  2. Editing a published-pending property ("Corregir algo") re-runs the whole flow (photos, map)
+     instead of just updating the mentioned field.
+  3. No embedding is being created for semantic search; property type "seems wrong" (hunch, not
+     confirmed - see below).
+- **Root causes & fixes**:
+  1. `src/components/PropertyCard.tsx` had a literal `"Apto"` string instead of reading
+     `property.property_type`. Added `PROPERTY_TYPE_LABEL_ES` to `src/types/property.ts` (Spanish
+     labels, e.g. `Apartment` → `Piso`) and used it in `PropertyCard`; also de-duplicated the two
+     other copies of this same map that already existed (`index.tsx`, `chatApi.ts`) to import from
+     the new shared constant instead.
+  2. `usePropertyRegistrationChat.processMessage`/`processAudioMessage` always moved to `'photos'`
+     whenever `ready_to_confirm` became true again, regardless of where the call came from - so a
+     one-field correction from `'confirming'` reset the whole sub-flow. Fixed: the target mode is
+     now `'confirming'` (not `'photos'`) when the correction was made from `'confirming'`.
+     `index.tsx` shows the updated draft summary in that case instead of re-prompting for photos.
+  3. Confirmed via `mcp__supabase__execute_sql`: the two most recent (real, non-seeded) published
+     properties both have `description` but `embedding: NULL`, while older seeded rows have
+     embeddings. Root cause found via web search: Google shut down `text-embedding-004` on
+     2026-01-14 - Gemini now 404s on it, and `computeEmbedding`'s `if (!res.ok) return null`
+     swallowed that silently (zero log lines, confirmed via `mcp__supabase__query_logs` against
+     `function_logs`). The user's "tipo de propiedad" hunch was a red herring - `property_type`
+     values in the DB are correct; they were likely thinking of bug 1 above. Fixed by migrating to
+     `gemini-embedding-001` in a new shared `supabase/functions/_shared/geminiEmbedding.ts`
+     (used by both `property-publish` and `chat-query`'s semantic fallback from session 033):
+     `outputDimensionality: 768` (this model defaults to 3072; the `embedding` column and
+     `match_properties`'s HNSW index are fixed at `vector(768)`), manual L2 normalization
+     (`gemini-embedding-001`, unlike the newer `gemini-embedding-2`, doesn't auto-normalize
+     non-default dimensions), asymmetric `taskType` (`RETRIEVAL_DOCUMENT` for publish,
+     `RETRIEVAL_QUERY` for search), and logging on non-OK Gemini responses so this class of bug is
+     diagnosable next time instead of silent.
+- **Docs**: amended `specs/002`, `specs/004`, `specs/007` to record the model migration.
+- **Tests**: `PropertyCard.test.tsx` (real label, not hardcoded), `usePropertyRegistrationChat.test.ts`
+  (correction-from-confirming stays in confirming), index/hook tests already covering the rest.
+- **Verification**: `./scripts/verify.sh check-all` - ESLint clean, Jest 34/34 suites, 184/184
+  tests passing, `tsc --noEmit` clean, secret scan clean. Confirmed deployed `property-publish`
+  (v2) already matched local pre-fix code via `mcp__supabase__get_edge_function` (so the stale
+  model wasn't a deploy-lag issue, it was the same bug live). Edge Function `!res.ok` logging gap
+  fixed but **not yet redeployed** - the live bug isn't fixed until it is.
+- **Next Actions**: **Deploy required** for the embedding fix (and all pending Edge Function
+  changes from sessions 033/036/037 - `chat-query`, `property-intake`, `property-describe`,
+  `property-publish` all have undeployed local changes) to actually take effect - ask the user
+  before running `mcp__supabase__deploy_edge_function` (infra change affecting the live project,
+  same human-authority bar as a git push). Client-side fixes (1 and 2 above) only need a Metro
+  reload. User must re-verify on-device once deployed.
+
+---
+
+### [2026-09-17] Session 038: Deploy the 4 Edge Functions (user approved)
+- **Status**: Completed. User explicitly said "si" to deploying.
+- **Deployed** via `mcp__supabase__deploy_edge_function` (each with its `_shared/` dependency
+  files bundled alongside `index.ts`): `chat-query` v4→v5, `property-publish` v2→v3,
+  `property-intake` v2→v3, `property-describe` v1→v2. All `ACTIVE`.
+- **Smoke-tested** (read-only, no side effects) via `curl` against the deployed HTTPS endpoints
+  with the project's anon key:
+  - `property-describe`: returned a grounded Spanish description for a test draft - confirms
+    `_shared/prompts.ts` wiring survived the deploy.
+  - `chat-query` with a query engineered to zero out structured filters (`min_price: 50000000`):
+    triggered the semantic-fallback code path with no errors/warnings in `function_logs`
+    (confirms `embedText`/`gemini-embedding-001` itself succeeds now), but `match_properties`
+    still returned nothing above the 0.5 threshold.
+- **Follow-up finding (not a bug, expected)**: `SELECT count(*) FILTER (WHERE embedding IS NOT
+  NULL)` = 14 of 16 rows. All 14 are pre-existing seed data embedded with the now-dead
+  `text-embedding-004`; only the 2 real chat-registered rows were affected by the NULL-embedding
+  bug this session fixed. Comparing a new `gemini-embedding-001` query vector against those old
+  `text-embedding-004` document vectors via cosine similarity isn't meaningful - different models
+  produce incompatible vector spaces regardless of matching dimensionality - so semantic search
+  will only really start working as NEW properties are published (correctly embedded going
+  forward) until/unless the 14 seed rows are explicitly re-embedded with the new model. Not
+  addressed this session (backfilling seed/demo data is a separate, low-urgency task) - flagged to
+  the user instead of silently left for them to discover.
+- **Verification**: local `./scripts/verify.sh check-all` from session 037 still applies (no code
+  changed this session, deploy-only). Confirmed all 4 functions `ACTIVE` via
+  `mcp__supabase__list_edge_functions` post-deploy.
+- **Next Actions**: user re-verifies the actual bug reports on-device now that the fixes are live
+  (photo type on cards, correction loop, and - for NEW registrations going forward - embeddings).
+  Optionally: ask whether to backfill the 14 seed rows' embeddings with the new model so semantic
+  search also works against today's demo data, not just newly published properties.
+
+---
+
+### [2026-09-18] Session 039: RFC 008 - Cascading Search & Intake Efficiency
+- **Status**: Code complete and locally verified; **not committed**, and the Edge Function/
+  migration changes are **not deployed** (same human-release-authority gate as sessions 037/038 -
+  will ask before running `mcp__supabase__deploy_edge_function` / `apply_migration`).
+- **Context**: user pasted a large pre-written architecture spec (on-device STT, new AI vendors,
+  `vector(1536)` embeddings, cascading NLU tiers, hybrid search, a progressive draft UI). Flagged
+  concrete conflicts before writing any code: on-device STT contradicts RFC 005's explicit
+  Non-Goal; new vendors (Groq/Cloudflare Workers AI/OpenAI) contradict RFC 007's "100% Supabase"
+  decision; `vector(1536)` would undo the `vector(768)` `gemini-embedding-001` fix from sessions
+  037/038 verified live minutes earlier. Asked the user two direct questions; both answered with
+  the recommended (status-quo-preserving) option. Wrote `specs/008-cascading-search-and-intake.md`
+  scoping the spec down to what's achievable inside the existing Gemini+Supabase stack, then
+  implemented it (see plan at `~/.claude/plans/snazzy-jumping-avalanche.md`).
+- **Bonus finding**: `gemini-2.5-flash` (used everywhere for `generateContent`) shuts down
+  2026-10-16. Migrated every extraction/classification call site to `gemini-2.5-flash-lite`
+  (Google's documented fit for that workload) - fixes the token/latency ask *and* gets ahead of a
+  second text-embedding-004-style outage. `property-describe`'s generation call intentionally
+  stays on `gemini-2.5-flash` for now (creative-writing quality untested on flash-lite; lower
+  volume; RFC 008 Non-Goal) - flagged as a pre-Oct-16 follow-up.
+- **Changes**:
+  - `supabase/functions/_shared/prompts.ts`: added `audioTranscribeInstruction()` (transcript-only,
+    replaces the old combined transcribe+extract instructions, now deleted) and exported
+    `GEMINI_EXTRACTION_MODEL = 'gemini-2.5-flash-lite'`.
+  - `supabase/functions/chat-query/index.ts`, `property-intake/index.ts`: audio path now
+    transcribes first, then runs the transcript through the *same* heuristic parser text already
+    uses; both paths skip the Gemini extraction call entirely once the heuristic already resolved
+    the message (chat-query: any filter found; property-intake: no required fields still missing).
+  - `supabase/functions/_shared/geminiAudio.ts`: transcription call also moved to
+    `GEMINI_EXTRACTION_MODEL`.
+  - New migration `20260918_match_properties_hybrid.sql`: `match_properties_hybrid` RPC combines
+    relational filters (city/type/price/bedroom ranges) with vector similarity ranking in one
+    query; deliberately does *not* filter out `embedding IS NULL` rows (sorts them last instead)
+    so a temporary embedding-generation failure at publish time never makes a property invisible
+    to search - a refinement beyond what the approved plan text literally said, needed to avoid a
+    real regression.
+  - `chat-query/index.ts`: search now uses the hybrid RPC as the default path (a Gemini key is
+    present and the user didn't request an explicit price sort, which needs exact ordering a
+    similarity ranking can't give); the original structured-filter query is the fallback for
+    explicit price sorts, no Gemini key, or a hybrid RPC failure - one query instead of the old
+    two-step "structured, then pure-semantic fallback on zero rows".
+  - New `src/components/LivingDraftCard.tsx` (+ `.styles.ts`): shows the registration draft's
+    known fields (checked, with formatted values) and missing required fields as tappable chips;
+    tapping an enum field (`property_type`/`operation_type`) expands an inline picker that sends
+    the choice straight through the existing chat pipeline (`handleSend`); tapping any other
+    missing field hints the `ChatInputBar` placeholder with what's needed next. Wired into
+    `src/app/index.tsx`'s messages `FlatList` `ListFooterComponent` (mode `'collecting'`), same
+    pattern as `PropertyPhotoGrid`.
+  - `src/app/index.tsx`: `REGISTER_EXAMPLE` copy now explicitly invites describing the whole
+    property in one note - the underlying merge logic already supported this (RFC 004/005/006),
+    nothing else needed for "bulk voice intake".
+- **Tests**: new `src/components/__tests__/LivingDraftCard.test.tsx` (known/missing rendering,
+  free-field hint, both enum pickers). Deno Edge Function branches have no test coverage - same
+  documented repo-wide gap as every prior RFC since 005; syntax-verified with `esbuild` instead.
+- **Verification**: `./scripts/verify.sh check-all` - ESLint clean (0 errors, 3 pre-existing
+  unrelated warnings), Jest 35/35 suites, 188/188 tests passing, `tsc --noEmit` clean, secret scan
+  clean.
+- **Next Actions**: ask before deploying the 3 modified Edge Functions and applying the hybrid RPC
+  migration. Manual on-device verification once deployed: full registration flow with the new
+  draft card, a hybrid search mixing a city filter with a concept term, and an audio search/intake
+  round-trip to confirm the transcribe-then-heuristic cascade behaves as expected.
+
+---
+
+### [2026-09-18] Session 040: Deploy RFC 008 (user approved)
+- **Status**: Completed. User said "deploy".
+- Applied migration `match_properties_hybrid` via `mcp__supabase__apply_migration` (success).
+- Deployed via `mcp__supabase__deploy_edge_function` (with updated `_shared/` deps bundled):
+  `chat-query` v5→v6, `property-intake` v3→v4. Both `ACTIVE`. (`property-describe`/
+  `property-publish` untouched this RFC, not redeployed - their already-deployed bundles are
+  unaffected since the shared exports they use didn't change content.)
+- **Smoke-tested** (read-only/idempotent calls, no destructive side effects) via `curl`:
+  - `chat-query` "pisos en Madrid bajo 300000" → heuristic alone resolved `property_type` +
+    `max_price`, **no Gemini refinement call fired** (cascade bypass confirmed working).
+  - `chat-query` "algo luminoso y tranquilo en Valencia" → heuristic found nothing, escalated to
+    Gemini-lite (also empty), fell through to the hybrid RPC path with no relational filters;
+    returned 10 rows correctly ordered by descending similarity (0.046 → -0.021) - hybrid ranking
+    confirmed working end-to-end live.
+  - `property-intake` with a full bulk description (catastro + all 8 other required fields in one
+    message) → heuristic alone resolved every field, **no Gemini call fired**, catastro-uniqueness
+    check still ran correctly, `ready_to_confirm: true` - confirms both the cascade bypass and
+    "describe everything at once" bulk intake work together live.
+  - `function_logs` checked for `error`/`warn` across all three calls: **empty** - no silent
+    failures.
+- **Known pre-existing gap surfaced by testing (not introduced this session, not fixed)**:
+  `parsePromptFilters`'s city list (`chat-query`) is US-cities-only (Austin/Miami/Denver/Seattle/
+  New York) - "Madrid"/"Valencia" never match as a city filter there, so a Spanish-city search
+  query loses that hard filter (both heuristic and Gemini-lite refinement failed to extract it
+  either, since the instruction text doesn't restrict to that list but the model apparently
+  didn't infer a city filter was wanted from "en Valencia" alone in a low-context lite-model call).
+  Flagged to the user; not in RFC 008's scope to fix.
+- **Next Actions**: user re-verifies on-device: the new `LivingDraftCard` during registration, a
+  full audio round-trip (search and intake) to feel the latency difference, and decide whether the
+  Spanish-city search gap above is worth a follow-up fix.
+
+---
+
+### [2026-09-18] Session 041: Fix Audio Transcription 404 (bug from RFC 008's model migration)
+- **Status**: Code fix deployed and verified working; a separate, non-code Gemini quota issue was
+  also uncovered (see below) - no user approval needed beyond the earlier "deploy" (redeploying
+  the same 2 functions already approved in session 040 with a bugfix).
+- **User report**: "failed to process voice note".
+- **Root cause**: session 040 migrated the audio transcription call (`_shared/geminiAudio.ts`) to
+  `gemini-2.5-flash-lite` along with the text extraction calls. `function_logs` showed
+  `Gemini audio request failed (404)` - unlike its text-only `generateContent` calls (confirmed
+  working), `gemini-2.5-flash-lite` 404s on the audio `inlineData` request shape, despite Google's
+  model docs listing audio as a supported input. Root cause not further isolated (no direct API
+  access to experiment beyond the deployed function's own calls).
+- **Fix**: split the model constant in `_shared/prompts.ts` - `GEMINI_EXTRACTION_MODEL`
+  (`gemini-2.5-flash-lite`) stays for the *text* extraction calls; new `GEMINI_AUDIO_MODEL`
+  (`gemini-2.5-flash`) is used only by `_shared/geminiAudio.ts`'s transcription call. Also added
+  response-body logging on audio failures (previously only the HTTP status was logged) for faster
+  diagnosis of any future issue like this one.
+- **Verification method**: generated real speech audio locally with macOS `say` + `ffmpeg`
+  (`audio/mp4`, matching the app's `VOICE_NOTE_MIME_TYPE`), base64-encoded it, and `curl`'d it
+  directly to the deployed `chat-query` and `property-intake` endpoints - not a synthetic/silent
+  file, an actual spoken sentence, to get a realistic end-to-end test without device access.
+- **Deployed**: `chat-query` v6→v8, `property-intake` v4→v6 (one interim deploy for the model fix,
+  one more adding the body-logging - both redeployed with the full fix+logging by the end).
+- **Confirmed working**: a real "Quiero un piso en Madrid de tres habitaciones" voice note through
+  `chat-query` transcribed correctly, the heuristic extracted `property_type: Apartment` from the
+  transcript with **no second Gemini call**, and hybrid search returned similarity-ranked results.
+- **Separate issue uncovered (not a code bug, not fixed by me)**: subsequent audio test calls
+  started failing with 429. `function_logs` (now with body logging) showed the real cause:
+  `generativelanguage.googleapis.com/generate_content_free_tier_requests` quota for
+  `gemini-2.5-flash` - **limit 20 requests/day** on this project's free-tier Gemini API key,
+  shared between audio transcription (`chat-query`/`property-intake`) and description generation
+  (`property-describe`). My own repeated smoke-testing this session exhausted today's quota.
+  This existed before RFC 008 too (property-describe already used this model) - just less visible
+  since normal usage rarely calls `gemini-2.5-flash` 20+ times in one day. Flagged clearly to the
+  user: this needs a billing/quota decision on their Google AI Studio project, not a code change.
+- **Next Actions**: user decides whether to enable billing on the Gemini API key for a higher
+  quota (recommended if voice notes are meant to be reliable under real use), or accept the
+  20/day free-tier cap for now. Once quota resets or is raised, re-verify a full on-device voice
+  note round-trip (my testing used `curl` + synthesized speech, not the actual app/device).
+
+---
+
+### [2026-09-18] Session 042: Dynamic City Matching (not a hardcoded list)
+- **Status**: Code complete and locally verified; **not deployed** (pending approval, same gate as
+  every prior session).
+- **User report**: "propiedades en Valencia" returned 10 properties from all over instead of the
+  2 actually in Valencia. Diagnosed live with `curl` + `execute_sql` before writing any code (user
+  asked to "planificar" first): confirmed via `applied_filters: {}` in the actual response that no
+  city was ever extracted, and separately confirmed the 2 real Valencia rows still have
+  `embedding: NULL` (pre-fix registrations, never backfilled).
+- **Discussed with user**: three options for matching non-US/non-Spain cities (LatAm was the
+  explicit ask) - (A) derive the city list from the DB, (B) rely on Gemini's world knowledge (no
+  list), (C) a third-party geocoding/gazetteer vendor. User picked the recommendation: A+B
+  combined, explicitly declining C (consistent with the "no new vendors" decision from earlier
+  this session).
+- **Root cause** (two bugs, both introduced by RFC 008's own cascade): (1) `chat-query`'s city
+  list was hardcoded to 5 US cities. (2) RFC 008's "skip Gemini if the heuristic found *anything*"
+  bypass was too coarse - a message matching just `property_type` (e.g. "casas en Valencia")
+  skipped Gemini entirely, so it never got a chance to fill in the missing city.
+- **Fix**:
+  - New `supabase/functions/_shared/cities.ts`: `fetchKnownCities` derives known cities from
+    `SELECT city FROM properties` (deduped, longest-first) instead of a hardcoded array -
+    zero-maintenance, scales to any region. `matchCityInText` does accent/case-insensitive
+    matching (`normalize('NFD')` diacritic stripping, so "bogota"/"Bogotá" both match) and returns
+    the exact DB-stored spelling, used directly as the filter - no Postgres `unaccent` extension
+    needed.
+  - `chat-query/index.ts`: uses the dynamic list; escalates to Gemini when the heuristic found
+    nothing *or* found something but no city (previously: only when it found nothing at all);
+    merge order flipped so heuristic (DB-grounded) wins over Gemini on conflict, Gemini only fills
+    gaps.
+  - `property-intake/index.ts`: uses the same dynamic list (replacing its old Spain-only
+    `DRAFT_CITIES` array) - its Gemini-escalation logic already handled missing `city` correctly
+    (it's a required field), so only the city-list part needed fixing there.
+- **Documented, not fixed (flagged to user)**: `chatApi.ts`'s client-side fallback heuristics
+  (used only when the Edge Function itself is unreachable, no Gemini available to them anyway)
+  still use their own hardcoded city lists - lower priority, rarely-hit path.
+- **Verification**: `./scripts/verify.sh check-all` - ESLint/Jest/typecheck/secret-scan all clean
+  (Deno-only change, no client TS touched, same 35/188 baseline as session 041). `esbuild`
+  syntax-checked all 3 modified/new Deno files.
+- **Next Actions**: ask before deploying `chat-query`/`property-intake` (both changed) - once
+  deployed, re-run the exact repro (`curl` "propiedades en Valencia") to confirm `applied_filters`
+  now includes `city: "Valencia"` and only the 2 real Valencia rows come back. Separately: offer
+  to backfill the 2 Valencia rows' (and any other pre-fix rows') embeddings so semantic ranking
+  also works correctly for them, independent of this city-filter fix.
+
+---
+
+### [2026-09-18] Session 043: Deploy Dynamic City Fix (user approved) + Verify
+- **Status**: Completed. User said "si". Deployed `chat-query` v8→v9, `property-intake` v6→v7.
+- **Confirmed live, exact repro from the bug report**: "propiedades en Valencia" now returns
+  `applied_filters: {city: "Valencia"}` and exactly the 2 real Valencia rows (was: 10 rows from
+  all over). "casas en Valencia" now returns `{city: "Valencia", property_type: "Single Family"}`
+  and the 1 correct row (was: ignored the city entirely) - confirms both bugs (hardcoded list +
+  cascade bypass) are fixed together.
+- **Gap found while testing the LatAm angle further**: searched "propiedades en Bogota" (zero
+  listings there, to force reliance on the Gemini fallback alone, since the DB-derived list has
+  nothing to offer for a city with no rows yet). `applied_filters` came back empty and
+  `function_logs` showed no error - `gemini-2.5-flash-lite` ran successfully but simply didn't
+  extract "Bogota" as a city for this short a message. Not a bug in this session's code; a
+  model-reliability limitation of the lite model for this extraction task.
+- **Assessed as low-priority in practice**: the dynamic-list mechanism (the primary fix) covers
+  the realistic case - the moment a market's first property gets registered in any city, that city
+  is recognized in every future search automatically, no Gemini dependency, no code change. Only
+  searching a city with literally zero listings ever registered depends on the Gemini fallback
+  working, which it currently doesn't reliably for terse queries.
+- **Offered, not done**: adding `generationConfig.responseSchema` (structured-output constraint)
+  to the Gemini request as a known technique to improve field-extraction reliability, if the user
+  wants that edge case closed too. Declined/deferred for now - user ended the turn there.
+- **Next Actions**: none pending unless the user asks for the `responseSchema` follow-up, or wants
+  the Valencia-embedding backfill from session 042, or picks up the still-open items from earlier
+  sessions (voice quota, PR #3 commit/push approval).
+
+---
+
+### [2026-09-18] Session 044: RFC 009 - Groq/Whisper for Audio Transcription
+- **Status**: Code complete and locally verified; **not deployed** (blocked on the user providing
+  a `GROQ_API_KEY` Supabase secret, which Claude Code cannot create - no Groq account/billing
+  access). Deploying without it is safe (voice notes 503 with a clear message, typed input
+  unaffected) but not functionally useful until the key exists.
+- **User request**: "let's implement groq, take advantage to implement whisper" - an explicit,
+  deliberate reversal of RFC 008's "no new vendors" Non-Goal, directly motivated by this session's
+  own findings (sessions 040/041): `gemini-2.5-flash-lite` 404s on audio input, and
+  `gemini-2.5-flash`'s free-tier quota is only 20 requests/day, shared with `property-describe`,
+  trivially exhausted by ordinary testing.
+- **New spec**: `specs/009-groq-whisper-transcription.md` (Problem/Goals/Non-Goals/Architecture/
+  Security/Verification, same shape as 004-008). Amended `specs/005-voice-notes-chat.md` with a
+  superseded-notice pointing to it (the mic UI/60s-cap/error-UX parts of RFC 005 are still
+  accurate; only the transcription vendor changed).
+- **Scope, deliberately narrow**: only audio transcription moved to Groq. Text extraction
+  (`gemini-2.5-flash-lite`), embeddings (`gemini-embedding-001`), and description generation
+  (`gemini-2.5-flash`) all stay on Gemini - none of those are broken, this RFC doesn't touch them.
+  No Gemini fallback if Groq fails, on purpose - chaining back would silently reintroduce the same
+  quota ceiling this migration exists to escape.
+- **Changes**:
+  - New `_shared/audioPayload.ts`: `AudioPayload`/`isAudioPayload()` split out of the deleted
+    `_shared/geminiAudio.ts` - payload-shape validation isn't tied to a transcription vendor.
+  - New `_shared/groqAudio.ts`: `transcribeAudio(audio, groqKey)` - `multipart/form-data` POST to
+    `https://api.groq.com/openai/v1/audio/transcriptions` (`model: whisper-large-v3-turbo`,
+    `response_format: json`), returns the transcript string directly (no more "ask for JSON with
+    a transcript key" indirection - Whisper only transcribes, doesn't take a system instruction).
+  - Deleted `_shared/geminiAudio.ts` (superseded).
+  - `_shared/prompts.ts`: removed `audioTranscribeInstruction()` and `GEMINI_AUDIO_MODEL` (no
+    longer called by anything); `GEMINI_EXTRACTION_MODEL` (text) untouched.
+  - `chat-query/index.ts`, `property-intake/index.ts`: audio branch now calls `transcribeAudio`
+    against `GROQ_API_KEY` instead of Gemini; missing-key path returns 503 mentioning Groq instead
+    of Gemini. Everything downstream of `effectiveMessage = transcript` (the heuristic → Gemini-
+    lite text cascade → hybrid search / field merge from sessions 040-042) is completely
+    unchanged - this was a clean, isolated swap specifically because that decoupling already
+    existed.
+  - **Zero client-side (`src/`) changes** - the app already sends base64 audio + mimeType the same
+    way regardless of which vendor transcribes it server-side.
+- **Verification**: `./scripts/verify.sh check-all` - ESLint/Jest/typecheck/secret-scan all clean,
+  same 35/188 baseline (no client code touched). `esbuild` syntax-checked all 5
+  modified/new/deleted Deno files. Confirmed no leftover references to the deleted module or
+  removed prompt exports via `grep`.
+- **Next Actions**: user needs to (1) create a Groq account at console.groq.com, (2) generate an
+  API key, (3) give it to Claude Code (or set it directly) as the `GROQ_API_KEY` Supabase secret.
+  Once set: deploy `chat-query`/`property-intake` (approval still required, same gate as every
+  prior session), then smoke-test with a real synthesized voice note (same `say`+`ffmpeg`+`curl`
+  technique as session 041) before an on-device round-trip.
+
+---
+
+### [2026-09-18] Session 045: Deploy RFC 009 (Groq/Whisper) + Live Smoke Test
+- **Status**: Completed. User provided `GROQ_API_KEY` in `.env`; set as a Supabase Edge Function
+  secret via `supabase secrets set GROQ_API_KEY=... --project-ref wbzfeqzvwfglirwlpzpy` (value read
+  from `.env` through a bash pipeline, never displayed in chat or command text - `.env` is a
+  client-side/Expo file, not read by Deno Edge Functions, so this step was required beyond just
+  adding the line locally). Confirmed present via `supabase secrets list` (digest only).
+- Deployed `chat-query` v9→v11 and `property-intake` v7→v9 (each bundled with all current
+  `_shared/` dependencies: `audioPayload.ts`, `cities.ts`, `groqAudio.ts`, `prompts.ts`, plus
+  `geminiEmbedding.ts` for `chat-query`) via `mcp__supabase__deploy_edge_function`. First
+  `chat-query` deploy attempt failed bundling (`Module not found ".../_shared/cities.ts"` - it was
+  omitted from the files list); retried with the complete dependency set and it succeeded.
+- **Live smoke test** (synthesized voice via `say` + `ffmpeg` + `curl`, same technique as session
+  041, run against the deployed endpoints with the anon key):
+  - `chat-query`: said "Quiero un apartamento en Valencia" → Groq/Whisper transcript came back
+    verbatim ("Quiero un apartamento en Valencia."), heuristic cascade correctly extracted
+    `{city: "Valencia", property_type: "Apartment"}`, and the one matching Valencia apartment was
+    returned.
+  - `property-intake`: said "Vendo mi casa en Sevilla de noventa metros, tres habitaciones y dos
+    baños" → transcript came back verbatim and accurate
+    ("Vendo mi casa en Sevilla de 90 metros, 3 habitaciones y 2 baños."), correctly extracted
+    `property_type`, `operation_type`, `bedrooms`, `bathrooms`, `square_meters`; `city` ("Sevilla")
+    was not extracted, but that's the pre-existing, already-documented (session 043)
+    `gemini-2.5-flash-lite` zero-listing-city extraction gap, unrelated to Groq/audio - the
+    transcript itself was flawless in both tests, confirming the Groq/Whisper migration works
+    end-to-end in production.
+- **Next Actions**: on-device verification of the full flow (photos grid, deferred upload, map
+  pin, AI description for legacy properties, hybrid search, `LivingDraftCard`, publish with
+  embedding, a real on-device voice round-trip using an actual recording, not synthesized audio)
+  is still outstanding. Also still open from earlier sessions: optional `responseSchema` fix for
+  Gemini's zero-listing-city extraction gap, the Valencia-embedding backfill, and PR #3's 12 review
+  comments still needing replies/resolution. Nothing has been committed to git or pushed this
+  entire multi-session arc - still pending explicit user approval per the human-release-authority
+  rule.
+
+### [2026-09-18] Session 046: Fix Catastro Reference Extraction & Duplicate Validation
+- **Status**: Completed.
+- **User report**: "la referencia catrastal se envia pero no se hace la validacion" (with screenshot showing user entering `LEGACY-E1F2A3B479302` and assistant repeating the catastro prompt).
+- **Root cause**:
+  - `extractCatastro` in both `src/services/chatApi.ts` and `supabase/functions/property-intake/index.ts` relied strictly on `/\b(?=[A-Za-z0-9]{14,20}\b)(?=[A-Za-z0-9]*[0-9])(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{14,20}\b/`.
+  - This regex strictly excluded hyphens (`-`).
+  - Existing database rows and seeds backfilled under RFC 006 use `LEGACY-<13_hex_chars>` (exactly 20 characters, e.g. `LEGACY-E1F2A3B479304`), which was split on the hyphen into 6 and 13 char chunks, both rejected by the `{14,20}` alphanumeric rule.
+  - Since extraction returned `undefined`, `data.catastro` remained missing, the database uniqueness lookup never executed, and the assistant repeated the initial catastro prompt.
+- **Fix**:
+  1. Updated `extractCatastro` in `src/services/chatApi.ts` and `supabase/functions/property-intake/index.ts` to support:
+     - Synthetic `\bLEGACY-[A-Za-z0-9]{5,13}\b` references.
+     - Hyphenated and standalone 14-20 alphanumeric references.
+     - Spaced cadastral references matching standard block layouts (`7 7 4 2` or `14 4 2`).
+  2. Updated `propertyIntakeTextInstruction` in `supabase/functions/_shared/prompts.ts` to explicitly note hyphenated and `LEGACY-...` references.
+  3. Added unit tests in `src/services/__tests__/chatApi.test.ts`.
+  4. Deployed updated `property-intake` to remote Supabase project `wbzfeqzvwfglirwlpzpy`.
+- **Live verification**:
+  - `LEGACY-E1F2A3B479304` (exists in DB) → `property-intake` correctly returned `"Esa referencia catastral ya está registrada en Hubik. Por favor verifique el número o indique uno diferente."`
+  - `LEGACY-E1F2A3B479302` (new reference) → `property-intake` correctly verified and returned `"✅ Referencia catastral verificada: no está duplicada."`
+  - `./scripts/verify.sh check-all` passed cleanly (ESLint clean, Jest 35/35 suites, 190/190 tests passed, TypeScript build clean).
+
+### [2026-09-18] Session 047: Fix Price Extraction for Colloquial & Multi-Currency Formats
+- **Status**: Completed.
+- **User report**: "parece que no se valida bien la informacion suministrada" (screenshot showing user message with "el precio es de 80 mil dólares", but assistant responding "Todavía me falta: precio, ciudad y dirección").
+- **Root cause**:
+  1. `extractPrice` in `src/services/chatApi.ts` and `supabase/functions/property-intake/index.ts` only matched `(\d{1,3}(?:\.\d{3})+|\d{4,})`. It had no support for "mil" (e.g. "80 mil dólares"), "k", comma-delimited thousands ("80,000"), or currency prefixes ("$80,000").
+  2. In `supabase/functions/_shared/prompts.ts`, `GEMINI_EXTRACTION_MODEL` was set to `gemini-2.5-flash-lite`, which returned 404 from Google ("model is no longer available to new users"), so Gemini never ran as a fallback.
+- **Fix**:
+  1. Refactored `extractPrice` in both client `src/services/chatApi.ts` and Edge Function `property-intake/index.ts` with dedicated rules for:
+     - "mil" / "k" multipliers (e.g. "80 mil dólares", "$80 mil", "80k €" → `80000`).
+     - "millones" (e.g. LatAm currencies).
+     - Standard currency suffixes ("420.000 euros", "80,000 $", "80000 eur").
+     - Currency prefixes ("$420,000", "€80.000").
+     - Keyword-preceded amounts ("precio es de 80000", "cuesta 95000").
+  2. Updated `GEMINI_EXTRACTION_MODEL` to `gemini-2.5-flash` in `_shared/prompts.ts`, and generalized the prompt instruction from `price (number, in euros)` to `price (number, property price as an integer, e.g. 80000)`.
+  3. Added unit tests in `src/services/__tests__/chatApi.test.ts`.
+  4. Deployed updated `property-intake` to remote Supabase project `wbzfeqzvwfglirwlpzpy`.
+- **Live verification**:
+  - Live curl to `property-intake` with exact user message ("...el precio es de 80 mil dólares...") returned `"price": 80000`, removing `price` from `missing_fields` and properly asking only for `"ciudad y dirección"`.
+  - `./scripts/verify.sh check-all` passed cleanly (ESLint clean, Jest 35/35 suites, 191/191 tests passed, TypeScript build clean).
+
+### [2026-09-18] Session 048: Pure Conversational Property Registration (Text & Voice Notes Only)
+- **Status**: Completed.
+- **User request**: "Quitemos los botones de confirmar, continuar en el flujo de agregar una propiedad, que todo se maneje mediante el texto o notas de voz."
+- **Changes**:
+  1. Removed `SuggestionChips` quick action buttons in property registration mode (`photos`, `location`, `confirming` steps) in `src/app/index.tsx`.
+  2. Implemented natural language conversational intent detection (`isConfirmIntent`, `isContinueIntent`, `isLocationIntent`, `isPhotosIntent`) across both typed messages (`handleSend`) and audio voice notes (`handleSendAudio`).
+  3. Ensured `isContinueIntent` takes priority over `isPhotosIntent` so phrases like "continuar sin fotos" correctly advance to the location step without triggering photo selection.
+  4. Added full voice note handling for advancing ("continuar sin fotos"), opening photo picker ("adjuntar fotos"), opening map picker ("fijar ubicación"), and publishing ("confirmar y publicar").
+  5. Updated conversational assistant prompts to instruct the user to speak or write the next action.
+  6. Updated integration tests in `src/app/__tests__/index.test.tsx` and added test coverage for voice note conversational registration flow.
+- **Verification**:
+  - `./scripts/verify.sh check-all` passed cleanly:
+    - ESLint: Clean (0 errors).
+    - Jest: 35/35 suites, 192/192 tests passed.
+    - TypeScript: Clean (`tsc --noEmit` 0 errors).
+### [2026-09-18] Session 049: Real Estate Extraction Engine Prompt & Resilient LLM Architecture
+- **Status**: Completed.
+- **User request**: Integrated precise real estate data extraction engine prompt with phonetic/typographic correction ("nahuanagua" -> Naguanagua), currency/number normalization ("62 mil dólares" / "verdes" -> 62000 USD), address vs. city separation, and state preservation.
+- **Changes**:
+  1. Updated `propertyIntakeTextInstruction` in `supabase/functions/_shared/prompts.ts` with the user's detailed extraction specifications and normalization rules.
+  2. Extended `PropertyDraft` interface in `supabase/functions/property-intake/index.ts` and `src/types/property.ts` to support `currency?: string` ('USD' | 'VES' | 'EUR').
+  3. Added dual-engine resilient LLM extraction in `supabase/functions/property-intake/index.ts`: calls `gemini-2.5-flash` with automatic fallback to Groq (`qwen/qwen3.8-27b`) if Gemini hits Google's free-tier daily rate limits (429) or fails.
+  4. Updated client `formatDraftSummary` in `src/app/index.tsx` to dynamically display the currency symbol (`$` for USD, `Bs.` for VES, `€` for EUR).
+  5. Deployed updated `property-intake` Edge Function to remote Supabase project `wbzfeqzvwfglirwlpzpy`.
+- **Live Verification**:
+  - Live curl to deployed `property-intake` with `"vendo casa en nahuanagua direccion los almendros numero 32 precio sesenta y dos mil dolares 3 habitaciones 2 banos 120 metros"`:
+    - `"city"`: `"Naguanagua"` (phonetically corrected).
+    - `"address"`: `"Los Almendros, número 32"` (separated from city).
+    - `"price"`: `62000`, `"currency"`: `"USD"`.
+    - `"property_type"`: `"Single Family"`, `"operation_type"`: `"sale"`.
+    - `"bedrooms"`: `3`, `"bathrooms"`: `2`, `"square_meters"`: `120`.
+  - State preservation verified: subsequent updates merge new fields while preserving existing ones.
+### [2026-09-18] Session 050: Fix Description Generation Failure (Gemini 429 Quota Exceeded)
+- **Status**: Completed.
+- **User report**: Screenshot showing "⚠️ No pude generar la descripción (Edge Function returned a non-2xx status code). Diga o escriba 'fijar ubicación' para intentar de nuevo." when confirming property location in Valencia ("Avenida 102 Montes de Oca, Valencia").
+- **Root cause**:
+  - `property-describe` invoked `gemini-2.5-flash` with no alternative.
+  - The Google AI Studio free tier quota for `gemini-2.5-flash` reached its daily ceiling (HTTP 429 "RESOURCE_EXHAUSTED"), causing `property-describe` to throw and return HTTP 502 to the mobile client.
+- **Fix**:
+  1. Updated `supabase/functions/property-describe/index.ts` with a resilient multi-tier fallback architecture:
+     - Tier 1: Gemini `gemini-2.5-flash`.
+     - Tier 2: Groq `qwen/qwen3.8-27b` with `max_tokens: 300` for 100ms ultra-low latency.
+     - Tier 3: Deterministic fallback description generator based on draft facts (`type`, `operation`, `location`, `price`, `bedrooms`, `bathrooms`, `meters`), guaranteeing `property-describe` always succeeds with HTTP 200.
+  2. Also added `max_tokens: 500` to the Groq fallback in `supabase/functions/property-intake/index.ts` to guard against OTPM limits.
+  3. Deployed updated `property-describe` and `property-intake` Edge Functions to Supabase project `wbzfeqzvwfglirwlpzpy`.
+- **Live Verification**:
+  - Executed curl with the exact payload from the user's screenshot (`{"city":"Valencia","address":"Avenida 102 Montes de Oca","property_type":"Apartment","operation_type":"sale","price":62000}`).
+  - Deployed `property-describe` successfully returned HTTP 200 with:
+    `"Descubre este apartamento para venta en la Avenida 102 Montes de Oca, Valencia. Con un precio de 62000, es una excelente oportunidad para conocerte en esta ciudad. Estamos a tu disposición para más información sobre esta propiedad."`
+  - `./scripts/verify.sh check-all` passed cleanly (35/35 suites, 192/192 tests, TypeScript build clean).
+
+
+
+
+

@@ -1,4 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { embedText } from '../_shared/geminiEmbedding.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,29 +27,6 @@ interface PropertyDraft {
   latitude?: number;
   longitude?: number;
   description?: string;
-}
-
-async function computeEmbedding(description: string, geminiKey: string): Promise<number[] | null> {
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${geminiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'models/text-embedding-004',
-          content: { parts: [{ text: description }] },
-        }),
-      }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const values = data?.embedding?.values;
-    return Array.isArray(values) ? values : null;
-  } catch (err) {
-    console.warn('[property-publish] embedding generation failed, publishing without it:', err);
-    return null;
-  }
 }
 
 const PROPERTY_TYPES: PropertyType[] = ['Apartment', 'Single Family', 'Townhouse', 'Studio', 'Condo'];
@@ -182,7 +160,9 @@ Deno.serve(async (req: Request) => {
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
     const hasGeminiKey = Boolean(geminiKey) && geminiKey !== 'your_gemini_api_key_here';
     const embedding =
-      property.description && hasGeminiKey ? await computeEmbedding(property.description, geminiKey!) : null;
+      property.description && hasGeminiKey
+        ? await embedText(property.description, geminiKey!, 'RETRIEVAL_DOCUMENT')
+        : null;
 
     const { data, error } = await supabase
       .from('properties')

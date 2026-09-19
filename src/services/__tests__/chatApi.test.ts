@@ -266,6 +266,21 @@ describe('chatApi - parsePropertyDraft (heuristic extraction)', () => {
     expect(result.ready_to_confirm).toBe(true);
   });
 
+  it('extracts price from colloquial expressions like "80 mil dólares" or "80k"', () => {
+    const result = parsePropertyDraft(
+      'Es una propiedad para la venta, una casa, tiene 200 metros cuadrados, 5 habitaciones, 6 baños, el precio es de 80 mil dólares.',
+      { catastro: 'LEGACY-E1F2A3B479302' }
+    );
+
+    expect(result.data.price).toBe(80000);
+    expect(result.data.property_type).toBe('Single Family');
+    expect(result.data.operation_type).toBe('sale');
+    expect(result.data.bedrooms).toBe(5);
+    expect(result.data.bathrooms).toBe(6);
+    expect(result.data.square_meters).toBe(200);
+    expect(result.missing_fields).not.toContain('price');
+  });
+
   it('merges a partial reply into the already-known draft', () => {
     const known = {
       catastro: '1234567VH5797S0001WX',
@@ -321,6 +336,18 @@ describe('chatApi - parsePropertyDraft (heuristic extraction)', () => {
     const known = { catastro: '1234567VH5797S0001WX' };
     const result = parsePropertyDraft('Son 3 habitaciones', known);
     expect(result.assistant_message).not.toContain('Referencia catastral registrada');
+  });
+
+  it('extracts LEGACY- prefixed cadastral references from database seed/migrations', () => {
+    const result = parsePropertyDraft('LEGACY-E1F2A3B479302', {});
+    expect(result.data.catastro).toBe('LEGACY-E1F2A3B479302');
+    expect(result.missing_fields).not.toContain('catastro');
+  });
+
+  it('extracts cadastral references with spaces and normalizes them', () => {
+    const result = parsePropertyDraft('9872023 VH5797S 0001 WX', {});
+    expect(result.data.catastro).toBe('9872023VH5797S0001WX');
+    expect(result.missing_fields).not.toContain('catastro');
   });
 });
 

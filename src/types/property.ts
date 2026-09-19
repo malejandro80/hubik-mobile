@@ -38,6 +38,7 @@ export interface PropertyDraft {
   property_type?: PropertyType;
   operation_type?: OperationType;
   price?: number;
+  currency?: string;
   bedrooms?: number;
   bathrooms?: number;
   square_meters?: number;
@@ -48,6 +49,14 @@ export interface PropertyDraft {
   longitude?: number;
   description?: string;
 }
+
+export const PROPERTY_TYPE_LABEL_ES: Record<PropertyType, string> = {
+  Apartment: 'Piso',
+  'Single Family': 'Casa',
+  Townhouse: 'Casa adosada',
+  Studio: 'Estudio',
+  Condo: 'Condominio',
+};
 
 export const REQUIRED_PROPERTY_DRAFT_FIELDS: (keyof PropertyDraft)[] = [
   'catastro',

@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Property } from '../types/property';
+import { PROPERTY_TYPE_LABEL_ES, Property } from '../types/property';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { colors, shapes, typography } from '../theme/colors';
 
@@ -142,7 +142,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
             {' '}·{' '}
           </Text>
           <Text style={[styles.specText, { color: theme.textSecondary }]}>
-            Apto
+            {PROPERTY_TYPE_LABEL_ES[property.property_type] || property.property_type}
           </Text>
         </View>
 

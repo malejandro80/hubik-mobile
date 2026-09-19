@@ -1,6 +1,8 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { isAudioPayload, transcribeAndExtractFromAudio } from '../_shared/geminiAudio.ts';
-import { propertyIntakeAudioInstruction, propertyIntakeTextInstruction } from '../_shared/prompts.ts';
+import { isAudioPayload } from '../_shared/audioPayload.ts';
+import { fetchKnownCities, matchCityInText } from '../_shared/cities.ts';
+import { GEMINI_EXTRACTION_MODEL, propertyIntakeTextInstruction } from '../_shared/prompts.ts';
+import { transcribeAudio } from '../_shared/groqAudio.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,6 +19,7 @@ interface PropertyDraft {
   property_type?: PropertyType;
   operation_type?: OperationType;
   price?: number;
+  currency?: string;
   bedrooms?: number;
   bathrooms?: number;
   square_meters?: number;
@@ -51,8 +54,6 @@ const FIELD_LABELS: Record<keyof PropertyDraft, string> = {
   city: 'ciudad',
   address: 'dirección',
 };
-
-const DRAFT_CITIES = ['Austin', 'Miami', 'Denver', 'Seattle', 'New York', 'Madrid', 'Barcelona', 'Valencia', 'Sevilla'];
 
 function extractPropertyType(lower: string): PropertyType | undefined {
   if (
@@ -97,20 +98,90 @@ function extractOperationType(lower: string): OperationType | undefined {
 }
 
 function extractPrice(text: string): number | undefined {
-  const match = text.match(
-    /(\d{1,3}(?:\.\d{3})+|\d{4,})(?:,\d+)?\s*(?:€|euros?|eur\b|\$|usd|dólares?|dolares?)/i
+  const lower = text.toLowerCase();
+
+  // 1. "80 mil", "80mil", "80 k", "80k" with optional currency (e.g. "80 mil dólares", "$80 mil", "80k €")
+  const milMatch = lower.match(
+    /(?:(?:precio|valor|cuesta|por|en|pido)?\s*(?:es\s*(?:de\s*)?)?)?(?:\$|€)?\s*(\d+(?:[.,]\d+)?)\s*(?:mil|k)\b(?:\s*(?:€|euros?|eur|\$|usd|dólares?|dolares?|pesos?))?/i
   );
-  if (!match) return undefined;
-  const val = parseInt(match[1].replace(/\./g, ''), 10);
-  return Number.isNaN(val) ? undefined : val;
+  if (milMatch && milMatch[1]) {
+    const rawNum = parseFloat(milMatch[1].replace(',', '.'));
+    if (!Number.isNaN(rawNum) && rawNum > 0) {
+      return Math.round(rawNum * 1000);
+    }
+  }
+
+  // 2. "80 millones" (e.g. LatAm)
+  const millonesMatch = lower.match(
+    /(?:(?:precio|valor|cuesta|por|en|pido)?\s*(?:es\s*(?:de\s*)?)?)?(?:\$|€)?\s*(\d+(?:[.,]\d+)?)\s*(?:millones?|m)\b(?:\s*(?:€|euros?|eur|\$|usd|dólares?|dolares?|pesos?))?/i
+  );
+  if (millonesMatch && millonesMatch[1]) {
+    const rawNum = parseFloat(millonesMatch[1].replace(',', '.'));
+    if (!Number.isNaN(rawNum) && rawNum > 0) {
+      return Math.round(rawNum * 1000000);
+    }
+  }
+
+  // 3. Number with explicit currency suffix (e.g. "420.000 euros", "80,000 $", "80000 eur")
+  const suffixMatch = lower.match(
+    /(\d{1,3}(?:[.,]\d{3})+|\d{3,})(?:[.,]\d{1,2})?\s*(?:€|euros?|eur\b|\$|usd|dólares?|dolares?|pesos?)/i
+  );
+  if (suffixMatch) {
+    const raw = suffixMatch[1].replace(/[.,]/g, '');
+    const val = parseInt(raw, 10);
+    if (!Number.isNaN(val) && val > 0) return val;
+  }
+
+  // 4. Number with explicit currency prefix (e.g. "$420,000", "€80.000")
+  const prefixMatch = lower.match(/(?:[$€])\s*(\d{1,3}(?:[.,]\d{3})+|\d{3,})(?:[.,]\d{1,2})?/i);
+  if (prefixMatch) {
+    const raw = prefixMatch[1].replace(/[.,]/g, '');
+    const val = parseInt(raw, 10);
+    if (!Number.isNaN(val) && val > 0) return val;
+  }
+
+  // 5. Keyword preceded price (e.g. "precio es de 420000", "precio: 80000", "cuesta 95000")
+  const keywordMatch = lower.match(
+    /(?:precio|valor|cuesta|pido)\s*(?:es\s*(?:de\s*)?|:\s*)?\s*(\d{1,3}(?:[.,]\d{3})+|\d{3,})/i
+  );
+  if (keywordMatch) {
+    const raw = keywordMatch[1].replace(/[.,]/g, '');
+    const val = parseInt(raw, 10);
+    if (!Number.isNaN(val) && val > 0) return val;
+  }
+
+  return undefined;
 }
 
 function extractCatastro(text: string): string | undefined {
-  const match = text.match(/\b(?=[A-Za-z0-9]{14,20}\b)(?=[A-Za-z0-9]*[0-9])(?=[A-Za-z0-9]*[A-Za-z])[A-Za-z0-9]{14,20}\b/);
-  return match ? match[0].toUpperCase() : undefined;
+  // 1. Match legacy/seeded references generated during migrations (e.g. LEGACY-E1F2A3B479302)
+  const legacyMatch = text.match(/\bLEGACY-[A-Za-z0-9]{5,13}\b/i);
+  if (legacyMatch) return legacyMatch[0].toUpperCase();
+
+  // 2. Match standard Spanish cadastral references (14-20 alphanumeric characters, possibly with hyphens)
+  const match = text.match(
+    /\b(?=[A-Za-z0-9-]{14,20}\b)(?=[A-Za-z0-9-]*[0-9])(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9-]{14,20}\b/
+  );
+  if (match) return match[0].toUpperCase();
+
+  // 3. Match user pasting the reference directly (with optional surrounding whitespace)
+  const trimmed = text.trim();
+  if (/^[A-Za-z0-9-]{14,20}$/.test(trimmed) && /[0-9]/.test(trimmed) && /[A-Za-z]/.test(trimmed)) {
+    return trimmed.toUpperCase();
+  }
+
+  // 4. Match cadastral reference formatted with spaces (e.g. "9872023 VH5797S 0001 WX" or "9872023VH5797S 0001 WX")
+  const spacedMatch = text.match(
+    /\b([A-Za-z0-9]{7}\s+[A-Za-z0-9]{7}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2}|[A-Za-z0-9]{14}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2})\b/
+  );
+  if (spacedMatch) {
+    return spacedMatch[0].replace(/\s+/g, '').toUpperCase();
+  }
+
+  return undefined;
 }
 
-function heuristicExtract(message: string, known: PropertyDraft): PropertyDraft {
+function heuristicExtract(message: string, known: PropertyDraft, knownCities: string[]): PropertyDraft {
   const lower = message.toLowerCase();
   const extracted: PropertyDraft = {};
 
@@ -138,12 +209,8 @@ function heuristicExtract(message: string, known: PropertyDraft): PropertyDraft 
   const addressMatch = message.match(/calle\s+[^,.]+/i);
   if (addressMatch) extracted.address = addressMatch[0].trim();
 
-  for (const city of DRAFT_CITIES) {
-    if (lower.includes(city.toLowerCase())) {
-      extracted.city = city;
-      break;
-    }
-  }
+  const city = matchCityInText(message, knownCities);
+  if (city) extracted.city = city;
 
   return { ...known, ...extracted };
 }
@@ -206,7 +273,10 @@ function sanitizeGeminiFields(raw: any): Partial<PropertyDraft> {
   if (typeof raw.title === 'string' && raw.title.trim()) clean.title = raw.title.trim();
   if (PROPERTY_TYPES.includes(raw.property_type)) clean.property_type = raw.property_type;
   if (OPERATION_TYPES.includes(raw.operation_type)) clean.operation_type = raw.operation_type;
-  if (typeof raw.price === 'number' && raw.price > 0) clean.price = raw.price;
+  if (typeof raw.price === 'number' && raw.price > 0) clean.price = Math.round(raw.price);
+  if (typeof raw.currency === 'string' && ['USD', 'VES', 'EUR'].includes(raw.currency.toUpperCase())) {
+    clean.currency = raw.currency.toUpperCase();
+  }
   if (typeof raw.bedrooms === 'number' && raw.bedrooms >= 0) clean.bedrooms = raw.bedrooms;
   if (typeof raw.bathrooms === 'number' && raw.bathrooms >= 0) clean.bathrooms = raw.bathrooms;
   if (typeof raw.square_meters === 'number' && raw.square_meters > 0) clean.square_meters = raw.square_meters;
@@ -235,63 +305,123 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    let data: PropertyDraft = isAudioRequest ? { ...known } : heuristicExtract(message, known);
     let transcript: string | undefined;
+    let effectiveMessage: string;
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
     const hasGeminiKey = Boolean(geminiKey) && geminiKey !== 'your_gemini_api_key_here';
+    const groqKey = Deno.env.get('GROQ_API_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseKey =
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
     if (isAudioRequest) {
-      // Voice notes have no local text for the heuristic pass, and Gemini is the
-      // only thing that can transcribe them - no fallback here.
-      if (!hasGeminiKey) {
+      // Voice notes have no local text for the heuristic pass until transcribed. Deliberately no
+      // Gemini fallback here (RFC 009) - see chat-query's matching comment.
+      if (!groqKey) {
         return new Response(
-          JSON.stringify({ error: 'Las notas de voz requieren que Gemini esté configurado en el servidor' }),
+          JSON.stringify({ error: 'Las notas de voz requieren que Groq esté configurado en el servidor' }),
           { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       try {
-        const result = await transcribeAndExtractFromAudio(
-          audio,
-          propertyIntakeAudioInstruction(known),
-          geminiKey!
-        );
-        transcript = result.transcript;
-        data = { ...data, ...sanitizeGeminiFields(result.extracted) };
-      } catch (geminiErr: any) {
-        console.error('[property-intake] Gemini audio transcription error:', geminiErr);
+        transcript = await transcribeAudio(audio, groqKey);
+        effectiveMessage = transcript;
+      } catch (transcribeErr: any) {
+        console.error('[property-intake] Groq audio transcription error:', transcribeErr);
         return new Response(
-          JSON.stringify({ error: geminiErr?.message || 'No se pudo procesar la nota de voz' }),
+          JSON.stringify({ error: transcribeErr?.message || 'No se pudo procesar la nota de voz' }),
           { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-    } else if (hasGeminiKey) {
-      try {
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: message }] }],
-              systemInstruction: {
-                parts: [{ text: propertyIntakeTextInstruction(known) }],
-              },
-              generationConfig: { responseMimeType: 'application/json' },
-            }),
-          }
-        );
+    } else {
+      effectiveMessage = message;
+    }
 
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            const parsed = sanitizeGeminiFields(JSON.parse(text));
-            data = { ...data, ...parsed };
+    // Cheap tier: the local heuristic runs first regardless of audio/text origin, same as
+    // chat-query, matching cities against whatever is already in `properties.city` (any region,
+    // no hardcoded list). Only escalate to Gemini when a required field is still missing
+    // afterwards - bulk descriptions the heuristic already fully resolves skip the extra call.
+    const knownCities = await fetchKnownCities(supabaseUrl, supabaseKey);
+    let data: PropertyDraft = heuristicExtract(effectiveMessage, known, knownCities);
+
+    if (REQUIRED_FIELDS.some((field) => data[field] === undefined)) {
+      let llmExtracted: Partial<PropertyDraft> | undefined;
+
+      // 1. Try Gemini
+      if (hasGeminiKey) {
+        try {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EXTRACTION_MODEL}:generateContent?key=${geminiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: effectiveMessage }] }],
+                systemInstruction: {
+                  parts: [{ text: propertyIntakeTextInstruction(known) }],
+                },
+                generationConfig: { responseMimeType: 'application/json' },
+              }),
+            }
+          );
+
+          if (geminiRes.ok) {
+            const geminiData = await geminiRes.json();
+            const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              llmExtracted = sanitizeGeminiFields(JSON.parse(text));
+            }
+          } else {
+            console.warn('[property-intake] Gemini extraction returned status:', geminiRes.status);
           }
+        } catch (geminiErr) {
+          console.warn('[property-intake] Gemini extraction error:', geminiErr);
         }
-      } catch (geminiErr) {
-        console.warn('[property-intake] Gemini extraction error, using heuristic result:', geminiErr);
+      }
+
+      // 2. Resilient fallback to Groq LLM if Gemini is rate-limited or fails
+      if (!llmExtracted && groqKey) {
+        try {
+          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${groqKey}`,
+            },
+            body: JSON.stringify({
+              model: 'qwen/qwen3.8-27b',
+              messages: [
+                {
+                  role: 'system',
+                  content: propertyIntakeTextInstruction(known),
+                },
+                {
+                  role: 'user',
+                  content: effectiveMessage,
+                },
+              ],
+              max_tokens: 500,
+              response_format: { type: 'json_object' },
+            }),
+          });
+
+          if (groqRes.ok) {
+            const groqData = await groqRes.json();
+            const content = groqData.choices?.[0]?.message?.content;
+            if (content) {
+              llmExtracted = sanitizeGeminiFields(JSON.parse(content));
+            }
+          } else {
+            console.warn('[property-intake] Groq LLM extraction returned status:', groqRes.status);
+          }
+        } catch (groqErr) {
+          console.warn('[property-intake] Groq LLM extraction error:', groqErr);
+        }
+      }
+
+      if (llmExtracted) {
+        data = { ...data, ...llmExtracted };
       }
     }
 
@@ -303,9 +433,6 @@ Deno.serve(async (req: Request) => {
     let catastroStatus: 'verified' | 'unverified' | undefined;
     if (data.catastro && data.catastro !== known.catastro) {
       try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
-        const supabaseKey =
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? '';
         if (supabaseUrl && supabaseKey) {
           const supabase = createClient(supabaseUrl, supabaseKey);
           const { data: existing } = await supabase
