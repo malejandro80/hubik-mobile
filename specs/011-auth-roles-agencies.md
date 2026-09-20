@@ -103,12 +103,15 @@ alter table public.properties
 ```
 - **Trigger** `on auth.users insert` creates the `client` profile (`display_name` from the
   provider's `full_name`/`name` metadata, nullable because Apple may omit it).
-- **RLS**: `profiles` readable by its own user only, with no insert/update/delete policy (roles
-  cannot be self-assigned). `agencies` readable by everyone, no write policy. `properties` keeps
-  public read and gets no client write policy (writes stay in Edge Functions).
-- **`agents_public` view** (`user_id`, `display_name`, `agency_id`, `role = 'agent'` rows only)
-  exposes only what listings display, without opening `profiles`.
-- **`property_listings` view**: `properties` joined with `agencies` and `agents_public`, adding
+- **RLS**: `profiles` is readable by its own user, plus rows with `role = 'agent'` by everyone
+  (no personal data: display name, role and agency only; anon gets column-level `SELECT`). There
+  is no insert/update/delete policy, so roles cannot be self-assigned. `agencies` is readable by
+  everyone, no write policy. `properties` keeps public read and gets no client write policy
+  (writes stay in Edge Functions). Explicit `GRANT SELECT`s are included because the Data API
+  does not always expose new tables.
+- **`agents_public` view** (`user_id`, `display_name`, `agency_id`, agent rows only), created
+  `WITH (security_invoker = true)` so it respects RLS (Supabase skill security checklist).
+- **`property_listings` view** (also `security_invoker`): `properties` joined with `agencies` and `agents_public`, adding
   `agency_name` and `agent_name`. It is the single join point: the hybrid RPC, the `chat-query`
   fallback select and the owner's agency screen all read from it.
 - **`create_agency(p_name text) returns uuid`**: `security definer`, empty `search_path`, uses

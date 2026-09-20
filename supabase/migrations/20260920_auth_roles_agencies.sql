@@ -11,8 +11,9 @@
 -- with the SQL in RFC 011 section 4.6. Publishing goes through Edge Functions that
 -- check the caller's role (supabase/functions/_shared/auth.ts).
 --
--- The views agents_public and property_listings intentionally run with their owner's
--- privileges (default) so listings can show agent names without opening profiles.
+-- Both views are security_invoker, so they respect RLS. Agent rows of profiles are
+-- publicly readable (no personal data: display name, role and agency only) so listings
+-- can show agent names; every other profile row is visible only to its own user.
 
 CREATE TABLE IF NOT EXISTS public.agencies (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -45,6 +46,14 @@ CREATE POLICY "Allow public read access on agencies"
 DROP POLICY IF EXISTS "Users can read their own profile" ON public.profiles;
 CREATE POLICY "Users can read their own profile"
   ON public.profiles FOR SELECT TO authenticated USING (user_id = (SELECT auth.uid()));
+
+DROP POLICY IF EXISTS "Agent profiles are publicly readable" ON public.profiles;
+CREATE POLICY "Agent profiles are publicly readable"
+  ON public.profiles FOR SELECT TO anon, authenticated USING (role = 'agent');
+
+GRANT SELECT ON public.agencies TO anon, authenticated;
+GRANT SELECT ON public.profiles TO authenticated;
+GRANT SELECT (user_id, role, agency_id, display_name) ON public.profiles TO anon;
 
 -- New sign-ins become clients.
 CREATE OR REPLACE FUNCTION public.handle_new_user ()
@@ -126,14 +135,14 @@ ALTER TABLE public.properties ALTER COLUMN agency_id SET NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_properties_agency_id ON public.properties (agency_id);
 
-CREATE OR REPLACE VIEW public.agents_public AS
+CREATE OR REPLACE VIEW public.agents_public WITH (security_invoker = true) AS
 SELECT user_id, display_name, agency_id
 FROM public.profiles
 WHERE role = 'agent';
 
 GRANT SELECT ON public.agents_public TO anon, authenticated;
 
-CREATE OR REPLACE VIEW public.property_listings AS
+CREATE OR REPLACE VIEW public.property_listings WITH (security_invoker = true) AS
 SELECT
   p.id,
   p.title,
