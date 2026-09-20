@@ -36,6 +36,7 @@ export const MOCK_PROPERTIES: Property[] = [
       'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&w=1000&q=80',
       'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Modern 2-Bed Condo downtown Austin tech apartment'),
     created_at: '2026-09-01T10:00:00Z',
   },
@@ -56,6 +57,7 @@ export const MOCK_PROPERTIES: Property[] = [
       'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1000&q=80',
       'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Sunny South Congress 2-Bed Flat Austin boutique apartment'),
     created_at: '2026-09-02T11:30:00Z',
   },
@@ -76,6 +78,7 @@ export const MOCK_PROPERTIES: Property[] = [
       'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1000&q=80',
       'https://images.unsplash.com/photo-1613490493576-7fde63acd811?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Luxury Oceanfront Apartment in Miami Beach ocean view'),
     created_at: '2026-09-03T14:15:00Z',
   },
@@ -95,6 +98,7 @@ export const MOCK_PROPERTIES: Property[] = [
     images: [
       'https://images.unsplash.com/photo-1574362848149-11496d93a7c7?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Brickell Financial District High-Rise Condo Miami skyline'),
     created_at: '2026-09-04T09:20:00Z',
   },
@@ -115,6 +119,7 @@ export const MOCK_PROPERTIES: Property[] = [
       'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1000&q=80',
       'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Spacious Family Craftsman in Denver yard mountain suburban'),
     created_at: '2026-09-05T16:00:00Z',
   },
@@ -134,6 +139,7 @@ export const MOCK_PROPERTIES: Property[] = [
     images: [
       'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Modern Mountain-View Townhouse in LoDo Denver urban rooftop'),
     created_at: '2026-09-06T12:00:00Z',
   },
@@ -153,6 +159,7 @@ export const MOCK_PROPERTIES: Property[] = [
     images: [
       'https://images.unsplash.com/photo-1502005229762-ee1b2b81e42a?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Capitol Hill Contemporary Studio Seattle compact starter home'),
     created_at: '2026-09-07T08:30:00Z',
   },
@@ -172,6 +179,7 @@ export const MOCK_PROPERTIES: Property[] = [
     images: [
       'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Ballard Scandinavian-Style Townhouse Seattle energy efficient'),
     created_at: '2026-09-08T15:45:00Z',
   },
@@ -192,6 +200,7 @@ export const MOCK_PROPERTIES: Property[] = [
       'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1000&q=80',
       'https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Historic Brooklyn Heights Brownstone New York luxury mansion garden'),
     created_at: '2026-09-09T17:00:00Z',
   },
@@ -211,6 +220,7 @@ export const MOCK_PROPERTIES: Property[] = [
     images: [
       'https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('West Village Chic 1-Bed Sanctuary New York pre-war boutique'),
     created_at: '2026-09-10T13:20:00Z',
   },
@@ -230,6 +240,7 @@ export const MOCK_PROPERTIES: Property[] = [
     images: [
       'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Zilker Park Mid-Century Home in Austin green trees yard pool'),
     created_at: '2026-09-11T11:00:00Z',
   },
@@ -249,6 +260,7 @@ export const MOCK_PROPERTIES: Property[] = [
     images: [
       'https://images.unsplash.com/photo-1536376072261-38c75010e6c9?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Downtown Austin Micro-Studio Loft affordable walkable'),
     created_at: '2026-09-12T09:40:00Z',
   },
@@ -268,6 +280,7 @@ export const MOCK_PROPERTIES: Property[] = [
     images: [
       'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Coral Gables Mediterranean Estate Miami palm trees luxury pool'),
     created_at: '2026-09-13T10:15:00Z',
   },
@@ -287,6 +300,7 @@ export const MOCK_PROPERTIES: Property[] = [
     images: [
       'https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=1000&q=80',
     ],
+    amenities: [],
     embedding: generateMockEmbedding('Queen Anne View Townhouse Seattle Space Needle views modern'),
     created_at: '2026-09-14T08:00:00Z',
   },

@@ -106,6 +106,10 @@ export function usePropertyRegistrationChat() {
     });
   }, []);
 
+  const updateAmenities = useCallback((amenities: string[]) => {
+    setState((prev) => ({ ...prev, draft: { ...prev.draft, amenities } }));
+  }, []);
+
   const skipPhotos = useCallback(() => {
     setState((prev) => ({ ...prev, mode: 'location' }));
   }, []);
@@ -161,6 +165,7 @@ export function usePropertyRegistrationChat() {
     addPhotos,
     removePhoto,
     movePhoto,
+    updateAmenities,
     skipPhotos,
     editPhotos,
     editLocation,

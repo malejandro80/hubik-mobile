@@ -66,6 +66,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
           source={{
             uri:
               property.image_url ||
+              property.images?.[0] ||
               'https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1000&q=80',
           }}
           style={styles.image}
@@ -82,19 +83,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
           </View>
         </View>
 
-        <View style={styles.photoCountBadge}>
-          <Ionicons
-            name="camera-outline"
-            size={13}
-            color={iconColorText}
-            style={styles.cameraIcon}
-          />
-          <Text style={styles.photoCountText}>
-            {property.images && property.images.length > 1
-              ? labels.propertyCard.photosCount(property.images.length)
-              : labels.propertyCard.defaultPhotosCount}
-          </Text>
-        </View>
+
       </View>
 
       <View style={styles.content}>

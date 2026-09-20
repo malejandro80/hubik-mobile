@@ -110,6 +110,33 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
     expect(result.answer).toContain('base de datos');
   });
 
+  it('applies an amenities containment filter on the direct-query fallback', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
+      data: null,
+      error: new Error('Edge Function invocation error'),
+    });
+
+    const mockContains = jest.fn().mockReturnThis();
+    const mockOrder = jest.fn().mockReturnThis();
+    const mockLimit = jest.fn().mockResolvedValueOnce({ data: [], error: null });
+    const mockSelect = jest.fn().mockReturnValue({
+      ilike: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      lte: jest.fn().mockReturnThis(),
+      contains: mockContains,
+      order: mockOrder,
+      limit: mockLimit,
+    });
+    mockOrder.mockReturnValue({ limit: mockLimit });
+
+    (supabase.from as jest.Mock).mockReturnValue({ select: mockSelect });
+
+    await sendChatQuery('casas con piscina en Miami');
+
+    expect(mockContains).toHaveBeenCalledWith('amenities', expect.arrayContaining(['piscina']));
+  });
+
   it('parsePromptFilters correctly extracts structured filters', () => {
     const filters = parsePromptFilters('Denver 3-bed house under 700k');
     expect(filters.city).toBe('Denver');
@@ -148,6 +175,17 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
     expect(filtersSort.city).toBe('Denver');
     expect(filtersSort.property_type).toBe('Apartment');
     expect(filtersSort.sort_by).toBe('price_asc');
+  });
+
+  it('parsePromptFilters extracts amenity keywords as a structured filter', () => {
+    const filters = parsePromptFilters('casas con piscina y garaje en Miami');
+    expect(filters.city).toBe('Miami');
+    expect(filters.amenities).toEqual(expect.arrayContaining(['piscina', 'garaje']));
+  });
+
+  it('parsePromptFilters omits the amenities key when nothing matches', () => {
+    const filters = parsePromptFilters('casas en Miami');
+    expect(filters.amenities).toBeUndefined();
   });
 
   it('fetchDynamicSuggestions generates dynamic query phrases in Spanish from Supabase properties', async () => {
@@ -345,6 +383,33 @@ describe('chatApi - parsePropertyDraft (heuristic extraction)', () => {
     const result = parsePropertyDraft('9872023 VH5797S 0001 WX', {});
     expect(result.data.catastro).toBe('9872023VH5797S0001WX');
     expect(result.missing_fields).not.toContain('catastro');
+  });
+
+  it('extracts amenities mentioned in the message', () => {
+    const result = parsePropertyDraft('Tiene piscina y garaje', {});
+    expect(result.data.amenities).toEqual(expect.arrayContaining(['piscina', 'garaje']));
+  });
+
+  it('merges newly-mentioned amenities additively without dropping earlier ones', () => {
+    const known = { amenities: ['piscina'] };
+    const result = parsePropertyDraft('también tiene garaje', known);
+    expect(result.data.amenities).toEqual(expect.arrayContaining(['piscina', 'garaje']));
+  });
+
+  it('never blocks ready_to_confirm on amenities', () => {
+    const known = {
+      catastro: '1234567VH5797S0001WX',
+      operation_type: 'sale' as const,
+      property_type: 'Apartment' as const,
+      price: 200000,
+      bedrooms: 2,
+      bathrooms: 1,
+      square_meters: 80,
+      city: 'Madrid',
+      address: 'Calle Mayor 1',
+    };
+    const result = parsePropertyDraft('sin comodidades adicionales', known);
+    expect(result.ready_to_confirm).toBe(true);
   });
 });
 

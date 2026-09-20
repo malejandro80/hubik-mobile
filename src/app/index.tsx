@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { AmenitiesConfirmation } from '../components/AmenitiesConfirmation';
 import { BurgerMenu } from '../components/BurgerMenu';
 import { ChatInputBar } from '../components/ChatInputBar';
 import { ChatMapPicker } from '../components/ChatMapPicker';
@@ -591,13 +592,24 @@ export default function HomeScreen() {
       );
     }
 
+    if (registration.state.mode === 'confirming') {
+      return (
+        <AmenitiesConfirmation
+          amenities={registration.state.draft.amenities || []}
+          onChange={registration.updateAmenities}
+        />
+      );
+    }
+
     return null;
   }, [
     registration.state.mode,
+    registration.state.draft.amenities,
     stagedImages,
     styles.photoGridWrapper,
     registration.removePhoto,
     registration.movePhoto,
+    registration.updateAmenities,
     handleSend,
     labels,
   ]);

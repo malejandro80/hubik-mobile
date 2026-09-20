@@ -41,6 +41,24 @@
   `responseSchema` fix for Gemini's zero-listing-city extraction gap, the Valencia-embedding
   backfill, and explicit user approval before committing/pushing/replying on PR #3 - nothing from
   any session this far has been committed to git yet.
+  RFC 010 (property amenities & characteristics, session 2026-09-19): also fixed a bug where
+  `image_url` was never written on either insert path, leaving newly-published properties with a
+  null image (`PropertyCard`/detail screen now fall back to `images[0]`). Then, after a multi-turn
+  brainstorm, implemented passive amenity/characteristic capture: new `properties.amenities
+  TEXT[]` column (GIN-indexed), extracted additively from any registration-chat message (local
+  keyword dictionary always, Gemini/Groq escalation broadened to also fire post-completion via
+  `hasAmenitySignal`), a new `AmenitiesConfirmation` chip UI wired into `index.tsx`'s
+  `renderListFooter` during `confirming` mode, amenities folded into the embedded text at publish
+  time, and `match_properties_hybrid`'s new `p_amenities` containment filter for search - full
+  design rationale in `specs/010-property-amenities.md`. Implemented, locally verified
+  (31 suites/216 tests, lint/typecheck clean), **and deployed** (user said "deploy"): migration
+  applied, `property-intake` v15/`property-publish` v5/`chat-query` v12 all live and
+  curl-verified working end-to-end (amenity extraction, additive merge, post-completion
+  escalation, and the hybrid search `p_amenities` filter all confirmed against the real deployed
+  functions). Nothing this session was committed to git. Also surfaced, not fixed: RFC
+  008's `LivingDraftCard` was built/tested but was never actually wired into `index.tsx`'s render
+  tree - `AmenitiesConfirmation` now occupies the `renderListFooter` hook point RFC 008 intended
+  for it, but `LivingDraftCard` itself is still unused dead code.
 - **See also**: `.agents/rules/07-feature-graph.md` for how RFC 004/006/007 and their modules
   relate to each other.
 

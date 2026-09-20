@@ -1,7 +1,12 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { isAudioPayload } from '../_shared/audioPayload.ts';
+import { extractAmenityKeywords, hasAmenitySignal, normalizeAmenities } from '../_shared/amenities.ts';
 import { fetchKnownCities, matchCityInText } from '../_shared/cities.ts';
-import { GEMINI_EXTRACTION_MODEL, propertyIntakeTextInstruction } from '../_shared/prompts.ts';
+import {
+  GEMINI_EXTRACTION_MODEL,
+  propertyIntakeAmenitiesOnlyInstruction,
+  propertyIntakeTextInstruction,
+} from '../_shared/prompts.ts';
 import { transcribeAudio } from '../_shared/groqAudio.ts';
 
 const corsHeaders = {
@@ -25,6 +30,7 @@ interface PropertyDraft {
   square_meters?: number;
   city?: string;
   address?: string;
+  amenities?: string[];
 }
 
 const PROPERTY_TYPES: PropertyType[] = ['Apartment', 'Single Family', 'Townhouse', 'Studio', 'Condo'];
@@ -282,6 +288,8 @@ function sanitizeGeminiFields(raw: any): Partial<PropertyDraft> {
   if (typeof raw.square_meters === 'number' && raw.square_meters > 0) clean.square_meters = raw.square_meters;
   if (typeof raw.city === 'string' && raw.city.trim()) clean.city = raw.city.trim();
   if (typeof raw.address === 'string' && raw.address.trim()) clean.address = raw.address.trim();
+  const amenities = normalizeAmenities(raw.amenities);
+  if (amenities.length > 0) clean.amenities = amenities;
 
   return clean;
 }
@@ -345,8 +353,26 @@ Deno.serve(async (req: Request) => {
     const knownCities = await fetchKnownCities(supabaseUrl, supabaseKey);
     let data: PropertyDraft = heuristicExtract(effectiveMessage, known, knownCities);
 
-    if (REQUIRED_FIELDS.some((field) => data[field] === undefined)) {
+    // Amenities can be mentioned at any point in the conversation, not just in response to a
+    // dedicated question - a cheap local keyword pass runs on every message regardless of what
+    // else is still missing, and merges additively so a later message that doesn't repeat an
+    // earlier amenity never drops it (RFC 010).
+    const heuristicAmenityHits = extractAmenityKeywords(effectiveMessage);
+    data.amenities = normalizeAmenities([...(data.amenities ?? []), ...heuristicAmenityHits]);
+
+    const requiredMissing = REQUIRED_FIELDS.some((field) => data[field] === undefined);
+    // Once required fields are complete, the normal escalation gate below would never fire again
+    // - but an open-ended characteristic ("cerca de un colegio") the keyword dictionary can't
+    // parse could still arrive at any later point. `hasAmenitySignal` is a cheap, separate check
+    // (not the extraction itself) just to decide whether that's worth a leaner, amenities-only
+    // LLM call instead of skipping the message entirely.
+    const amenitySignal = !requiredMissing && hasAmenitySignal(effectiveMessage);
+
+    if (requiredMissing || amenitySignal) {
       let llmExtracted: Partial<PropertyDraft> | undefined;
+      const instruction = requiredMissing
+        ? propertyIntakeTextInstruction(known)
+        : propertyIntakeAmenitiesOnlyInstruction(known);
 
       // 1. Try Gemini
       if (hasGeminiKey) {
@@ -359,7 +385,7 @@ Deno.serve(async (req: Request) => {
               body: JSON.stringify({
                 contents: [{ parts: [{ text: effectiveMessage }] }],
                 systemInstruction: {
-                  parts: [{ text: propertyIntakeTextInstruction(known) }],
+                  parts: [{ text: instruction }],
                 },
                 generationConfig: { responseMimeType: 'application/json' },
               }),
@@ -394,7 +420,7 @@ Deno.serve(async (req: Request) => {
               messages: [
                 {
                   role: 'system',
-                  content: propertyIntakeTextInstruction(known),
+                  content: instruction,
                 },
                 {
                   role: 'user',
@@ -421,7 +447,13 @@ Deno.serve(async (req: Request) => {
       }
 
       if (llmExtracted) {
-        data = { ...data, ...llmExtracted };
+        // Every other field is last-write-wins; amenities merge additively instead, since a
+        // later message not repeating an earlier amenity must never drop it (RFC 010).
+        const { amenities: llmAmenities, ...rest } = llmExtracted;
+        data = { ...data, ...rest };
+        if (llmAmenities && llmAmenities.length > 0) {
+          data.amenities = normalizeAmenities([...(data.amenities ?? []), ...llmAmenities]);
+        }
       }
     }
 

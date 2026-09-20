@@ -174,6 +174,7 @@ export function buildDraftPreviewProperty(draft: PropertyDraft): Property {
     status: 'Available',
     image_url: draft.images?.[0] || '',
     images: draft.images || [],
+    amenities: draft.amenities || [],
   };
 }
 
