@@ -111,6 +111,13 @@ export const getPropertyCardStyles = (theme: ThemeColors) => ({
       marginBottom: 10,
       color: theme.textSecondary,
     },
+    listedBy: {
+      fontSize: 14,
+      fontWeight: '500',
+      lineHeight: 20,
+      marginBottom: 10,
+      color: theme.textSecondary,
+    },
     specsRow: {
       flexDirection: 'row',
       alignItems: 'center',

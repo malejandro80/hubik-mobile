@@ -64,4 +64,21 @@ graph TD
   ChatQuery -. "p_amenities @> containment filter" .-> Amenities
   Publish -. "computes at insert (description + amenities text)" .-> Embedding
   Publish -. "normalizes on insert" .-> Amenities
+  RFC011["RFC 011: Sign-in, roles & agencies<br/>(Supabase Auth, agency tenancy, agent-only publishing)"]
+  RFC010 --> RFC011
+  AuthClient["AuthProvider + useAuth + authApi.ts<br/>(session, profile, role capabilities)"]
+  RequireAgent["_shared/auth.ts requireAgent<br/>(401/403 before any work)"]
+  Tenancy["agencies + profiles tables<br/>properties.agency_id / created_by"]
+  Listings["property_listings view<br/>(agency_name, agent_name)"]
+
+  RFC011 --> AuthClient
+  RFC011 --> RequireAgent
+  RFC011 --> Tenancy
+  RFC011 --> Listings
+  AuthClient -. "capabilities gate the register command, menu and startRegistration param in index.tsx" .-> Hook
+  RequireAgent -. "gates" .-> Publish
+  RequireAgent -. "gates" .-> Intake
+  Publish -. "stamps agency_id + created_by from the caller's profile" .-> Tenancy
+  Listings -. "joins agencies + agents_public" .-> Tenancy
+  ChatQuery -. "fallback select + match_properties_hybrid now read from" .-> Listings
 ```

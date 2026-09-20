@@ -15,11 +15,13 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { AmenitiesConfirmation } from '../components/AmenitiesConfirmation';
 import { BurgerMenu } from '../components/BurgerMenu';
+import { getMenuItems } from '../components/BurgerMenu.items';
 import { ChatInputBar } from '../components/ChatInputBar';
 import { ChatMapPicker } from '../components/ChatMapPicker';
 import { ChatMessageItem } from '../components/ChatMessageItem';
 import { Header } from '../components/Header';
 import { PropertyPhotoGrid } from '../components/PropertyPhotoGrid';
+import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { usePropertyRegistrationChat } from '../hooks/usePropertyRegistrationChat';
@@ -51,11 +53,16 @@ import {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { status: authStatus, capabilities, signOut } = useAuth();
   const params = useLocalSearchParams<{ startRegistration?: string }>();
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
   const labels = useLabels();
   const styles = useMemo(() => getIndexStyles(theme), [theme]);
+  const menuItems = useMemo(
+    () => getMenuItems(capabilities, authStatus),
+    [capabilities, authStatus]
+  );
 
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
@@ -111,6 +118,16 @@ export default function HomeScreen() {
 
       setMessages(newMessages);
       setInputText('');
+
+      if (lower === REGISTER_COMMAND && !capabilities.canRegisterProperty) {
+        appendAssistantMessage(
+          newMessages,
+          authStatus === 'signedOut'
+            ? labels.auth.registerRequiresSignIn
+            : labels.auth.registerRequiresAgent
+        );
+        return;
+      }
 
       if (lower === REGISTER_COMMAND) {
         registration.start();
@@ -265,7 +282,16 @@ export default function HomeScreen() {
         }, 100);
       }
     },
-    [inputText, loading, messages, registration, appendAssistantMessage, labels]
+    [
+      inputText,
+      loading,
+      messages,
+      registration,
+      appendAssistantMessage,
+      labels,
+      capabilities.canRegisterProperty,
+      authStatus,
+    ]
   );
 
   const handleSendAudio = useCallback(
@@ -529,6 +555,14 @@ export default function HomeScreen() {
   const handleMenuItemSelect = (key: string) => {
     const menuActions: Record<string, () => void> = {
       register: () => handleSend(REGISTER_COMMAND),
+      sign_in: () => router.push('/sign-in'),
+      sign_out: () => {
+        signOut().catch(() =>
+          Alert.alert(labels.auth.signOutErrorTitle, labels.auth.signOutErrorMessage)
+        );
+      },
+      create_agency: () => router.push('/create-agency'),
+      my_agency: () => router.push('/agency'),
       new_chat: () => {
         setMessages(INITIAL_MESSAGES);
         setInputText('');
@@ -656,6 +690,7 @@ export default function HomeScreen() {
         visible={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
         onSelectMenuItem={handleMenuItemSelect}
+        items={menuItems}
       />
 
       <ChatMapPicker

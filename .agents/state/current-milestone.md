@@ -59,6 +59,13 @@
   008's `LivingDraftCard` was built/tested but was never actually wired into `index.tsx`'s render
   tree - `AmenitiesConfirmation` now occupies the `renderListFooter` hook point RFC 008 intended
   for it, but `LivingDraftCard` itself is still unused dead code.
+  RFC 011 (sign-in, roles & agencies, session 2026-09-20): scoped with the new `scope` skill,
+  designed (ADR 0003/0004) and implemented locally on branch `feat-011-auth-roles-agencies` -
+  Google/Apple sign-in, `client`/`agent`/`owner` roles, agency as tenant, agent-only publishing
+  enforced in the UI and in `property-publish`/`property-intake`, listings attributed to agency
+  and agent. **Not yet applied/deployed/committed**: the migration, provider setup (Google,
+  Apple, Supabase) and function deploys are pending the human lead - see the session log entry
+  for the checklist.
 - **See also**: `.agents/rules/07-feature-graph.md` for how RFC 004/006/007 and their modules
   relate to each other.
 

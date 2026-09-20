@@ -1,0 +1,29 @@
+export type Role = 'client' | 'agent' | 'owner';
+
+export type AuthProviderName = 'google' | 'apple';
+
+export type AuthStatus = 'loading' | 'signedOut' | 'signedIn';
+
+export type SignInOutcome = 'signedIn' | 'cancelled';
+
+export interface Profile {
+  userId: string;
+  role: Role;
+  agencyId: string | null;
+  displayName: string | null;
+}
+
+export interface RoleCapabilities {
+  canRegisterProperty: boolean;
+  canCreateAgency: boolean;
+  canViewAgencyListings: boolean;
+}
+
+export interface AuthState {
+  status: AuthStatus;
+  profile: Profile | null;
+  capabilities: RoleCapabilities;
+  signIn: (provider: AuthProviderName) => Promise<SignInOutcome>;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+}
