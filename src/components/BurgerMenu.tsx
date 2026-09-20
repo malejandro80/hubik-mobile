@@ -24,12 +24,14 @@ export interface BurgerMenuProps {
   visible: boolean;
   onClose: () => void;
   onSelectMenuItem?: (key: BurgerMenuItemKey | string) => void;
+  items?: BurgerMenuItem[];
 }
 
 export const BurgerMenu: React.FC<BurgerMenuProps> = ({
   visible,
   onClose,
   onSelectMenuItem,
+  items = MENU_ITEMS,
 }) => {
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
@@ -96,7 +98,7 @@ export const BurgerMenu: React.FC<BurgerMenuProps> = ({
             </View>
 
             <View style={styles.menuItemsContainer}>
-              {MENU_ITEMS.map((item) => (
+              {items.map((item) => (
                 <TouchableOpacity
                   key={item.key}
                   style={styles.menuItemRow}

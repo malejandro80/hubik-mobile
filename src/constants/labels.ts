@@ -140,7 +140,49 @@ export const labels = {
       settings: 'Ajustes y Accesibilidad',
       help: 'Ayuda y Soporte',
       badgeNew: 'Nuevo',
+      signIn: 'Iniciar sesión',
+      signOut: 'Cerrar sesión',
+      createAgency: 'Tengo una inmobiliaria',
+      myAgency: 'Mi inmobiliaria',
     },
+  },
+  auth: {
+    signInTitle: 'Bienvenido a Hubik',
+    signInSubtitle:
+      'Inicie sesión para publicar propiedades o crear su inmobiliaria. Para buscar propiedades no necesita cuenta.',
+    continueWithGoogle: 'Continuar con Google',
+    continueWithApple: 'Continuar con Apple',
+    continueWithoutAccount: 'Seguir buscando sin cuenta',
+    signingIn: 'Iniciando sesión...',
+    signInError: (err: string) =>
+      `No pudimos iniciar sesión (${err}). Inténtelo de nuevo.`,
+    signOutErrorTitle: 'No se pudo cerrar la sesión',
+    signOutErrorMessage: 'Compruebe su conexión e inténtelo de nuevo.',
+    signInStartError: 'No se pudo iniciar el proceso de inicio de sesión.',
+    signInMissingCodeError: 'El proveedor no devolvió un código de acceso válido.',
+    agencyNameRequired: 'Escriba el nombre de la inmobiliaria (mínimo 2 letras).',
+    createAgencyTitle: 'Cree su inmobiliaria',
+    createAgencySubtitle:
+      'Será el propietario de la inmobiliaria. Un miembro del equipo de Hubik asignará a sus agentes.',
+    agencyNameLabel: 'Nombre de la inmobiliaria',
+    agencyNamePlaceholder: 'Por ejemplo: Inmobiliaria Casa Norte',
+    createAgencySubmit: 'Crear inmobiliaria',
+    createAgencySubmitting: 'Creando...',
+    createAgencyError: (err: string) =>
+      `No pudimos crear la inmobiliaria (${err}). Inténtelo de nuevo.`,
+    createAgencySuccess: 'Inmobiliaria creada.',
+    signInRequiredForAgency: 'Inicie sesión para crear su inmobiliaria.',
+    myAgencyTitle: 'Mi inmobiliaria',
+    myAgencyEmpty: 'Sus agentes aún no han publicado propiedades.',
+    myAgencyLoadError: 'No pudimos cargar las propiedades de su inmobiliaria.',
+    retry: 'Reintentar',
+    registerRequiresSignIn:
+      'Para registrar una propiedad, inicie sesión con su cuenta de agente desde el menú.',
+    registerRequiresAgent:
+      'Solo los agentes de una inmobiliaria pueden registrar propiedades. Si es agente, pida a su inmobiliaria que le asigne.',
+    listedBy: (agency: string, agent?: string | null) =>
+      agent ? `${agency} · ${agent}` : agency,
+    back: 'Regresar',
   },
   propertyDetail: {
     noAgencyFees: 'Sin honorarios de agencia',

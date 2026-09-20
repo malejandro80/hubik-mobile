@@ -1,6 +1,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { normalizeAmenities } from '../_shared/amenities.ts';
 import { embedText } from '../_shared/geminiEmbedding.ts';
+import { requireAgent } from '../_shared/auth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,6 +68,9 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const identity = await requireAgent(req, corsHeaders);
+    if (identity instanceof Response) return identity;
+
     const body = await req.json().catch(() => ({}));
     const property: PropertyDraft = body?.property && typeof body.property === 'object' ? body.property : {};
 
@@ -193,6 +197,8 @@ Deno.serve(async (req: Request) => {
         image_url: property.images?.[0] || null,
         amenities,
         embedding,
+        agency_id: identity.agencyId,
+        created_by: identity.userId,
       })
       .select()
       .single();

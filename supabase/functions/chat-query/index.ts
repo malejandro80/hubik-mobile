@@ -344,9 +344,9 @@ Deno.serve(async (req: Request) => {
 
     if (!usedHybridSearch) {
       let query = supabase
-        .from('properties')
+        .from('property_listings')
         .select(
-          'id, title, property_type, price, bedrooms, bathrooms, square_meters, city, address, status, image_url, images, amenities, created_at'
+          'id, title, property_type, price, bedrooms, bathrooms, square_meters, city, address, status, image_url, images, amenities, created_at, agency_id, agency_name, agent_name'
         );
 
       if (filters.city) {

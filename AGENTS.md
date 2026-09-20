@@ -54,10 +54,11 @@ You are an expert **Mobile Software Engineer & Architect** operating within this
 
 ## 🧭 The Unified Skill Suite (`.agents/skills/`)
 
-All workflows are partitioned into 8 mutually exclusive lifecycle skills, specialized for mobile development:
+All workflows are partitioned into 9 mutually exclusive lifecycle skills, specialized for mobile development:
 
 | Lifecycle Phase | Skill | Primary Trigger | Purpose |
 | :--- | :--- | :--- | :--- |
+| **Scoping** | [`scope`](.agents/skills/scope/SKILL.md) | `/scope`, new feature idea, narrow down, what should this include | Limits a vague idea to an agreed slice of *what* gets built (scope brief) through focused questions. Design (*how*) is left to the Architecture phase. |
 | **Exploration** | [`codebase-graph`](.agents/skills/codebase-graph/SKILL.md) | `/graphify`, explore, map architecture | Ingests AST & builds knowledge graph in `.graphify/`. |
 | **Architecture** | [`architecture-team`](.agents/skills/architecture-team/SKILL.md) | `/arch-team`, design system, multi-agent | Mobile Architecture Squad (Mobile Lead, Expo Specialist, Security, QA). |
 | **Specification** | [`spec-driven-design`](.agents/skills/spec-driven-design/SKILL.md) | `/spec`, RFC, write spec, API contract | Drafts mobile RFCs in `specs/` with user screens, contracts & test criteria. |

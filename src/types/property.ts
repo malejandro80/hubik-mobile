@@ -31,6 +31,9 @@ export interface Property {
   similarity?: number;
   embedding?: number[];
   created_at?: string;
+  agency_id?: string;
+  agency_name?: string | null;
+  agent_name?: string | null;
 }
 
 export interface PropertyDraft {

@@ -6,6 +6,28 @@ import * as chatApi from '../../services/chatApi';
 import * as propertyImages from '../../services/propertyImages';
 import * as ImagePicker from 'expo-image-picker';
 
+const mockSignedOutAuth = {
+  status: 'signedOut',
+  profile: null,
+  capabilities: { canRegisterProperty: false, canCreateAgency: false, canViewAgencyListings: false },
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+  refreshProfile: jest.fn(),
+};
+
+const mockAgentAuth = {
+  ...mockSignedOutAuth,
+  status: 'signedIn',
+  profile: { userId: 'agent-1', role: 'agent', agencyId: 'agency-1', displayName: 'Ana' },
+  capabilities: { canRegisterProperty: true, canCreateAgency: false, canViewAgencyListings: false },
+};
+
+let mockAuth: Record<string, unknown> = mockSignedOutAuth;
+
+jest.mock('../../hooks/useAuth', () => ({
+  useAuth: () => mockAuth,
+}));
+
 jest.mock('../../services/chatApi', () => ({
   sendChatQuery: jest.fn(),
   sendChatQueryAudio: jest.fn(),
@@ -73,6 +95,7 @@ jest.mock('../../hooks/useVoiceRecorder', () => ({
 describe('HomeScreen (Chat UI)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAuth = mockSignedOutAuth;
     mockRecorderState.status = 'idle';
   });
 
@@ -215,6 +238,7 @@ describe('HomeScreen (Chat UI)', () => {
 describe('HomeScreen (Chat-Guided Property Registration)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockAuth = mockAgentAuth;
     mockRecorderState.status = 'idle';
   });
 

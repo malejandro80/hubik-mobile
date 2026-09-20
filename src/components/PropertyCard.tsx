@@ -103,6 +103,16 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
           {property.address} · {property.city}{labels.propertyCard.exteriorElevator}
         </Text>
 
+        {property.agency_name && (
+          <Text
+            testID="listing-attribution"
+            style={styles.listedBy}
+            numberOfLines={1}
+          >
+            {labels.auth.listedBy(property.agency_name, property.agent_name)}
+          </Text>
+        )}
+
         <View style={styles.specsRow}>
           <Text
             style={styles.specText}

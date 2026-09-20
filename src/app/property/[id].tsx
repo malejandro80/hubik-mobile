@@ -47,6 +47,8 @@ export default function PropertyDetailScreen() {
     images?: string;
     lat?: string;
     lng?: string;
+    agency_name?: string;
+    agent_name?: string;
   }>();
 
   const colorScheme = useColorScheme();
@@ -259,6 +261,11 @@ export default function PropertyDetailScreen() {
               <Text style={styles.addressSubtitle}>
                 {isRealDraft ? address : `${address}${labels.propertyDetail.groundLevelElevator}`}
               </Text>
+              {params.agency_name && (
+                <Text testID="listing-attribution" style={styles.addressSubtitle}>
+                  {labels.auth.listedBy(params.agency_name, params.agent_name)}
+                </Text>
+              )}
             </View>
           </View>
         </View>

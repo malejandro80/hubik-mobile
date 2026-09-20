@@ -195,6 +195,8 @@ export function buildPropertyRouteParams(property: Property) {
       : {}),
     ...(property.latitude !== undefined ? { lat: property.latitude.toString() } : {}),
     ...(property.longitude !== undefined ? { lng: property.longitude.toString() } : {}),
+    ...(property.agency_name ? { agency_name: property.agency_name } : {}),
+    ...(property.agent_name ? { agent_name: property.agent_name } : {}),
   };
 }
 

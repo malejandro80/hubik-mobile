@@ -1,4 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { requireAgent } from '../_shared/auth.ts';
 import { isAudioPayload } from '../_shared/audioPayload.ts';
 import { extractAmenityKeywords, hasAmenitySignal, normalizeAmenities } from '../_shared/amenities.ts';
 import { fetchKnownCities, matchCityInText } from '../_shared/cities.ts';
@@ -300,6 +301,9 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const identity = await requireAgent(req, corsHeaders);
+    if (identity instanceof Response) return identity;
+
     const body = await req.json().catch(() => ({}));
     const message = body?.message;
     const audio = body?.audio;
