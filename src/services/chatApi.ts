@@ -535,8 +535,6 @@ export function parsePropertyDraft(message: string, known: PropertyDraft): Prope
   }
 
   const data: PropertyDraft = { ...known, ...extracted };
-  // Amenities merge additively (not last-write-wins like every other field) - a message that
-  // doesn't repeat an earlier-mentioned amenity must never drop it (RFC 010).
   data.amenities = normalizeAmenities([...(known.amenities ?? []), ...extractAmenityKeywords(message)]);
   const missing_fields = REQUIRED_PROPERTY_DRAFT_FIELDS.filter((field) => data[field] === undefined);
   const catastroJustProvided = Boolean(extracted.catastro) && extracted.catastro !== known.catastro;

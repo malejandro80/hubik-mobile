@@ -163,9 +163,6 @@ Deno.serve(async (req: Request) => {
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
     const hasGeminiKey = Boolean(geminiKey) && geminiKey !== 'your_gemini_api_key_here';
-    // Amenities are folded into the embedded text (not necessarily the stored `description`)
-    // so open-ended/contextual entries stay findable via semantic search even if they were
-    // confirmed/edited after the description was generated (RFC 010).
     const textToEmbed =
       amenities.length > 0
         ? `${property.description ?? ''}\n\nComodidades: ${amenities.join(', ')}`.trim()

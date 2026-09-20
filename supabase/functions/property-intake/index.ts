@@ -353,19 +353,10 @@ Deno.serve(async (req: Request) => {
     const knownCities = await fetchKnownCities(supabaseUrl, supabaseKey);
     let data: PropertyDraft = heuristicExtract(effectiveMessage, known, knownCities);
 
-    // Amenities can be mentioned at any point in the conversation, not just in response to a
-    // dedicated question - a cheap local keyword pass runs on every message regardless of what
-    // else is still missing, and merges additively so a later message that doesn't repeat an
-    // earlier amenity never drops it (RFC 010).
     const heuristicAmenityHits = extractAmenityKeywords(effectiveMessage);
     data.amenities = normalizeAmenities([...(data.amenities ?? []), ...heuristicAmenityHits]);
 
     const requiredMissing = REQUIRED_FIELDS.some((field) => data[field] === undefined);
-    // Once required fields are complete, the normal escalation gate below would never fire again
-    // - but an open-ended characteristic ("cerca de un colegio") the keyword dictionary can't
-    // parse could still arrive at any later point. `hasAmenitySignal` is a cheap, separate check
-    // (not the extraction itself) just to decide whether that's worth a leaner, amenities-only
-    // LLM call instead of skipping the message entirely.
     const amenitySignal = !requiredMissing && hasAmenitySignal(effectiveMessage);
 
     if (requiredMissing || amenitySignal) {
@@ -447,8 +438,6 @@ Deno.serve(async (req: Request) => {
       }
 
       if (llmExtracted) {
-        // Every other field is last-write-wins; amenities merge additively instead, since a
-        // later message not repeating an earlier amenity must never drop it (RFC 010).
         const { amenities: llmAmenities, ...rest } = llmExtracted;
         data = { ...data, ...rest };
         if (llmAmenities && llmAmenities.length > 0) {

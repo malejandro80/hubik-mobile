@@ -1,20 +1,9 @@
--- ==============================================================================
--- Migration: Property amenities & characteristics (RFC 010)
--- ==============================================================================
--- Adds a single freeform `amenities` list to `properties` (no fixed vocabulary/enum - values are
--- normalized lowercase strings, e.g. "piscina", "garaje", "cerca de un colegio"). Used both as an
--- exact structured filter (`amenities @> ARRAY[...]`) and, since the vocabulary is open-ended,
--- folded into the text embedded at publish time so contextual/locational entries ("clima de
--- montaña") remain findable via the existing semantic search. See specs/010-property-amenities.md.
-
 ALTER TABLE public.properties
   ADD COLUMN IF NOT EXISTS amenities TEXT[] NOT NULL DEFAULT '{}';
 
 CREATE INDEX IF NOT EXISTS idx_properties_amenities
   ON public.properties USING GIN (amenities);
 
--- match_properties_hybrid gains one new optional relational filter (NULL = unfiltered, same
--- pattern as every other param on this RPC) and returns `amenities` alongside the other columns.
 CREATE OR REPLACE FUNCTION public.match_properties_hybrid (
   query_embedding vector(768),
   p_city text DEFAULT NULL,
