@@ -1,5 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { isAudioPayload } from '../_shared/audioPayload.ts';
+import { extractAmenityKeywords } from '../_shared/amenities.ts';
 import { fetchKnownCities, matchCityInText } from '../_shared/cities.ts';
 import { embedText } from '../_shared/geminiEmbedding.ts';
 import { chatQueryTextInstruction, GEMINI_EXTRACTION_MODEL } from '../_shared/prompts.ts';
@@ -23,6 +24,7 @@ interface FilterParams {
   limit?: number;
   sort_by?: string;
   status?: string;
+  amenities?: string[];
 }
 
 function parsePromptFilters(message: string, knownCities: string[]): FilterParams {
@@ -31,6 +33,9 @@ function parsePromptFilters(message: string, knownCities: string[]): FilterParam
 
   const city = matchCityInText(message, knownCities);
   if (city) filters.city = city;
+
+  const amenityHits = extractAmenityKeywords(message);
+  if (amenityHits.length > 0) filters.amenities = amenityHits;
 
   if (
     lower.includes('apartment') ||
@@ -325,6 +330,7 @@ Deno.serve(async (req: Request) => {
             p_max_price: filters.max_price ?? null,
             p_min_bedrooms: filters.min_bedrooms ?? null,
             p_max_bedrooms: filters.max_bedrooms ?? null,
+            p_amenities: filters.amenities ?? null,
             match_count: filters.limit || 10,
           });
           if (hybridError) throw hybridError;
@@ -340,11 +346,14 @@ Deno.serve(async (req: Request) => {
       let query = supabase
         .from('properties')
         .select(
-          'id, title, property_type, price, bedrooms, bathrooms, square_meters, city, address, status, image_url, images, created_at'
+          'id, title, property_type, price, bedrooms, bathrooms, square_meters, city, address, status, image_url, images, amenities, created_at'
         );
 
       if (filters.city) {
         query = query.ilike('city', `%${filters.city}%`);
+      }
+      if (filters.amenities && filters.amenities.length > 0) {
+        query = query.contains('amenities', filters.amenities);
       }
       if (filters.property_type) {
         query = query.eq('property_type', filters.property_type);

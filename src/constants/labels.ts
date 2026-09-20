@@ -111,6 +111,13 @@ export const labels = {
     propertyTypeA11y: (option: string) => `Tipo de propiedad: ${option}`,
     operationTypeA11y: (option: string) => `Operación: ${option}`,
   },
+  amenitiesConfirmation: {
+    title: 'Comodidades detectadas',
+    empty: 'Aún no detecté comodidades. Puede agregarlas abajo.',
+    addPlaceholder: 'Agregar comodidad o característica...',
+    addA11y: 'Agregar comodidad',
+    removeA11y: (amenity: string) => `Quitar ${amenity}`,
+  },
   burgerMenu: {
     brandTitle: 'Hubik',
     closeA11y: 'Cerrar menú lateral',

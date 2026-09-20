@@ -7,6 +7,7 @@ import {
   PROPERTY_TYPE_LABEL_ES,
   REQUIRED_PROPERTY_DRAFT_FIELDS,
 } from '../types/property';
+import { extractAmenityKeywords, normalizeAmenities } from '../lib/amenities';
 import { supabase } from '../lib/supabase';
 
 export interface ChatResponse {
@@ -86,6 +87,9 @@ export function parsePromptFilters(message: string): Record<string, any> {
       break;
     }
   }
+
+  const amenityHits = extractAmenityKeywords(message);
+  if (amenityHits.length > 0) filters.amenities = amenityHits;
 
   if (
     lower.includes('apartment') ||
@@ -253,11 +257,14 @@ export async function querySupabaseDirectly(message: string): Promise<ChatRespon
   let query = supabase
     .from('properties')
     .select(
-      'id, title, property_type, price, bedrooms, bathrooms, square_meters, city, address, status, image_url, images, created_at'
+      'id, title, property_type, price, bedrooms, bathrooms, square_meters, city, address, status, image_url, images, amenities, created_at'
     );
 
   if (filters.city) {
     query = query.ilike('city', `%${filters.city}%`);
+  }
+  if (filters.amenities && filters.amenities.length > 0) {
+    query = query.contains('amenities', filters.amenities);
   }
   if (filters.property_type) {
     query = query.eq('property_type', filters.property_type);
@@ -528,6 +535,7 @@ export function parsePropertyDraft(message: string, known: PropertyDraft): Prope
   }
 
   const data: PropertyDraft = { ...known, ...extracted };
+  data.amenities = normalizeAmenities([...(known.amenities ?? []), ...extractAmenityKeywords(message)]);
   const missing_fields = REQUIRED_PROPERTY_DRAFT_FIELDS.filter((field) => data[field] === undefined);
   const catastroJustProvided = Boolean(extracted.catastro) && extracted.catastro !== known.catastro;
 
@@ -599,6 +607,8 @@ async function publishPropertyDirect(draft: PropertyDraft): Promise<Property> {
       description: draft.description,
       status: 'Available',
       images: draft.images || [],
+      image_url: draft.images?.[0] || null,
+      amenities: normalizeAmenities(draft.amenities),
     })
     .select()
     .single();

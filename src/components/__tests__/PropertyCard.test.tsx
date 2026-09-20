@@ -16,6 +16,7 @@ const mockProperty: Property = {
   status: 'Available',
   image_url: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00',
   images: ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00'],
+  amenities: [],
 };
 
 describe('PropertyCard Component', () => {

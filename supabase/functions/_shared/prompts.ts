@@ -20,7 +20,10 @@ export function chatQueryTextInstruction(): string {
     'city (string), property_type (one of: Apartment, Single Family, Townhouse, Studio, Condo), ' +
     'min_price (number), max_price (number), min_bedrooms (number), max_bedrooms (number), ' +
     'min_square_meters (number), max_square_meters (number), limit (number), ' +
-    'sort_by (price_asc, price_desc). Area is measured in square meters (m²). ' +
+    'sort_by (price_asc, price_desc), amenities (array of short lowercase strings for any ' +
+    'specific amenity or facility mentioned, e.g. ["piscina", "garaje"] - do NOT include vague ' +
+    'or contextual descriptors like "tranquilo" or "cerca de la naturaleza" here, only concrete ' +
+    'named facilities). Area is measured in square meters (m²). ' +
     'Output valid JSON only, with no additional explanation.'
   );
 }
@@ -59,9 +62,28 @@ export function propertyIntakeTextInstruction(known: Record<string, unknown>): s
     '   - bathrooms (number),\n' +
     '   - square_meters (number),\n' +
     '   - city (string, normalized city/municipality name with proper accents and capitalization),\n' +
-    '   - address (string, local street, avenue, sector, or residential complex with number).\n\n' +
+    '   - address (string, local street, avenue, sector, or residential complex with number),\n' +
+    '   - amenities (array of short lowercase Spanish phrases for any amenity or characteristic ' +
+    'mentioned - both physical facilities like "piscina", "garaje", "ascensor" AND open-ended ' +
+    'contextual traits like "cerca de un colegio", "clima de montaña"; this is open-vocabulary, ' +
+    'not limited to a fixed list; only include ones actually mentioned in this message, do not ' +
+    'repeat ones already in the current draft state above).\n\n' +
     'OUTPUT FORMAT:\n' +
     'You must respond EXCLUSIVELY with a valid JSON object. Do NOT include markdown code fences, conversational greetings, explanations, or additional text.'
+  );
+}
+
+export function propertyIntakeAmenitiesOnlyInstruction(known: Record<string, unknown>): string {
+  return (
+    'You are extracting property amenities and characteristics for Hubik. The property draft is ' +
+    'already complete except for this optional field.\n' +
+    `Already-confirmed amenities (do not repeat these): ${JSON.stringify(known.amenities ?? [])}\n\n` +
+    "From the user's message, extract any NEW amenities or characteristics mentioned - both " +
+    'physical facilities (piscina, garaje, ascensor...) and open-ended contextual traits (cerca ' +
+    'de un colegio, clima de montaña, calle tranquila...). Use short lowercase Spanish phrases. ' +
+    'If nothing new is mentioned, respond with an empty array. ' +
+    'Respond EXCLUSIVELY with a valid JSON object: { "amenities": ["...", "..."] }. Do NOT ' +
+    'include markdown code fences, conversational greetings, explanations, or additional text.'
   );
 }
 

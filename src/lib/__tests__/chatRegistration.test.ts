@@ -129,6 +129,7 @@ describe('chatRegistration library', () => {
         address: 'Calle Roble',
         image_url: 'https://example.com/img.jpg',
         images: ['https://example.com/img.jpg'],
+        amenities: [],
         status: 'Available',
       };
       const params = buildPropertyRouteParams(property);

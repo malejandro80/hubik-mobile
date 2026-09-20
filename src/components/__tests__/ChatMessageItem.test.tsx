@@ -34,6 +34,7 @@ describe('ChatMessageItem Component', () => {
       status: 'Available',
       image_url: 'https://example.com/condo.jpg',
       images: [],
+      amenities: [],
     };
 
     const assistantMessage: ChatMessage = {

@@ -27,6 +27,7 @@ export interface Property {
   status: PropertyStatus;
   image_url: string;
   images: string[];
+  amenities: string[];
   similarity?: number;
   embedding?: number[];
   created_at?: string;
@@ -48,6 +49,7 @@ export interface PropertyDraft {
   latitude?: number;
   longitude?: number;
   description?: string;
+  amenities?: string[];
 }
 
 export const PROPERTY_TYPE_LABEL_ES: Record<PropertyType, string> = {
