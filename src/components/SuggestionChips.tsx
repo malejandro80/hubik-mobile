@@ -1,13 +1,14 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { colors, shapes, spacing, typography } from '../theme/colors';
+import { useLabels } from '../hooks/useLabels';
+import { colors } from '../theme/colors';
+import { getSuggestionChipsStyles } from './SuggestionChips.styles';
 
 interface SuggestionChipsProps {
   chips: string[];
@@ -19,6 +20,8 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = React.memo(
   ({ chips, onSelectChip, disabled = false }) => {
     const colorScheme = useColorScheme();
     const theme = colors[colorScheme];
+    const labels = useLabels();
+    const styles = useMemo(() => getSuggestionChipsStyles(theme), [theme]);
 
     if (!chips || chips.length === 0) {
       return null;
@@ -38,19 +41,15 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = React.memo(
               disabled={disabled}
               style={[
                 styles.chip,
-                {
-                  backgroundColor: theme.card,
-                  borderColor: theme.border,
-                  opacity: disabled ? 0.6 : 1,
-                },
+                disabled && styles.chipDisabled,
               ]}
               onPress={() => onSelectChip(chip)}
               accessibilityRole="button"
-              accessibilityLabel={`Search for ${chip}`}
+              accessibilityLabel={labels.suggestionChips.searchForA11y(chip)}
               accessibilityState={{ disabled }}
             >
-              <Text style={[styles.chipText, { color: theme.text }]}>
-                <Text style={{ color: theme.secondary }}>💡 </Text>
+              <Text style={styles.chipText}>
+                <Text style={styles.chipIconText}>💡 </Text>
                 {chip}
               </Text>
             </TouchableOpacity>
@@ -62,32 +61,3 @@ export const SuggestionChips: React.FC<SuggestionChipsProps> = React.memo(
 );
 
 SuggestionChips.displayName = 'SuggestionChips';
-
-const styles = StyleSheet.create({
-  container: {
-    paddingVertical: 10,
-  },
-  scrollContent: {
-    paddingHorizontal: spacing.marginMobile, // 20px
-  },
-  chip: {
-    borderWidth: 1.5,
-    borderRadius: shapes.full, // 9999px (full pill)
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    marginRight: 10,
-    minHeight: spacing.touchMin, // 52px
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#1A3A34',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  chipText: {
-    ...typography.labelMD,
-    fontSize: 15,
-    letterSpacing: 0.2,
-  },
-});

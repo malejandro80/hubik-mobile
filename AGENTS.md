@@ -27,6 +27,28 @@ You are an expert **Mobile Software Engineer & Architect** operating within this
   - Touch targets must meet minimum physical touch bounds (44x44pt / 48x48dp).
   - Include explicit `accessibilityLabel`, `accessibilityRole`, and `accessibilityState` props on interactive elements.
   - Respect system dark mode and Safe Area boundaries (`react-native-safe-area-context`).
+- **Mandatory Style Isolation Across All Screens & Components**:
+  - Never embed `StyleSheet.create({...})` inside `.tsx` component or screen files.
+  - Every component and screen must host its stylesheet in a dedicated, adjacent `<Name>.styles.ts` file (e.g., `Button.styles.ts`, `index.styles.ts`).
+  - `.tsx` files must import their styles (`import { styles } from './<Name>.styles';` or `get<Name>Styles(theme)`).
+- **Centralized Text & Labels (`useLabels`)**:
+  - Never write raw user-facing text, placeholders, or accessibility labels directly in `.tsx` files.
+  - Maintain all copy in `src/constants/labels.ts` and consume it via `useLabels()` or `labels`.
+- **Dictionary of Options Pattern (Zero Nested Ternaries)**:
+  - Never use nested ternary operators (`a ? b : c ? d : e`) for variant, icon, copy, state, or style resolution.
+  - Multi-state and multi-option branching must be handled via typed dictionary lookup maps (`Record<Key, OptionConfig>`) with discrete keys.
+- **Pure Logic Extraction Outside Components**:
+  - Complex logic, regex/markdown parsing, array transformations, formatting algorithms, and heavy data computations must NEVER be written inline inside component functions or render trees.
+  - Extract pure data parsers and helpers outside the component (top-level or dedicated utilities), consuming their output via `useMemo` or pure props. Keep components lean, declarative, and focused exclusively on UI composition.
+- **Dedicated Library Extraction for Dictionaries & Secondary Functions (`src/lib/`)**:
+  - Dictionaries of options, string formatters, parsing routines, intent matchers, data mappers, and secondary calculation functions must NEVER reside directly inside `.tsx` component or screen files.
+  - Extract them into dedicated, cohesive, pure library modules under `src/lib/` (e.g., `src/lib/livingDraft.ts`, `src/lib/messageParser.ts`, `src/lib/chatRegistration.ts`).
+  - `.tsx` files must remain strictly declarative UI containers focused on styling, layout, hooks consumption, and event dispatching.
+  - Every extracted library module must be accompanied by dedicated unit tests in `src/lib/__tests__/`.
+- **Self-Documenting Code & Zero-Comment Discipline**:
+  - Do NOT write explanatory comments (`//`, `/* */`, `{/* */}`, or JSDoc blocks) in application code.
+  - Code must be entirely self-documenting through expressive, semantic naming for objects, constants, functions, variables, and props.
+  - If logic feels non-obvious, refactor into cleanly named abstractions, semantic constants, or descriptive functions rather than adding comments.
 
 ---
 

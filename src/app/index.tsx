@@ -1,64 +1,95 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
   ListRenderItem,
   Platform,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { BurgerMenu } from '../components/BurgerMenu';
 import { ChatInputBar } from '../components/ChatInputBar';
+import { ChatMapPicker } from '../components/ChatMapPicker';
 import { ChatMessageItem } from '../components/ChatMessageItem';
 import { Header } from '../components/Header';
+import { PropertyPhotoGrid } from '../components/PropertyPhotoGrid';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { sendChatQuery } from '../services/chatApi';
-import { colors, shapes, spacing, typography } from '../theme/colors';
-import { ChatMessage, Property } from '../types/property';
-
-const INITIAL_MESSAGES: ChatMessage[] = [
-  {
-    id: 'welcome-1',
-    sender: 'assistant',
-    title: 'Buenos días, Don Carlos.',
-    text: '¿En qué puedo ayudarle hoy con sus propiedades o búsqueda de vivienda?\n\nPuede pulsar el **botón verde del micrófono** para hablar con tranquilidad, o escribir si lo prefiere.',
-    timestamp: '10:30',
-  },
-];
+import { useLabels } from '../hooks/useLabels';
+import { usePropertyRegistrationChat } from '../hooks/usePropertyRegistrationChat';
+import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
+import {
+  AudioPayload,
+  sendChatQuery,
+  sendChatQueryAudio,
+  VOICE_NOTE_MIME_TYPE,
+} from '../services/chatApi';
+import { MAX_PROPERTY_IMAGES } from '../services/propertyImages';
+import { colors } from '../theme/colors';
+import { ChatMessage, Property, PropertyDraft } from '../types/property';
+import { getIndexStyles } from './index.styles';
+import {
+  buildDraftPreviewProperty,
+  buildPropertyRouteParams,
+  CANCEL_PHRASES,
+  formatDraftSummary,
+  formatOutcomeMessage,
+  generateMessageId,
+  INITIAL_MESSAGES,
+  isConfirmIntent,
+  isContinueIntent,
+  isLocationIntent,
+  isPhotosIntent,
+  REGISTER_COMMAND,
+} from '../lib/chatRegistration';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ startRegistration?: string }>();
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
+  const labels = useLabels();
+  const styles = useMemo(() => getIndexStyles(theme), [theme]);
 
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [mapPickerVisible, setMapPickerVisible] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
+  const hasAutoStartedRef = useRef(false);
+  const registration = usePropertyRegistrationChat();
+  const recorder = useVoiceRecorder();
 
   const handlePropertyPress = useCallback(
     (property: Property) => {
       router.push({
         pathname: '/property/[id]',
-        params: {
-          id: property.id,
-          title: property.title,
-          price: property.price.toString(),
-          city: property.city,
-          address: property.address,
-          bedrooms: property.bedrooms.toString(),
-          bathrooms: property.bathrooms.toString(),
-          square_meters: property.square_meters.toString(),
-          image_url: property.image_url,
-        },
+        params: buildPropertyRouteParams(property),
       });
     },
     [router]
+  );
+
+  const appendAssistantMessage = useCallback(
+    (base: ChatMessage[], text: string, properties?: Property[]) => {
+      setMessages([
+        ...base,
+        {
+          id: generateMessageId('assistant'),
+          sender: 'assistant',
+          text,
+          properties,
+          timestamp: labels.chat.justNow,
+        },
+      ]);
+    },
+    [labels]
   );
 
   const handleSend = useCallback(
@@ -66,44 +97,166 @@ export default function HomeScreen() {
       const textToSend = (queryText || inputText).trim();
       if (!textToSend || loading) return;
 
-      const userMessageId = `user-${Date.now()}`;
+      const lower = textToSend.toLowerCase();
       const newMessages: ChatMessage[] = [
         ...messages,
         {
-          id: userMessageId,
+          id: generateMessageId('user'),
           sender: 'user',
           text: textToSend,
-          timestamp: 'Just now',
+          timestamp: labels.chat.justNow,
         },
       ];
 
       setMessages(newMessages);
       setInputText('');
-      setLoading(true);
 
+      if (lower === REGISTER_COMMAND) {
+        registration.start();
+        appendAssistantMessage(newMessages, labels.chat.registerExample);
+        return;
+      }
+
+      if (registration.state.mode !== 'idle' && CANCEL_PHRASES.includes(lower)) {
+        registration.cancel();
+        appendAssistantMessage(newMessages, labels.chat.cancelRegistrationConfirmation);
+        return;
+      }
+
+      if (registration.state.mode === 'confirming') {
+        if (isConfirmIntent(lower)) {
+          setLoading(true);
+          try {
+            const property = await registration.confirmPublish();
+            appendAssistantMessage(
+              newMessages,
+              labels.chat.publishedSuccess(property.title),
+              [property]
+            );
+          } catch (err: any) {
+            appendAssistantMessage(
+              newMessages,
+              labels.chat.publishError(err?.message || 'error desconocido')
+            );
+          } finally {
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (isPhotosIntent(lower)) {
+          registration.editPhotos();
+          appendAssistantMessage(newMessages, labels.chat.photosPrompt);
+          return;
+        }
+
+        if (isLocationIntent(lower)) {
+          registration.editLocation();
+          setMapPickerVisible(true);
+          return;
+        }
+
+        if (lower.includes('corregir') || lower.includes('cambiar') || lower.includes('modificar')) {
+          appendAssistantMessage(newMessages, labels.chat.correctionPrompt);
+          return;
+        }
+      }
+
+      if (registration.state.mode === 'photos') {
+        if (isContinueIntent(lower)) {
+          registration.skipPhotos();
+          appendAssistantMessage(
+            newMessages,
+            labels.chat.photosContinueLocationPrompt
+          );
+          return;
+        }
+
+        if (isPhotosIntent(lower)) {
+          setLoading(true);
+          try {
+            const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
+            const granted = permission.granted
+              ? true
+              : (await ImagePicker.requestMediaLibraryPermissionsAsync()).granted;
+
+            if (!granted) {
+              appendAssistantMessage(
+                newMessages,
+                labels.chat.photosPermissionRequired
+              );
+              return;
+            }
+
+            const remaining = MAX_PROPERTY_IMAGES - (registration.state.draft.images?.length || 0);
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+              allowsMultipleSelection: true,
+              selectionLimit: remaining,
+              quality: 0.6,
+            });
+            if (!result.canceled && result.assets.length > 0) {
+              const uris = result.assets.map((asset) => asset.uri);
+              const { images } = registration.addPhotos(uris);
+              appendAssistantMessage(
+                newMessages,
+                labels.chat.photosAdded(uris.length, images.length)
+              );
+            } else {
+              appendAssistantMessage(newMessages, labels.chat.photosNoneSelected);
+            }
+          } catch (err: any) {
+            appendAssistantMessage(
+              newMessages,
+              labels.chat.photosSelectionError(err?.message || 'error desconocido')
+            );
+          } finally {
+            setLoading(false);
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }, 100);
+          }
+          return;
+        }
+      }
+
+      if (registration.state.mode === 'location' && isLocationIntent(lower)) {
+        setMapPickerVisible(true);
+        return;
+      }
+
+      if (registration.state.mode !== 'idle') {
+        const wasConfirming = registration.state.mode === 'confirming';
+        setLoading(true);
+        try {
+          const outcome = await registration.processMessage(textToSend);
+          const text = formatOutcomeMessage(
+            outcome.readyToConfirm,
+            wasConfirming,
+            outcome.assistantMessage,
+            outcome.draft
+          );
+          appendAssistantMessage(newMessages, text);
+        } catch (err: any) {
+          appendAssistantMessage(
+            newMessages,
+            labels.chat.processDataError(err?.message || 'Verifica la conexión')
+          );
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+
+      setLoading(true);
       try {
         const response = await sendChatQuery(textToSend);
-
-        setMessages([
-          ...newMessages,
-          {
-            id: `assistant-${Date.now()}`,
-            sender: 'assistant',
-            text: response.answer,
-            properties: response.data,
-            timestamp: 'Just now',
-          },
-        ]);
+        appendAssistantMessage(newMessages, response.answer, response.data);
       } catch (err: any) {
-        setMessages([
-          ...newMessages,
-          {
-            id: `assistant-${Date.now()}`,
-            sender: 'assistant',
-            text: `⚠️ No se pudo conectar con el servicio de IA (${err?.message || 'Verifica la conexión'}). Por favor intenta nuevamente.`,
-            timestamp: 'Just now',
-          },
-        ]);
+        appendAssistantMessage(
+          newMessages,
+          labels.chat.serviceError(err?.message || 'Verifica la conexión')
+        );
       } finally {
         setLoading(false);
         setTimeout(() => {
@@ -111,47 +264,292 @@ export default function HomeScreen() {
         }, 100);
       }
     },
-    [inputText, loading, messages]
+    [inputText, loading, messages, registration, appendAssistantMessage, labels]
   );
 
-  const handleMicPress = useCallback(() => {
-    Alert.alert(
-      'Micrófono Hubik',
-      'Escuchando... Hable con tranquilidad para buscar propiedades.',
-      [{ text: 'Entendido' }]
-    );
-  }, []);
+  const handleSendAudio = useCallback(
+    async (uri: string) => {
+      if (loading) return;
+      setLoading(true);
 
-  const handleBack = () => {
-    Alert.alert('Navegación', 'Regresar a la pantalla anterior.');
-  };
+      try {
+        const base64 = await FileSystem.readAsStringAsync(uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        const audio: AudioPayload = { data: base64, mimeType: VOICE_NOTE_MIME_TYPE };
+
+        if (registration.state.mode !== 'idle') {
+          const outcome = await registration.processAudioMessage(audio);
+          const transcript = (outcome.transcript || '').trim();
+          const lowerTranscript = transcript.toLowerCase();
+
+          if (CANCEL_PHRASES.some((p) => lowerTranscript.includes(p))) {
+            registration.cancel();
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
+            ];
+            appendAssistantMessage(newMessages, labels.chat.cancelRegistrationConfirmation);
+            return;
+          }
+
+          if (registration.state.mode === 'confirming' && isConfirmIntent(lowerTranscript)) {
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
+            ];
+            setMessages(newMessages);
+            try {
+              const property = await registration.confirmPublish();
+              appendAssistantMessage(
+                newMessages,
+                labels.chat.publishedSuccess(property.title),
+                [property]
+              );
+            } catch (err: any) {
+              appendAssistantMessage(
+                newMessages,
+                labels.chat.publishError(err?.message || 'error desconocido')
+              );
+            }
+            return;
+          }
+
+          if (registration.state.mode === 'confirming' && isPhotosIntent(lowerTranscript)) {
+            registration.editPhotos();
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
+            ];
+            appendAssistantMessage(newMessages, labels.chat.photosPrompt);
+            return;
+          }
+
+          if (registration.state.mode === 'confirming' && isLocationIntent(lowerTranscript)) {
+            registration.editLocation();
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
+            ];
+            setMessages(newMessages);
+            setMapPickerVisible(true);
+            return;
+          }
+
+          if (registration.state.mode === 'photos' && isPhotosIntent(lowerTranscript)) {
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
+            ];
+            setMessages(newMessages);
+            try {
+              const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
+              const granted = permission.granted
+                ? true
+                : (await ImagePicker.requestMediaLibraryPermissionsAsync()).granted;
+
+              if (!granted) {
+                appendAssistantMessage(
+                  newMessages,
+                  labels.chat.photosPermissionRequired
+                );
+                return;
+              }
+
+              const remaining = MAX_PROPERTY_IMAGES - (registration.state.draft.images?.length || 0);
+              const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsMultipleSelection: true,
+                selectionLimit: remaining,
+                quality: 0.6,
+              });
+              if (!result.canceled && result.assets.length > 0) {
+                const uris = result.assets.map((asset) => asset.uri);
+                const { images } = registration.addPhotos(uris);
+                appendAssistantMessage(
+                  newMessages,
+                  labels.chat.photosAdded(uris.length, images.length)
+                );
+              } else {
+                appendAssistantMessage(newMessages, labels.chat.photosNoneSelected);
+              }
+            } catch (err: any) {
+              appendAssistantMessage(
+                newMessages,
+                labels.chat.photosSelectionError(err?.message || 'error desconocido')
+              );
+            }
+            return;
+          }
+
+          if (registration.state.mode === 'photos' && isContinueIntent(lowerTranscript)) {
+            registration.skipPhotos();
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
+            ];
+            appendAssistantMessage(
+              newMessages,
+              labels.chat.photosContinueLocationPrompt
+            );
+            return;
+          }
+
+          if (registration.state.mode === 'location' && isLocationIntent(lowerTranscript)) {
+            const newMessages: ChatMessage[] = [
+              ...messages,
+              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
+            ];
+            setMessages(newMessages);
+            setMapPickerVisible(true);
+            return;
+          }
+
+          const wasConfirming = registration.state.mode === 'confirming';
+          const newMessages: ChatMessage[] = [
+            ...messages,
+            { id: generateMessageId('user'), sender: 'user', text: transcript || labels.chat.voiceNote, timestamp: labels.chat.justNow },
+          ];
+          const text = formatOutcomeMessage(
+            outcome.readyToConfirm,
+            wasConfirming,
+            outcome.assistantMessage,
+            outcome.draft
+          );
+          appendAssistantMessage(newMessages, text);
+          return;
+        }
+
+        const response = await sendChatQueryAudio(audio);
+        const newMessages: ChatMessage[] = [
+          ...messages,
+          { id: generateMessageId('user'), sender: 'user', text: response.transcript, timestamp: labels.chat.justNow },
+        ];
+        appendAssistantMessage(newMessages, response.answer, response.data);
+      } catch (err: any) {
+        const newMessages: ChatMessage[] = [
+          ...messages,
+          { id: generateMessageId('user'), sender: 'user', text: labels.chat.voiceNote, timestamp: labels.chat.justNow },
+        ];
+        appendAssistantMessage(
+          newMessages,
+          labels.chat.voiceProcessError(err?.message || 'Verifica la conexión')
+        );
+      } finally {
+        setLoading(false);
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 100);
+      }
+    },
+    [loading, messages, registration, appendAssistantMessage, labels]
+  );
+
+  const handleLocationConfirmed = useCallback(
+    async (latitude: number, longitude: number) => {
+      setMapPickerVisible(false);
+      registration.setLocation(latitude, longitude);
+
+      let addressLine = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+      try {
+        const geocoded = await Location.reverseGeocodeAsync({ latitude, longitude });
+        const place = geocoded[0];
+        if (place) {
+          addressLine = [place.street, place.city].filter(Boolean).join(', ') || addressLine;
+        }
+      } catch {
+      }
+
+      const withLocationMessages: ChatMessage[] = [
+        ...messages,
+        {
+          id: generateMessageId('assistant'),
+          sender: 'assistant',
+          text: labels.chat.locationConfirmedNotice(addressLine),
+          timestamp: labels.chat.justNow,
+        },
+      ];
+      setMessages(withLocationMessages);
+      setLoading(true);
+
+      try {
+        const { description } = await registration.generateDescription();
+        const finalDraft: PropertyDraft = { ...registration.state.draft, latitude, longitude, description };
+        appendAssistantMessage(
+          withLocationMessages,
+          labels.chat.previewSummary(formatDraftSummary(finalDraft)),
+          [buildDraftPreviewProperty(finalDraft)]
+        );
+      } catch (err: any) {
+        appendAssistantMessage(
+          withLocationMessages,
+          labels.chat.descriptionGenError(err?.message || 'error desconocido')
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+    [registration, messages, appendAssistantMessage, labels]
+  );
+
+  useEffect(() => {
+    if (params.startRegistration && !hasAutoStartedRef.current) {
+      hasAutoStartedRef.current = true;
+      handleSend(REGISTER_COMMAND);
+    }
+  }, [params.startRegistration, handleSend]);
+
+  const handleMicPress = useCallback(async () => {
+    if (recorder.state.status === 'recording') {
+      const result = await recorder.stop();
+      if (result) {
+        handleSendAudio(result.uri);
+      }
+      return;
+    }
+
+    if (recorder.state.status === 'processing') return;
+
+    try {
+      await recorder.start();
+    } catch {
+      Alert.alert(
+        labels.chat.micNotAvailableTitle,
+        labels.chat.micNotAvailableMessage,
+        [{ text: labels.common.understood }]
+      );
+    }
+  }, [recorder, handleSendAudio, labels]);
 
   const handleMenu = () => {
     setIsMenuOpen(true);
   };
 
   const handleMenuItemSelect = (key: string) => {
-    if (key === 'register') {
-      router.push('/register');
-    } else if (key === 'new_chat') {
-      setMessages(INITIAL_MESSAGES);
-      setInputText('');
-    } else if (key === 'saved') {
-      Alert.alert(
-        'Propiedades Guardadas',
-        'Aún no ha guardado propiedades en sus favoritos.'
-      );
-    } else if (key === 'settings') {
-      Alert.alert(
-        'Ajustes',
-        'Configuraciones de voz, lectura y accesibilidad para Don Carlos.'
-      );
-    } else if (key === 'help') {
-      Alert.alert(
-        'Ayuda y Soporte',
-        'Comuníquese con el equipo de soporte de Hubik o su asesor personal.'
-      );
-    }
+    const menuActions: Record<string, () => void> = {
+      register: () => handleSend(REGISTER_COMMAND),
+      new_chat: () => {
+        setMessages(INITIAL_MESSAGES);
+        setInputText('');
+      },
+      saved: () =>
+        Alert.alert(
+          labels.burgerMenu.savedDraftsTitle,
+          labels.burgerMenu.savedDraftsMessage
+        ),
+      settings: () =>
+        Alert.alert(
+          labels.burgerMenu.settingsTitle,
+          labels.burgerMenu.settingsMessage
+        ),
+      help: () =>
+        Alert.alert(
+          labels.burgerMenu.helpTitle,
+          labels.burgerMenu.helpMessage
+        ),
+    };
+
+    menuActions[key]?.();
   };
 
   const renderMessageItem: ListRenderItem<ChatMessage> = useCallback(
@@ -167,32 +565,50 @@ export default function HomeScreen() {
   const renderListHeader = useCallback(
     () => (
       <View style={styles.listHeader}>
-        <View
-          style={[
-            styles.dateCapsule,
-            { backgroundColor: theme.surfaceContainerHigh },
-          ]}
-        >
-          <Text
-            style={[styles.dateCapsuleText, { color: theme.textSecondary }]}
-          >
-            Hoy, 10:30
+        <View style={styles.dateCapsule}>
+          <Text style={styles.dateCapsuleText}>
+            {labels.common.todayTime}
           </Text>
         </View>
       </View>
     ),
-    [theme.surfaceContainerHigh, theme.textSecondary]
+    [styles.listHeader, styles.dateCapsule, styles.dateCapsuleText, labels]
   );
+
+  const stagedImages = useMemo(() => registration.state.draft.images || [], [registration.state.draft.images]);
+  const renderListFooter = useCallback(() => {
+    if (registration.state.mode === 'photos' && stagedImages.length > 0) {
+      return (
+        <View style={styles.photoGridWrapper}>
+          <PropertyPhotoGrid
+            images={stagedImages}
+            maxImages={MAX_PROPERTY_IMAGES}
+            onRemove={registration.removePhoto}
+            onMove={registration.movePhoto}
+            onAddPress={() => handleSend(labels.chat.attachMorePhotos)}
+          />
+        </View>
+      );
+    }
+
+    return null;
+  }, [
+    registration.state.mode,
+    stagedImages,
+    styles.photoGridWrapper,
+    registration.removePhoto,
+    registration.movePhoto,
+    handleSend,
+    labels,
+  ]);
 
   return (
     <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: theme.background }]}
+      style={styles.safeArea}
       edges={['top', 'left', 'right', 'bottom']}
     >
-      {/* Serene Hearth Architectural Header */}
       <Header
-        title="Hubik"
-        onBackPress={handleBack}
+        showBack={false}
         onMenuPress={handleMenu}
       />
 
@@ -201,65 +617,42 @@ export default function HomeScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
       >
-        {/* Message Feed with Top Date Capsule Header */}
         <FlatList
           ref={flatListRef}
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessageItem}
           ListHeaderComponent={renderListHeader}
+          ListFooterComponent={renderListFooter}
           contentContainerStyle={styles.feedContent}
           keyboardShouldPersistTaps="handled"
+          initialNumToRender={50}
         />
 
-        {/* Don Carlos Serene Hearth Input Dock */}
         <ChatInputBar
           value={inputText}
           onChangeText={setInputText}
           onSend={handleSend}
           onMicPress={handleMicPress}
-          placeholder="Escriba su consulta aquí..."
-          loading={loading}
+          isRecording={recorder.state.status === 'recording'}
+          placeholder={labels.chat.inputPlaceholder}
+          loading={loading || recorder.state.status === 'processing'}
         />
       </KeyboardAvoidingView>
 
-      {/* Slide-in Burger Menu */}
       <BurgerMenu
         visible={isMenuOpen}
         onClose={() => setIsMenuOpen(false)}
         onSelectMenuItem={handleMenuItemSelect}
       />
+
+      <ChatMapPicker
+        visible={mapPickerVisible}
+        initialLatitude={registration.state.draft.latitude}
+        initialLongitude={registration.state.draft.longitude}
+        onConfirm={handleLocationConfirmed}
+        onClose={() => setMapPickerVisible(false)}
+      />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-  },
-  listHeader: {
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  dateCapsule: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: shapes.full, // 9999
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  dateCapsuleText: {
-    ...typography.labelMD,
-    fontSize: 13,
-    fontWeight: '500',
-    letterSpacing: 0.1,
-  },
-  feedContent: {
-    paddingHorizontal: spacing.marginMobile, // 20px
-    paddingTop: 8,
-    paddingBottom: 24,
-  },
-});

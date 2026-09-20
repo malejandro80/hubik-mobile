@@ -7,16 +7,23 @@ export type PropertyType =
 
 export type PropertyStatus = 'Available' | 'Pending' | 'Sold';
 
+export type OperationType = 'sale' | 'rent';
+
 export interface Property {
   id: string;
+  catastro?: string;
   title: string;
   property_type: PropertyType;
+  operation_type?: OperationType;
   price: number;
   bedrooms: number;
   bathrooms: number;
   square_meters: number;
   city: string;
   address: string;
+  latitude?: number;
+  longitude?: number;
+  description?: string;
   status: PropertyStatus;
   image_url: string;
   images: string[];
@@ -24,6 +31,59 @@ export interface Property {
   embedding?: number[];
   created_at?: string;
 }
+
+export interface PropertyDraft {
+  catastro?: string;
+  title?: string;
+  property_type?: PropertyType;
+  operation_type?: OperationType;
+  price?: number;
+  currency?: string;
+  bedrooms?: number;
+  bathrooms?: number;
+  square_meters?: number;
+  city?: string;
+  address?: string;
+  images?: string[];
+  latitude?: number;
+  longitude?: number;
+  description?: string;
+}
+
+export const PROPERTY_TYPE_LABEL_ES: Record<PropertyType, string> = {
+  Apartment: 'Piso',
+  'Single Family': 'Casa',
+  Townhouse: 'Casa adosada',
+  Studio: 'Estudio',
+  Condo: 'Condominio',
+};
+
+export const REQUIRED_PROPERTY_DRAFT_FIELDS: (keyof PropertyDraft)[] = [
+  'catastro',
+  'property_type',
+  'operation_type',
+  'price',
+  'bedrooms',
+  'bathrooms',
+  'square_meters',
+  'city',
+  'address',
+];
+
+type RequiredDraftField = 'catastro' | 'title' | 'property_type' | 'operation_type' | 'price' | 'bedrooms' | 'bathrooms' | 'square_meters' | 'city' | 'address';
+
+export const PROPERTY_DRAFT_FIELD_LABELS: Record<RequiredDraftField, string> = {
+  catastro: 'referencia catastral',
+  title: 'título',
+  property_type: 'tipo de propiedad',
+  operation_type: 'si es venta o alquiler',
+  price: 'precio',
+  bedrooms: 'habitaciones',
+  bathrooms: 'baños',
+  square_meters: 'metros cuadrados',
+  city: 'ciudad',
+  address: 'dirección',
+};
 
 export interface ChatMessage {
   id: string;

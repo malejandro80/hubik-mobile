@@ -1,4 +1,9 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { isAudioPayload } from '../_shared/audioPayload.ts';
+import { fetchKnownCities, matchCityInText } from '../_shared/cities.ts';
+import { embedText } from '../_shared/geminiEmbedding.ts';
+import { chatQueryTextInstruction, GEMINI_EXTRACTION_MODEL } from '../_shared/prompts.ts';
+import { transcribeAudio } from '../_shared/groqAudio.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,17 +25,12 @@ interface FilterParams {
   status?: string;
 }
 
-function parsePromptFilters(message: string): FilterParams {
+function parsePromptFilters(message: string, knownCities: string[]): FilterParams {
   const lower = message.toLowerCase();
   const filters: FilterParams = {};
 
-  const cities = ['Austin', 'Miami', 'Denver', 'Seattle', 'New York'];
-  for (const city of cities) {
-    if (lower.includes(city.toLowerCase())) {
-      filters.city = city;
-      break;
-    }
-  }
+  const city = matchCityInText(message, knownCities);
+  if (city) filters.city = city;
 
   if (
     lower.includes('apartment') ||
@@ -201,8 +201,10 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json().catch(() => ({}));
     const message = body?.message;
+    const audio = body?.audio;
+    const isAudioRequest = isAudioPayload(audio);
 
-    if (!message || typeof message !== 'string' || message.trim() === '') {
+    if (!isAudioRequest && (!message || typeof message !== 'string' || message.trim() === '')) {
       return new Response(
         JSON.stringify({ error: 'Missing or invalid "message" parameter' }),
         {
@@ -224,25 +226,61 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // 1. Extract query parameters
-    let filters: FilterParams = parsePromptFilters(message);
+    // 1. Resolve the message: transcribe-only for audio (no field extraction in that call),
+    // then run text and audio through the exact same cascade from here on.
+    let transcript: string | undefined;
+    let effectiveMessage: string;
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
-    if (geminiKey && geminiKey !== 'your_gemini_api_key_here') {
+    const hasGeminiKey = Boolean(geminiKey) && geminiKey !== 'your_gemini_api_key_here';
+
+    const groqKey = Deno.env.get('GROQ_API_KEY');
+
+    if (isAudioRequest) {
+      // Voice notes have no local text to run the regex heuristic against until transcribed.
+      // Deliberately no Gemini fallback here (RFC 009) - a fallback would silently reintroduce
+      // the free-tier quota ceiling this migration exists to get away from.
+      if (!groqKey) {
+        return new Response(
+          JSON.stringify({ error: 'Las notas de voz requieren que Groq esté configurado en el servidor' }),
+          { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      try {
+        transcript = await transcribeAudio(audio, groqKey);
+        effectiveMessage = transcript;
+      } catch (transcribeErr: any) {
+        console.error('[chat-query] Groq audio transcription error:', transcribeErr);
+        return new Response(
+          JSON.stringify({ error: transcribeErr?.message || 'No se pudo procesar la nota de voz' }),
+          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      effectiveMessage = message;
+    }
+
+    // 1b. Cheap tier: the local heuristic against known cities (derived from what's actually in
+    // `properties.city` - any region, not a hardcoded list), zero tokens, ~2ms.
+    const knownCities = await fetchKnownCities(supabaseUrl, supabaseKey);
+    let filters: FilterParams = parsePromptFilters(effectiveMessage, knownCities);
+
+    // 1c. Escalate to Gemini when the heuristic came back empty, OR when it found something but
+    // no city - city is the single most determinant filter for the user, and a query that
+    // mentions a type/price/etc. alongside a city the heuristic doesn't recognize (a brand-new
+    // city with no listings yet, an accent/spelling variant, a typo) must still get a chance at
+    // it instead of silently searching with no city constraint at all.
+    if (hasGeminiKey && (Object.keys(filters).length === 0 || !filters.city)) {
       try {
         const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EXTRACTION_MODEL}:generateContent?key=${geminiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              contents: [{ parts: [{ text: message }] }],
+              contents: [{ parts: [{ text: effectiveMessage }] }],
               systemInstruction: {
-                parts: [
-                  {
-                    text: 'Eres un asistente experto en búsqueda de bienes raíces. Extrae los filtros de búsqueda a partir del mensaje del usuario (en español o inglés) como un objeto JSON con claves opcionales: city (string), property_type (Apartment, Single Family, Townhouse, Studio, Condo), min_price (number), max_price (number), min_bedrooms (number), max_bedrooms (number), min_square_meters (number), max_square_meters (number), limit (number), sort_by (price_asc, price_desc). El área se mide en metros cuadrados (m²). Genera únicamente JSON válido sin explicaciones adicionales.',
-                  },
-                ],
+                parts: [{ text: chatQueryTextInstruction() }],
               },
               generationConfig: {
                 responseMimeType: 'application/json',
@@ -256,7 +294,9 @@ Deno.serve(async (req: Request) => {
           const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
             const parsed = JSON.parse(text);
-            filters = { ...filters, ...parsed };
+            // Heuristic values win on conflict (grounded in an exact DB city match); Gemini only
+            // fills gaps the heuristic left empty (e.g. city).
+            filters = { ...parsed, ...filters };
           }
         }
       } catch (geminiErr) {
@@ -264,60 +304,91 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 2. Query properties from Supabase Postgres
-    let query = supabase
-      .from('properties')
-      .select(
-        'id, title, property_type, price, bedrooms, bathrooms, square_meters, city, address, status, image_url, images, created_at'
-      );
+    // 2. Query properties: hybrid relational+semantic ranking is the default path (a Gemini key
+    // is available and the user didn't ask for an explicit price sort, which needs exact price
+    // ordering a similarity ranking can't give); the plain structured query - unchanged from
+    // before - covers explicit price sorts, no Gemini key, and hybrid RPC failures, so results
+    // never depend on Gemini being configured.
+    let items: any[] = [];
+    let usedHybridSearch = false;
+    const wantsExplicitPriceSort = filters.sort_by === 'price_asc' || filters.sort_by === 'price_desc';
 
-    if (filters.city) {
-      query = query.ilike('city', `%${filters.city}%`);
-    }
-    if (filters.property_type) {
-      query = query.eq('property_type', filters.property_type);
-    }
-    if (filters.min_price !== undefined) {
-      query = query.gte('price', filters.min_price);
-    }
-    if (filters.max_price !== undefined) {
-      query = query.lte('price', filters.max_price);
-    }
-    if (filters.min_bedrooms !== undefined) {
-      query = query.gte('bedrooms', filters.min_bedrooms);
-    }
-    if (filters.max_bedrooms !== undefined) {
-      query = query.lte('bedrooms', filters.max_bedrooms);
-    }
-    if (filters.min_square_meters !== undefined) {
-      query = query.gte('square_meters', filters.min_square_meters);
-    }
-    if (filters.max_square_meters !== undefined) {
-      query = query.lte('square_meters', filters.max_square_meters);
-    }
-
-    if (filters.sort_by === 'price_asc') {
-      query = query.order('price', { ascending: true });
-    } else if (filters.sort_by === 'price_desc') {
-      query = query.order('price', { ascending: false });
-    } else {
-      query = query.order('price', { ascending: true });
+    if (!wantsExplicitPriceSort && hasGeminiKey) {
+      try {
+        const queryEmbedding = await embedText(effectiveMessage, geminiKey!, 'RETRIEVAL_QUERY');
+        if (queryEmbedding) {
+          const { data: hybridMatches, error: hybridError } = await supabase.rpc('match_properties_hybrid', {
+            query_embedding: queryEmbedding,
+            p_city: filters.city ?? null,
+            p_property_type: filters.property_type ?? null,
+            p_min_price: filters.min_price ?? null,
+            p_max_price: filters.max_price ?? null,
+            p_min_bedrooms: filters.min_bedrooms ?? null,
+            p_max_bedrooms: filters.max_bedrooms ?? null,
+            match_count: filters.limit || 10,
+          });
+          if (hybridError) throw hybridError;
+          items = hybridMatches || [];
+          usedHybridSearch = true;
+        }
+      } catch (hybridErr) {
+        console.warn('[chat-query] hybrid search failed, falling back to structured query:', hybridErr);
+      }
     }
 
-    query = query.limit(filters.limit || 10);
+    if (!usedHybridSearch) {
+      let query = supabase
+        .from('properties')
+        .select(
+          'id, title, property_type, price, bedrooms, bathrooms, square_meters, city, address, status, image_url, images, created_at'
+        );
 
-    const { data: properties, error: dbError } = await query;
+      if (filters.city) {
+        query = query.ilike('city', `%${filters.city}%`);
+      }
+      if (filters.property_type) {
+        query = query.eq('property_type', filters.property_type);
+      }
+      if (filters.min_price !== undefined) {
+        query = query.gte('price', filters.min_price);
+      }
+      if (filters.max_price !== undefined) {
+        query = query.lte('price', filters.max_price);
+      }
+      if (filters.min_bedrooms !== undefined) {
+        query = query.gte('bedrooms', filters.min_bedrooms);
+      }
+      if (filters.max_bedrooms !== undefined) {
+        query = query.lte('bedrooms', filters.max_bedrooms);
+      }
+      if (filters.min_square_meters !== undefined) {
+        query = query.gte('square_meters', filters.min_square_meters);
+      }
+      if (filters.max_square_meters !== undefined) {
+        query = query.lte('square_meters', filters.max_square_meters);
+      }
 
-    if (dbError) {
-      throw new Error(`Database error: ${dbError.message}`);
+      if (filters.sort_by === 'price_desc') {
+        query = query.order('price', { ascending: false });
+      } else {
+        query = query.order('price', { ascending: true });
+      }
+
+      query = query.limit(filters.limit || 10);
+
+      const { data: properties, error: dbError } = await query;
+
+      if (dbError) {
+        throw new Error(`Database error: ${dbError.message}`);
+      }
+
+      items = properties || [];
     }
-
-    const items = properties || [];
 
     // 3. Synthesize conversational answer in Spanish
     let answer: string;
     if (items.length === 0) {
-      answer = `No encontré propiedades que coincidan con "${message}". ¡Intenta buscar en Austin, Miami, Denver, Seattle o New York!`;
+      answer = `No encontré propiedades que coincidan con "${effectiveMessage}". ¡Intenta buscar en Austin, Miami, Denver, Seattle o New York!`;
     } else {
       const cityText = filters.city ? ` en ${filters.city}` : '';
       let typeText = ' propiedades';
@@ -345,6 +416,7 @@ Deno.serve(async (req: Request) => {
         data: items,
         applied_filters: filters,
         suggestions,
+        ...(transcript ? { transcript } : {}),
       }),
       {
         status: 200,

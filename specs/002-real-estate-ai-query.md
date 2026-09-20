@@ -17,7 +17,10 @@ Users searching for properties often think in natural language (e.g., "Find mode
 ### Goals
 - [x] Integrate Gemini Function Calling (`search_properties`) to parse user queries into strictly typed filter parameters.
 - [x] Enforce secure parameterized `SELECT`-only execution (prevent SQL injection, mutations, or arbitrary string execution).
-- [x] Configure pgvector vector database with 768-dim embeddings (`text-embedding-004`) and `match_properties` RPC function.
+- [x] Configure pgvector vector database with 768-dim embeddings and `match_properties` RPC
+      function. Originally generated via `text-embedding-004`; migrated to `gemini-embedding-001`
+      (`outputDimensionality: 768`) on 2026-09-17 after Google deprecated the former — see RFC
+      004's matching amendment. The column stays `vector(768)` either way.
 - [x] Configure Supabase Storage bucket (`property-images`) for high-resolution property photography.
 - [x] Expose `POST /api/chat-query` endpoint returning `{ answer: string, data: Array<Property> }`.
 - [x] Provide a responsive Chat UI with prompt suggestions, message feed, and interactive property cards.

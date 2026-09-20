@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   StyleProp,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -11,13 +10,23 @@ import {
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
-import { colors, typography } from '../theme/colors';
+import { useLabels } from '../hooks/useLabels';
+import { colors, hitSlop } from '../theme/colors';
+import { getChatInputBarStyles } from './ChatInputBar.styles';
+
+type ActionOptionKey = 'recording' | 'send' | 'mic';
+
+interface ActionOption {
+  accessibilityLabel: string;
+  icon: React.ReactNode;
+}
 
 export interface ChatInputBarProps {
   value: string;
   onChangeText: (text: string) => void;
   onSend: (text?: string) => void;
   onMicPress?: () => void;
+  isRecording?: boolean;
   placeholder?: string;
   loading?: boolean;
   accessibilityLabel?: string;
@@ -30,17 +39,55 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
   onChangeText,
   onSend,
   onMicPress,
-  placeholder = 'Escriba su consulta aquí...',
+  isRecording = false,
+  placeholder,
   loading = false,
-  accessibilityLabel = 'Campo de consulta',
+  accessibilityLabel,
   containerStyle,
-  hasTopBorder = true,
+  hasTopBorder = false,
 }) => {
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
+  const labels = useLabels();
   const [isFocused, setIsFocused] = useState(false);
 
+  const resolvedPlaceholder = placeholder ?? labels.chat.inputPlaceholder;
+  const resolvedAccessibilityLabel = accessibilityLabel ?? labels.chat.accessibilityInput;
+
+  const { styles, placeholderTextColor, iconColor } = useMemo(
+    () => getChatInputBarStyles(theme),
+    [theme]
+  );
+
   const isSendActive = Boolean(value.trim());
+
+  const getActionType = (): ActionOptionKey => {
+    if (isRecording) return 'recording';
+    if (isSendActive) return 'send';
+    return 'mic';
+  };
+
+  const actionType = getActionType();
+
+  const actionOptions: Record<ActionOptionKey, ActionOption> = useMemo(
+    () => ({
+      recording: {
+        accessibilityLabel: labels.chat.stopRecordingA11y,
+        icon: <Ionicons name="stop-circle" size={26} color={iconColor} />,
+      },
+      send: {
+        accessibilityLabel: labels.chat.sendQueryA11y,
+        icon: <Ionicons name="arrow-up" size={24} color={iconColor} />,
+      },
+      mic: {
+        accessibilityLabel: labels.chat.micA11y,
+        icon: <Ionicons name="mic" size={26} color={iconColor} />,
+      },
+    }),
+    [iconColor, labels]
+  );
+
+  const selectedAction = actionOptions[actionType];
 
   const handleActionPress = () => {
     if (isSendActive) {
@@ -54,28 +101,20 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
     <View
       style={[
         styles.container,
-        hasTopBorder && {
-          borderTopWidth: 1,
-          borderTopColor: theme.outlineVariant,
-        },
-        { backgroundColor: theme.background },
+        hasTopBorder && styles.containerTopBorder,
         containerStyle,
       ]}
     >
-      {/* Input Capsule / Pill */}
       <View
         style={[
           styles.inputCapsule,
-          {
-            backgroundColor: theme.surfaceContainerLow,
-            borderColor: isFocused ? theme.secondary : theme.outlineVariant,
-          },
+          isFocused && styles.inputCapsuleFocused,
         ]}
       >
         <TextInput
-          style={[styles.input, { color: theme.text }]}
-          placeholder={placeholder}
-          placeholderTextColor={theme.textSecondary}
+          style={styles.input}
+          placeholder={resolvedPlaceholder}
+          placeholderTextColor={placeholderTextColor}
           value={value}
           onChangeText={onChangeText}
           onFocus={() => setIsFocused(true)}
@@ -84,84 +123,35 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
             if (isSendActive) onSend(value.trim());
           }}
           returnKeyType="send"
-          editable={!loading}
-          accessibilityLabel={accessibilityLabel}
+          editable={!loading && !isRecording}
+          accessibilityLabel={resolvedAccessibilityLabel}
         />
       </View>
 
-      {/* Action Button (Mic / Send) */}
       <TouchableOpacity
         style={[
           styles.actionButton,
-          { backgroundColor: '#163931' },
+          isRecording && styles.actionButtonRecording,
         ]}
         onPress={handleActionPress}
         disabled={loading}
         accessibilityRole="button"
-        accessibilityLabel={
-          isSendActive ? 'Enviar consulta' : 'Hablar por micrófono'
-        }
+        accessibilityLabel={selectedAction.accessibilityLabel}
         accessibilityState={{
           busy: loading,
+          selected: isRecording,
         }}
-        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+        hitSlop={hitSlop.compact}
       >
         {loading ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : isSendActive ? (
-          <Ionicons name="arrow-up" size={24} color="#FFFFFF" />
+          <ActivityIndicator size="small" color={iconColor} />
         ) : (
-          <Ionicons name="mic" size={26} color="#FFFFFF" />
+          selectedAction.icon
         )}
-        <Text style={styles.srOnly}>Enviar</Text>
+        <Text style={styles.srOnly}>{labels.chat.sendSrOnly}</Text>
       </TouchableOpacity>
     </View>
   );
 });
 
 ChatInputBar.displayName = 'ChatInputBar';
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  inputCapsule: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 56,
-    borderRadius: 28,
-    borderWidth: 1.5,
-    paddingHorizontal: 20,
-  },
-  input: {
-    flex: 1,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    ...typography.bodyLG,
-    fontSize: 16,
-    height: '100%',
-  },
-  actionButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    marginLeft: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#02241F',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  srOnly: {
-    position: 'absolute',
-    width: 1,
-    height: 1,
-    opacity: 0,
-  },
-});

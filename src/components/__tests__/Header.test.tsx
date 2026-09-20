@@ -24,4 +24,15 @@ describe('Header Component', () => {
     fireEvent.press(menuButton);
     expect(handleMenu).toHaveBeenCalledTimes(1);
   });
+
+  it('hides back button when showBack is explicitly false', () => {
+    const handleMenu = jest.fn();
+
+    const { queryByLabelText, getByText } = render(
+      <Header title="Hubik" showBack={false} onMenuPress={handleMenu} />
+    );
+
+    expect(getByText('Hubik')).toBeTruthy();
+    expect(queryByLabelText('Regresar')).toBeNull();
+  });
 });
