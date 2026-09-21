@@ -18,6 +18,8 @@ import { ChatMessageItem } from '../components/ChatMessageItem';
 import { DraftPanel } from '../components/DraftPanel';
 import { Header } from '../components/Header';
 import { PhotoOrderModal } from '../components/PhotoOrderModal';
+import { SlashCommandMenu } from '../components/SlashCommandMenu';
+import { StartScreen } from '../components/StartScreen';
 import { useAppMenu } from '../hooks/useAppMenu';
 import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
@@ -26,8 +28,10 @@ import { useDraftReview } from '../hooks/useDraftReview';
 import { useLabels } from '../hooks/useLabels';
 import { usePropertyRegistrationChat } from '../hooks/usePropertyRegistrationChat';
 import { useRegistrationConversation } from '../hooks/useRegistrationConversation';
+import { useStartScreen } from '../hooks/useStartScreen';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { DraftEditableField, FieldEditResult, validateDraftField } from '../lib/draftValidation';
+import { resolveSlashMenu } from '../lib/slashCommands';
 import {
   AudioPayload,
   sendChatQuery,
@@ -109,7 +113,7 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    scrollToEndSoon();
+    if (messages.length > 0) scrollToEndSoon();
   }, [messages.length, scrollToEndSoon]);
 
   const handleSend = useCallback(
@@ -272,6 +276,12 @@ export default function HomeScreen() {
     }
   }, [recorder, handleSendAudio, labels]);
 
+  const startScreen = useStartScreen((text) => void handleSend(text));
+  const slashMenu = useMemo(
+    () => resolveSlashMenu(inputText, capabilities, authStatus),
+    [inputText, capabilities, authStatus]
+  );
+
   const menu = useAppMenu({
     search: () => undefined,
     register: () => void handleSend(REGISTER_COMMAND),
@@ -339,7 +349,8 @@ export default function HomeScreen() {
           data={messages}
           keyExtractor={(item) => item.id}
           renderItem={renderMessageItem}
-          ListHeaderComponent={renderListHeader}
+          ListHeaderComponent={messages.length > 0 ? renderListHeader : null}
+          ListEmptyComponent={<StartScreen {...startScreen} />}
           contentContainerStyle={styles.feedContent}
           keyboardShouldPersistTaps="handled"
           initialNumToRender={50}
@@ -364,6 +375,8 @@ export default function HomeScreen() {
             onPreview={review.openPreview}
           />
         )}
+
+        <SlashCommandMenu state={slashMenu} onSelect={(command) => void handleSend(command)} />
 
         <ChatInputBar
           value={inputText}

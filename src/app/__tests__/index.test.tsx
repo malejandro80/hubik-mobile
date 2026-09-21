@@ -101,17 +101,15 @@ describe('HomeScreen (Chat UI)', () => {
     mockRecorderState.status = 'idle';
   });
 
-  it('renders header, initial welcome message, and clean input field', () => {
+  it('renders header, the start screen, and clean input field', () => {
     const { getByText, getByPlaceholderText, queryByLabelText } = render(
       <HomeScreen />
     );
 
     expect(getByText('Hubik Real Estate AI')).toBeTruthy();
-    expect(getByText('Buenos días, Don Carlos.')).toBeTruthy();
-    expect(
-      getByText(/¿En qué puedo ayudarle hoy con sus propiedades/)
-    ).toBeTruthy();
-    expect(getByText('botón verde del micrófono')).toBeTruthy();
+    expect(getByText('Bienvenido a Hubik')).toBeTruthy();
+    expect(getByText('Empezar')).toBeTruthy();
+    expect(getByText('Toque el micrófono para hablar')).toBeTruthy();
     expect(getByPlaceholderText('Escriba su consulta aquí...')).toBeTruthy();
 
     expect(queryByLabelText('Adjuntar archivo o documento')).toBeNull();
@@ -176,19 +174,19 @@ describe('HomeScreen (Chat UI)', () => {
   });
 
   it('opens and interacts with burger menu when tapping header menu button', () => {
-    const { getByLabelText, getByText } = render(<HomeScreen />);
+    const { getByLabelText, getByText, queryByText } = render(<HomeScreen />);
 
     const menuButton = getByLabelText('Menú de opciones');
     fireEvent.press(menuButton);
 
     expect(getByText('Buscar Propiedades')).toBeTruthy();
     expect(getByText('Reiniciar Chat')).toBeTruthy();
-    expect(getByText('Propiedades Guardadas')).toBeTruthy();
+    expect(queryByText('Propiedades Guardadas')).toBeNull();
 
     const restartItem = getByText('Reiniciar Chat');
     fireEvent.press(restartItem);
 
-    expect(getByText('Buenos días, Don Carlos.')).toBeTruthy();
+    expect(getByText('Bienvenido a Hubik')).toBeTruthy();
   });
 
   it('records a voice note and renders the transcript followed by the search response', async () => {
@@ -618,7 +616,7 @@ describe('HomeScreen shared conversation', () => {
     fireEvent.changeText(utils.getByPlaceholderText('Escriba su consulta aquí...'), 'pisos en Madrid');
     fireEvent.press(utils.getByText('Enviar'));
 
-    await waitFor(() => expect(utils.getByTestId('shared-count').props.children).toBe(3));
+    await waitFor(() => expect(utils.getByTestId('shared-count').props.children).toBe(2));
   });
 
   it('resets the shared conversation from "Reiniciar Chat"', async () => {
@@ -635,7 +633,7 @@ describe('HomeScreen shared conversation', () => {
     fireEvent.press(utils.getByText('Reiniciar Chat'));
 
     await waitFor(() => expect(utils.queryByText('Respuesta desde otra pantalla')).toBeNull());
-    expect(utils.getByTestId('shared-count').props.children).toBe(1);
+    expect(utils.getByTestId('shared-count').props.children).toBe(0);
   });
 });
 
@@ -678,6 +676,47 @@ describe('HomeScreen newest message', () => {
     });
 
     expect(scrollSpy).toHaveBeenCalledWith({ animated: true });
+    scrollSpy.mockRestore();
+    jest.useRealTimers();
+  });
+
+  it('does not scroll the start screen out of view when the conversation is empty or reset', () => {
+    jest.useFakeTimers();
+    const scrollSpy = jest.spyOn(FlatList.prototype, 'scrollToEnd').mockImplementation(() => undefined);
+    const Controls = () => {
+      const { appendMessages, reset } = useConversation();
+      return (
+        <>
+          <Text
+            testID="add"
+            onPress={() => appendMessages({ id: 'm-1', sender: 'assistant', text: 'Hola', timestamp: 'Ahora' })}
+          >
+            add
+          </Text>
+          <Text testID="reset" onPress={reset}>
+            reset
+          </Text>
+        </>
+      );
+    };
+    const utils = render(
+      <ConversationProvider>
+        <HomeScreen />
+        <Controls />
+      </ConversationProvider>
+    );
+    fireEvent.press(utils.getByTestId('add'));
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+    scrollSpy.mockClear();
+
+    fireEvent.press(utils.getByTestId('reset'));
+    act(() => {
+      jest.advanceTimersByTime(200);
+    });
+
+    expect(scrollSpy).not.toHaveBeenCalled();
     scrollSpy.mockRestore();
     jest.useRealTimers();
   });

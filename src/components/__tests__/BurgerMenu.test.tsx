@@ -8,7 +8,7 @@ describe('BurgerMenu Component', () => {
     const handleClose = jest.fn();
     const handleSelect = jest.fn();
 
-    const { getByText, getByLabelText } = render(
+    const { getByText, queryByText, getByLabelText } = render(
       <BurgerMenu
         visible={true}
         onClose={handleClose}
@@ -20,9 +20,9 @@ describe('BurgerMenu Component', () => {
     expect(getByText('Buscar Propiedades')).toBeTruthy();
     expect(getByText('Registrar Vivienda')).toBeTruthy();
     expect(getByText('Reiniciar Chat')).toBeTruthy();
-    expect(getByText('Propiedades Guardadas')).toBeTruthy();
-    expect(getByText('Ajustes y Accesibilidad')).toBeTruthy();
-    expect(getByText('Ayuda y Soporte')).toBeTruthy();
+    expect(queryByText('Propiedades Guardadas')).toBeNull();
+    expect(queryByText('Ajustes y Accesibilidad')).toBeNull();
+    expect(queryByText('Ayuda y Soporte')).toBeNull();
 
     const closeBtn = getByLabelText('Cerrar menú lateral');
     expect(closeBtn).toBeTruthy();

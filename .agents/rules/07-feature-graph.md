@@ -139,4 +139,34 @@ graph TD
   RFC015 --> PreviewMode
   DraftReview -. "buildDraftPreviewProperty + preview=1 route param" .-> PreviewMode
   PhotoOrder -. "setPhotos accepts only a permutation of the current photos" .-> Hook
+
+  RFC016["RFC 016: Start screen with quick actions<br/>(replaces the welcome bubble; client only)"]
+  RFC014 --> RFC016
+  RFC011 --> RFC016
+  StartScreenUI["StartScreen + useStartScreen + lib/startActions<br/>(role-aware cards, fixed examples, empty-state of the home chat)"]
+
+  RFC016 --> StartScreenUI
+  StartScreenUI -. "the shared conversation now starts empty; empty = start screen" .-> SharedConvo
+  StartScreenUI -. "cards send through the home handleSend (search, /agregar-propiedad)" .-> Hook
+
+  RFC017["RFC 017: Slash command menu<br/>(client only)"]
+  RFC012 --> RFC017
+  RFC016 --> RFC017
+  SlashMenu["resolveSlashMenu + SlashCommandMenu + constants/slashCommands<br/>(registry: one entry per command, role-gated)"]
+
+  RFC017 --> SlashMenu
+  SlashMenu -. "a tapped row calls the home handleSend, which still enforces who may register" .-> Hook
+
+  RFC018["RFC 018: Search clients to add as agents<br/>(migration 20260922_client_search, applied via MCP)"]
+  RFC013 --> RFC018
+  RFC011 --> RFC018
+  ClientSearchDB["search_agent_candidates + add_agent_by_id + client_search_log<br/>(owner only, masked email, 5 rows, 20 searches/min)"]
+  ClientSearchUI["useClientSearch + ClientSearchResults + AgentsSection selection"]
+
+  RFC018 --> ClientSearchDB
+  RFC018 --> ClientSearchUI
+  ClientSearchDB -. "narrow owner-only exception to private client profiles (RFC 011)" .-> Tenancy
+  ClientSearchDB -. "same outcomes as add_agent; removes a pending invite of the same agency" .-> Invites
+  ClientSearchUI -. "extends the Agentes email field; useAgencyAgents gains addAgentById" .-> AgentsUI
 ```
+

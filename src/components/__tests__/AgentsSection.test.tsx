@@ -6,6 +6,8 @@ import * as authApi from '../../services/authApi';
 
 jest.mock('../../services/authApi', () => ({
   addAgent: jest.fn(),
+  addAgentById: jest.fn(),
+  searchAgentCandidates: jest.fn(),
   cancelAgentInvite: jest.fn(),
   fetchAgencyAgents: jest.fn(),
   fetchAgentInvites: jest.fn(),
@@ -29,6 +31,7 @@ describe('AgentsSection', () => {
     jest.clearAllMocks();
     api.fetchAgencyAgents.mockResolvedValue([]);
     api.fetchAgentInvites.mockResolvedValue([]);
+    api.searchAgentCandidates.mockResolvedValue([]);
   });
 
   it('explains what it does and offers an email field and an add button', async () => {
@@ -170,3 +173,158 @@ describe('AgentsSection', () => {
     await waitFor(() => expect(utils.queryByText('No pudimos cargar sus agentes.')).toBeNull());
   });
 });
+
+describe('AgentsSection client search', () => {
+  const ANA = { userId: 'u1', displayName: 'Ana García', maskedEmail: 'a***@gmail.com' };
+  const ANABEL = { userId: 'u2', displayName: 'Anabel Ruiz', maskedEmail: 'a***@correo.com' };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.useFakeTimers();
+    api.fetchAgencyAgents.mockResolvedValue([]);
+    api.fetchAgentInvites.mockResolvedValue([]);
+    api.searchAgentCandidates.mockResolvedValue([ANA, ANABEL]);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  const pause = async () => {
+    await act(async () => {
+      jest.advanceTimersByTime(300);
+    });
+  };
+
+  const setup = async () => {
+    const utils = render(<Harness />);
+    await act(async () => undefined);
+    await utils.findByLabelText('Correo del agente');
+    return utils;
+  };
+
+  it('does not search for one or two characters', async () => {
+    const utils = await setup();
+
+    typeEmail(utils, 'an');
+    await pause();
+
+    expect(api.searchAgentCandidates).not.toHaveBeenCalled();
+    expect(utils.queryByText('Buscando…')).toBeNull();
+  });
+
+  it('shows matching clients under the field after the typing pauses', async () => {
+    const utils = await setup();
+
+    typeEmail(utils, 'ana');
+    expect(utils.getByText('Buscando…')).toBeTruthy();
+    await pause();
+
+    expect(api.searchAgentCandidates).toHaveBeenCalledWith('ana');
+    expect(utils.getByText('Ana García')).toBeTruthy();
+    expect(utils.getByText('a***@gmail.com')).toBeTruthy();
+    expect(utils.getByText('Anabel Ruiz')).toBeTruthy();
+  });
+
+  it('shows the picked person in place of the field, and adds them by id', async () => {
+    api.addAgentById.mockResolvedValue('agent_added');
+    const utils = await setup();
+    typeEmail(utils, 'ana');
+    await pause();
+
+    fireEvent.press(utils.getByLabelText('Elegir a Ana García, a***@gmail.com'));
+
+    expect(utils.getByLabelText('Ana García, a***@gmail.com, elegida')).toBeTruthy();
+    expect(utils.queryByLabelText('Correo del agente')).toBeNull();
+    expect(utils.queryByText('Anabel Ruiz')).toBeNull();
+
+    await act(async () => {
+      fireEvent.press(utils.getByLabelText('Agregar'));
+    });
+
+    expect(api.addAgentById).toHaveBeenCalledWith('u1');
+    expect(api.addAgent).not.toHaveBeenCalled();
+    expect(utils.getByText('Listo. Esta persona ya es agente de su inmobiliaria.')).toBeTruthy();
+    expect(utils.getByLabelText('Correo del agente').props.value).toBe('');
+    expect(utils.queryByLabelText('Ana García, a***@gmail.com, elegida')).toBeNull();
+  });
+
+  it('lets the owner change the pick and keeps what they had typed', async () => {
+    const utils = await setup();
+    typeEmail(utils, 'ana');
+    await pause();
+    fireEvent.press(utils.getByLabelText('Elegir a Ana García, a***@gmail.com'));
+
+    fireEvent.press(utils.getByLabelText('Elegir a otra persona'));
+    await pause();
+
+    expect(utils.getByLabelText('Correo del agente').props.value).toBe('ana');
+    expect(utils.getByText('Anabel Ruiz')).toBeTruthy();
+    expect(utils.queryByLabelText('Ana García, a***@gmail.com, elegida')).toBeNull();
+  });
+
+  it('shows the neutral message and drops the pick when the person is no longer available', async () => {
+    api.addAgentById.mockResolvedValue('unavailable');
+    const utils = await setup();
+    typeEmail(utils, 'ana');
+    await pause();
+    fireEvent.press(utils.getByLabelText('Elegir a Ana García, a***@gmail.com'));
+
+    await act(async () => {
+      fireEvent.press(utils.getByLabelText('Agregar'));
+    });
+
+    expect(utils.getByText('Este correo no se puede agregar.')).toBeTruthy();
+    expect(utils.queryByLabelText('Ana García, a***@gmail.com, elegida')).toBeNull();
+  });
+
+  it('keeps the pick when the call fails, so the owner can try again', async () => {
+    api.addAgentById.mockRejectedValue(new Error('offline'));
+    const utils = await setup();
+    typeEmail(utils, 'ana');
+    await pause();
+    fireEvent.press(utils.getByLabelText('Elegir a Ana García, a***@gmail.com'));
+
+    await act(async () => {
+      fireEvent.press(utils.getByLabelText('Agregar'));
+    });
+
+    expect(utils.getByText('No pudimos completar la acción. Inténtelo de nuevo.')).toBeTruthy();
+    expect(utils.getByLabelText('Ana García, a***@gmail.com, elegida')).toBeTruthy();
+  });
+
+  it('still adds by full email when nothing was picked', async () => {
+    api.addAgent.mockResolvedValue('invited');
+    const utils = await setup();
+
+    typeEmail(utils, 'luis@correo.com');
+    await act(async () => {
+      fireEvent.press(utils.getByLabelText('Agregar'));
+    });
+
+    expect(api.addAgent).toHaveBeenCalledWith('luis@correo.com');
+    expect(api.addAgentById).not.toHaveBeenCalled();
+  });
+
+  it('suggests inviting by email when nobody matches', async () => {
+    api.searchAgentCandidates.mockResolvedValue([]);
+    const utils = await setup();
+
+    typeEmail(utils, 'zzz');
+    await pause();
+
+    expect(utils.getByText('Sin coincidencias. Puede invitar con el correo completo.')).toBeTruthy();
+  });
+
+  it('asks the owner to wait when the search is rate limited', async () => {
+    const { RateLimitedError } = jest.requireActual('../../lib/clientSearch');
+    api.searchAgentCandidates.mockRejectedValue(new RateLimitedError());
+    const utils = await setup();
+
+    typeEmail(utils, 'ana');
+    await pause();
+
+    expect(utils.getByText('Demasiadas búsquedas. Espere un momento e inténtelo de nuevo.')).toBeTruthy();
+  });
+});
+

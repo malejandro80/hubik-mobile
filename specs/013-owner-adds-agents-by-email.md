@@ -200,3 +200,9 @@ and functions; the trigger change is compatible). Ship the client afterwards.
 - **Client**: `agency.tsx` is now one `FlatList` whose header is `AgentsSection` and whose empty component carries the loading, error and empty states, so the team and the listings scroll together and the section stays usable when the listings fail. The agents list itself is a non-scrolling `FlatList` with a `keyExtractor`.
 - **Observation**: the advisors also report `auth_leaked_password_protection` disabled, which means email and password sign-in is enabled on the project. The design is safe for that (an email sign-up only matches an invite after it confirms the address), but if password sign-in is not used it is worth disabling the Email provider.
 - **Still open**: an end-to-end run with a second real Google account that has never signed in (the new-user path in production), and rate limiting per owner.
+
+---
+
+## 9. Amendment (2026-09-21, RFC 018)
+Owners can now also find a registered client by name or email start and add them by picking them (masked email, rate limited, `add_agent_by_id`). Adding by full email is unchanged. See `specs/018-search-clients-to-add-as-agents.md`.
+

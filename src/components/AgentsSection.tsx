@@ -1,12 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { AgentsFeedback, useAgencyAgents } from '../hooks/useAgencyAgents';
+import { useClientSearch } from '../hooks/useClientSearch';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { colors, hitSlop } from '../theme/colors';
-import { AddAgentOutcome, AgencyAgent, AgentInvite } from '../types/auth';
+import { AddAgentOutcome, AgencyAgent, AgentInvite, ClientCandidate } from '../types/auth';
 import { getAgentsSectionStyles } from './AgentsSection.styles';
 import { Button } from './Button';
+import { ClientSearchResults } from './ClientSearchResults';
 
 export interface AgentsSectionProps {
   agents: ReturnType<typeof useAgencyAgents>;
@@ -26,8 +28,10 @@ export const AgentsSection: React.FC<AgentsSectionProps> = ({ agents }) => {
   const copy = auth.agents;
   const colorScheme = useColorScheme();
   const styles = useMemo(() => getAgentsSectionStyles(colors[colorScheme]), [colorScheme]);
-  const { state, adding, feedback, addByEmail, cancelInvite, retry } = agents;
+  const { state, adding, feedback, addByEmail, addAgentById, cancelInvite, retry } = agents;
   const [email, setEmail] = useState('');
+  const [selected, setSelected] = useState<ClientCandidate | null>(null);
+  const search = useClientSearch(selected ? '' : email);
 
   const rows = useMemo<Row[]>(
     () => [
@@ -37,8 +41,18 @@ export const AgentsSection: React.FC<AgentsSectionProps> = ({ agents }) => {
     [state.agents, state.invites]
   );
 
+  const selectedName = selected?.displayName?.trim() || copy.search.unnamedClient;
+
   const handleAdd = async () => {
-    if (await addByEmail(email)) setEmail('');
+    if (!selected) {
+      if (await addByEmail(email)) setEmail('');
+      return;
+    }
+
+    const outcome = await addAgentById(selected.userId);
+    if (outcome === 'error') return;
+    setSelected(null);
+    if (outcome === 'agent_added') setEmail('');
   };
 
   const getFeedbackText = (value: AgentsFeedback): string => {
@@ -85,20 +99,43 @@ export const AgentsSection: React.FC<AgentsSectionProps> = ({ agents }) => {
       </Text>
       <Text style={styles.subtitle}>{copy.sectionSubtitle}</Text>
 
-      <Text style={styles.fieldLabel}>{copy.emailLabel}</Text>
-      <TextInput
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        placeholder={copy.emailPlaceholder}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        autoCorrect={false}
-        returnKeyType="done"
-        onSubmitEditing={handleAdd}
-        editable={!adding}
-        accessibilityLabel={copy.emailLabel}
-      />
+      {selected ? (
+        <View style={styles.selected} accessible accessibilityLabel={copy.search.selectedA11y(selectedName, selected.maskedEmail)}>
+          <View style={styles.selectedText}>
+            <Text style={styles.selectedName}>{selectedName}</Text>
+            <Text style={styles.selectedEmail}>{selected.maskedEmail}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.changeButton}
+            onPress={() => setSelected(null)}
+            disabled={adding}
+            accessibilityRole="button"
+            accessibilityLabel={copy.search.changeA11y}
+            hitSlop={hitSlop.compact}
+          >
+            <Text style={styles.changeText}>{copy.search.change}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          <Text style={styles.fieldLabel}>{copy.emailLabel}</Text>
+          <TextInput
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            placeholder={copy.emailPlaceholder}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="done"
+            onSubmitEditing={handleAdd}
+            editable={!adding}
+            accessibilityLabel={copy.emailLabel}
+          />
+          <Text style={styles.hint}>{copy.search.hint}</Text>
+          <ClientSearchResults status={search.status} results={search.results} onPick={setSelected} />
+        </>
+      )}
       <Button
         testID="agents-add"
         title={adding ? copy.addingButton : copy.addButton}

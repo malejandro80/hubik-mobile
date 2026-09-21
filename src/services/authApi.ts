@@ -5,10 +5,18 @@ import { AUTH_CALLBACK_PATH, extractAuthCode } from '../lib/authCallback';
 import { supabase } from '../lib/supabase';
 import { isAddAgentOutcome, isValidInviteEmail, normalizeInviteEmail } from '../lib/agentInvites';
 import {
+  isRateLimitedError,
+  normalizeClientQuery,
+  RateLimitedError,
+  shouldSearchClients,
+  toClientCandidates,
+} from '../lib/clientSearch';
+import {
   AddAgentOutcome,
   AgencyAgent,
   AgentInvite,
   AuthProviderName,
+  ClientCandidate,
   Profile,
   Role,
   SignInOutcome,
@@ -107,6 +115,21 @@ export async function addAgent(email: string): Promise<AddAgentOutcome> {
   if (!isValidInviteEmail(email)) throw new Error(labels.auth.agents.errors.invalid_email);
 
   const { data, error } = await supabase.rpc('add_agent', { p_email: normalizeInviteEmail(email) });
+  if (error) throw error;
+  if (!isAddAgentOutcome(data)) throw new Error(labels.auth.agents.errors.generic);
+  return data;
+}
+
+export async function searchAgentCandidates(query: string): Promise<ClientCandidate[]> {
+  if (!shouldSearchClients(query)) return [];
+
+  const { data, error } = await supabase.rpc('search_agent_candidates', { p_query: normalizeClientQuery(query) });
+  if (error) throw isRateLimitedError(error) ? new RateLimitedError() : error;
+  return toClientCandidates(data);
+}
+
+export async function addAgentById(userId: string): Promise<AddAgentOutcome> {
+  const { data, error } = await supabase.rpc('add_agent_by_id', { p_user_id: userId });
   if (error) throw error;
   if (!isAddAgentOutcome(data)) throw new Error(labels.auth.agents.errors.generic);
   return data;

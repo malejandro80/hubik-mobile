@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { isValidInviteEmail } from '../lib/agentInvites';
-import { addAgent, cancelAgentInvite, fetchAgencyAgents, fetchAgentInvites } from '../services/authApi';
+import { addAgent, addAgentById as addAgentByIdRequest, cancelAgentInvite, fetchAgencyAgents, fetchAgentInvites } from '../services/authApi';
 import { AddAgentOutcome, AgencyAgent, AgentInvite } from '../types/auth';
 
 export type AgentsFeedback = AddAgentOutcome | 'invalid_email' | 'error' | 'cancel_error';
@@ -69,6 +69,25 @@ export function useAgencyAgents(agencyId: string | null) {
     [reload]
   );
 
+  const addAgentById = useCallback(
+    async (userId: string): Promise<AgentsFeedback> => {
+      setFeedback(null);
+      setAdding(true);
+      try {
+        const outcome = await addAgentByIdRequest(userId);
+        setFeedback(outcome);
+        if (SUCCESS_OUTCOMES.includes(outcome)) reload();
+        return outcome;
+      } catch {
+        setFeedback('error');
+        return 'error';
+      } finally {
+        setAdding(false);
+      }
+    },
+    [reload]
+  );
+
   const addByEmail = useCallback(
     async (raw: string): Promise<boolean> => {
       const result = await addAgentByEmail(raw);
@@ -92,5 +111,5 @@ export function useAgencyAgents(agencyId: string | null) {
     [reload]
   );
 
-  return { state, adding, feedback, addByEmail, addAgentByEmail, cancelInvite, retry };
+  return { state, adding, feedback, addByEmail, addAgentByEmail, addAgentById, cancelInvite, retry };
 }

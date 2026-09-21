@@ -1492,3 +1492,49 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Cause**: `buildPropertyRouteParams` guarded coordinates with `!== undefined`, but properties from the database carry `null` for `latitude`/`longitude` when no pin was set, so `null.toString()` threw on tapping a result card.
 - **Fix**: `typeof value === 'number'` guards in `src/lib/chatRegistration.ts` (zero still passes). Three tests added in `chatRegistration.test.ts` (null, missing, real values including 0); `check-all` green, 907 tests.
 - **Residual risk**: the same helper still calls `.toString()` on `price`, `bedrooms`, `bathrooms` and `square_meters`; fine while those columns are NOT NULL, worth confirming against the schema.
+
+---
+
+### [2026-09-21] Session: RFC 016 - Start screen with quick actions
+- **Status**: Implemented and verified locally; NOT committed, NOT pushed. Client only.
+- **Workflow**: scope skill (2 rounds; VS Code style cards, role-aware, tap sends immediately, greeting with the user's name, fixed examples, empty until first message, mic hint line) -> RFC 016 (approved as written) -> TDD.
+- **Built**: `src/lib/startActions.ts`, `StartScreen` (+styles), `useStartScreen`, `labels.startScreen`, `src/constants/startScreen.ts`; the shared conversation starts as `[]` and the home chat renders the start screen as its empty state. Removed `buildInitialMessages` / `INITIAL_MESSAGES` and the welcome labels.
+- **Verified on the iOS simulator as the `houseapp` agent**: greeting "Hola, houseapp", cards Buscar + Publicar, four examples, mic line; tapping Buscar ran a live search and the chat took over with real listings; "Ver detalle" on a result with no pin opened without crashing (confirms the null-coordinate fix); "Publicar una propiedad" started the composer; "Reiniciar Chat" brought the start screen back.
+- **Bug found and fixed**: the start screen returned scrolled down after a reset (scroll-to-end effect ran on an empty list); now guarded, with a test.
+- **Verification**: `scripts/verify.sh check-all` passed (113 suites); `jest --testPathIgnorePatterns /.kilo/` 637 tests, three identical runs (was 611 after the coordinate fix); typecheck clean; lint 0 errors (5 pre-existing warnings); no comments in new code.
+- **Requirement change**: welcome-pinned tests rewritten or removed (list in RFC 016 section 8); mention in the commit message.
+- **Not verified on a device**: signed-out and owner variants (tests only), Android, dark mode.
+- **Next Actions**: commit the pending work (RFCs 012-016 all uncommitted); Android run; RFC 014 slice 2.
+
+
+---
+
+### [2026-09-21] Cleanup: removed placeholder items from the side menu
+- **What**: removed "Propiedades Guardadas", "Ajustes y Accesibilidad" and "Ayuda y Soporte". They only popped an alert ("no favorites yet", etc.); no favorites, settings or help feature exists behind them. Removed from `BurgerMenu.items.ts` (keys and items), the alert handlers in `useAppMenu.ts`, and their labels. Menu now: Buscar Propiedades, Registrar Vivienda (agents/owners), Reiniciar Chat, and the account items (sign in / create agency / Mi inmobiliaria / sign out).
+- **Requirement change (say so in the commit message)**: tests that expected those items or their alerts were rewritten to assert they are absent (`BurgerMenu.items`, `BurgerMenu`, `useAppMenu`, home menu test).
+- **Verification**: `scripts/verify.sh check-all` passed (113 suites); `jest --testPathIgnorePatterns /.kilo/` 641 tests, three identical runs; typecheck clean; lint 0 errors (5 pre-existing warnings). Checked on the iOS simulator as an agent.
+- **Deferred**: bring these back only when there is something behind them (favorites, real settings, help/support contact).
+
+---
+
+### [2026-09-21] Session: RFC 017 - Slash command menu (slice A of "autocomplete")
+- **Status**: Implemented and verified locally; NOT committed, NOT pushed. Client only.
+- **Workflow**: scope skill (2 rounds; only the existing command, list above the input that filters and runs on tap, note for users with no commands; client search scoped as slice B / RFC 018) -> RFC 017 -> TDD.
+- **Built**: `src/lib/slashCommands.ts` (pure resolver), `src/constants/slashCommands.ts` (registry), `SlashCommandMenu` (+styles), `labels.slashMenu`, wiring in `src/app/index.tsx`.
+- **Verified on the iOS simulator as an agent**: "/" shows "/agregar-propiedad - Publicar una propiedad" above the input; tapping it starts the composer and clears the input.
+- **Verification**: `scripts/verify.sh check-all` passed (116 suites); jest 660 tests, three identical runs; typecheck clean; lint 0 errors (5 pre-existing warnings); no comments in new code.
+- **Not verified on a device**: the note for clients / signed-out users (tests only); Android.
+
+---
+
+### [2026-09-21] Session: RFC 018 - Search clients to add as agents (slice B of "autocomplete")
+- **Status**: Server side APPLIED to the live project; client implemented and verified locally; NOT committed, NOT pushed.
+- **Workflow**: scope skill (privacy round: registered clients only, name or email start, masked email, 3+ characters, 5 results, per-owner rate limit, pick then Agregar) -> RFC 018 -> TDD; Supabase changelog scanned (nothing breaking relevant).
+- **Database (applied via MCP as `client_search`)**: `client_search_log` (RLS, no policies, no client access, no query text), `search_agent_candidates(text)`, `add_agent_by_id(uuid)`; all `SECURITY DEFINER`, `search_path = ''`, `EXECUTE` revoked from `PUBLIC, anon`. Local file `supabase/migrations/20260922_client_search.sql`.
+- **Database tests**: `supabase/tests/client_search.test.sql`, 36 checks, all PASS (35 in the full run; check 15 re-run alone after fixing a loop-variable bug in the test itself); no test data remained. Advisors: only the expected SECURITY DEFINER warnings and the intentional RLS-without-policies INFO.
+- **App**: `authApi.searchAgentCandidates` / `addAgentById`, `lib/clientSearch.ts`, `constants/clientSearch.ts`, `useClientSearch`, `useAgencyAgents.addAgentById`, `ClientSearchResults`, `AgentsSection` (selection with Cambiar), labels `auth.agents.search`.
+- **Verification**: `scripts/verify.sh check-all` passed (119 suites); jest 703 tests, three identical runs; typecheck clean; lint 0 errors (5 pre-existing warnings); no comments in new code.
+- **Not verified on a device**: the whole flow. It needs an owner session (Google sign-in, which I must not do) and at least one `client` account; production currently has no client accounts.
+- **Accepted limits**: any owner can find any client by name or email start (no opt-out); an owner can probe slowly within 20/min; masked email only.
+- **Next Actions**: sign in as the owner with a second (client) Google account to run the RFC 018 stories; commit the pending work (RFCs 012-018 are all uncommitted); consider client opt-out and chat-bar suggestions.
+

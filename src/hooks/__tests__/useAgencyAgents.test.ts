@@ -4,6 +4,7 @@ import * as authApi from '../../services/authApi';
 
 jest.mock('../../services/authApi', () => ({
   addAgent: jest.fn(),
+  addAgentById: jest.fn(),
   cancelAgentInvite: jest.fn(),
   fetchAgencyAgents: jest.fn(),
   fetchAgentInvites: jest.fn(),
@@ -219,6 +220,68 @@ describe('useAgencyAgents', () => {
 
       expect(first).toBe(true);
       expect(second).toBe(false);
+    });
+  });
+
+  describe('adding a person picked from the search', () => {
+    it('adds by id, reports the outcome and reloads the list on success', async () => {
+      api.addAgentById.mockResolvedValue('agent_added');
+      const { result } = await renderAgents();
+      api.fetchAgencyAgents.mockClear();
+
+      let outcome: string | undefined;
+      await act(async () => {
+        outcome = await result.current.addAgentById('u9');
+      });
+
+      expect(outcome).toBe('agent_added');
+      expect(api.addAgentById).toHaveBeenCalledWith('u9');
+      expect(result.current.feedback).toBe('agent_added');
+      await waitFor(() => expect(api.fetchAgencyAgents).toHaveBeenCalledTimes(1));
+    });
+
+    it.each(['already_listed', 'unavailable'] as const)('after "%s" it shows the message and does not reload', async (value) => {
+      api.addAgentById.mockResolvedValue(value);
+      const { result } = await renderAgents();
+      api.fetchAgencyAgents.mockClear();
+
+      await act(async () => {
+        await result.current.addAgentById('u9');
+      });
+
+      expect(result.current.feedback).toBe(value);
+      expect(api.fetchAgencyAgents).not.toHaveBeenCalled();
+    });
+
+    it('shows a generic error when the call fails', async () => {
+      api.addAgentById.mockRejectedValue(new Error('offline'));
+      const { result } = await renderAgents();
+
+      let outcome: string | undefined;
+      await act(async () => {
+        outcome = await result.current.addAgentById('u9');
+      });
+
+      expect(outcome).toBe('error');
+      expect(result.current.feedback).toBe('error');
+    });
+
+    it('marks the request as in progress while it runs', async () => {
+      let resolveAdd!: (value: 'agent_added') => void;
+      api.addAgentById.mockReturnValue(new Promise((resolve) => (resolveAdd = resolve)));
+      const { result } = await renderAgents();
+
+      let pending!: Promise<unknown>;
+      act(() => {
+        pending = result.current.addAgentById('u9');
+      });
+      expect(result.current.adding).toBe(true);
+
+      await act(async () => {
+        resolveAdd('agent_added');
+        await pending;
+      });
+      expect(result.current.adding).toBe(false);
     });
   });
 });

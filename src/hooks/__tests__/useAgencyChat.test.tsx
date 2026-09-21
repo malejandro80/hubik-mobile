@@ -29,6 +29,7 @@ const buildAgents = (state: AgentsState = readyState) => ({
   feedback: null,
   addByEmail: jest.fn(),
   addAgentByEmail: jest.fn(),
+  addAgentById: jest.fn(),
   cancelInvite: jest.fn(),
   retry: jest.fn(),
 });

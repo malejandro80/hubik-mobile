@@ -183,3 +183,9 @@ Client only. No server change, no migration, no Edge Function.
 - **Separate bug fixed the same day**: the menu button did nothing on "Mi inmobiliaria" and the property screen had a stale copy of the menu; all three screens now use `useAppMenu`.
 - **Tooling note**: Metro started with `CI=1` does not watch files, so it serves stale code; run it without `CI=1`.
 - **Verified live**: RFC 012's composer on the iOS simulator as the `houseapp` agent (panel, live fill, cadastral not asked while other fields are missing, on the deployed `property-intake` v19). The owner-only chat on "Mi inmobiliaria" is covered by tests but still needs a device run signed in as the owner.
+
+---
+
+## 9. Amendment (2026-09-21, RFC 016)
+The shared conversation now starts empty instead of with a welcome message; an empty conversation renders the home start screen. See `specs/016-start-screen-quick-actions.md`.
+

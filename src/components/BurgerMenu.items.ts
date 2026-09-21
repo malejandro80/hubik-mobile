@@ -6,9 +6,6 @@ export type BurgerMenuItemKey =
   | 'search'
   | 'register'
   | 'new_chat'
-  | 'saved'
-  | 'settings'
-  | 'help'
   | 'sign_in'
   | 'sign_out'
   | 'create_agency'
@@ -25,9 +22,6 @@ export const MENU_ITEMS: BurgerMenuItem[] = [
   { key: 'search', title: labels.burgerMenu.menuItems.search, icon: 'search-outline' },
   { key: 'register', title: labels.burgerMenu.menuItems.register, icon: 'add-circle-outline', badge: labels.burgerMenu.menuItems.badgeNew },
   { key: 'new_chat', title: labels.burgerMenu.menuItems.newChat, icon: 'refresh-outline' },
-  { key: 'saved', title: labels.burgerMenu.menuItems.saved, icon: 'bookmark-outline' },
-  { key: 'settings', title: labels.burgerMenu.menuItems.settings, icon: 'settings-outline' },
-  { key: 'help', title: labels.burgerMenu.menuItems.help, icon: 'help-circle-outline' },
 ];
 
 const ACCOUNT_ITEMS: Record<'sign_in' | 'sign_out' | 'create_agency' | 'my_agency', BurgerMenuItem> = {

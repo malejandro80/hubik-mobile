@@ -34,7 +34,7 @@ describe('useScreenChat', () => {
       await result.current.chat.send('ping hola');
     });
 
-    expect(texts(result.current.convo.messages).slice(1)).toEqual(['user: ping hola', 'assistant: pong hola']);
+    expect(texts(result.current.convo.messages)).toEqual(['user: ping hola', 'assistant: pong hola']);
     expect(result.current.chat.lastReply).toBe('pong hola');
   });
 
@@ -59,7 +59,7 @@ describe('useScreenChat', () => {
 
     expect(execute).not.toHaveBeenCalled();
     expect(result.current.chat.lastReply).toBe('Puede decir: ping algo');
-    expect(texts(result.current.convo.messages).slice(1)).toEqual(['user: hola', 'assistant: Puede decir: ping algo']);
+    expect(texts(result.current.convo.messages)).toEqual(['user: hola', 'assistant: Puede decir: ping algo']);
   });
 
   it('turns a failure into a reply and stops loading', async () => {
@@ -81,7 +81,7 @@ describe('useScreenChat', () => {
       await result.current.chat.send('   ');
     });
 
-    expect(result.current.convo.messages).toHaveLength(1);
+    expect(result.current.convo.messages).toHaveLength(0);
     expect(parse).not.toHaveBeenCalled();
   });
 

@@ -10,7 +10,19 @@ describe('getMenuItems', () => {
     expect(keys).toContain('sign_in');
     expect(keys).not.toContain('register');
     expect(keys).not.toContain('sign_out');
-    expect(keys).toEqual(expect.arrayContaining(['search', 'new_chat', 'saved', 'settings', 'help']));
+    expect(keys).toEqual(expect.arrayContaining(['search', 'new_chat']));
+  });
+
+  it.each([
+    ['signedOut', null],
+    ['signedIn', 'client'],
+    ['signedIn', 'agent'],
+    ['signedIn', 'owner'],
+  ] as const)('never lists the unbuilt saved, settings and help items (%s, %s)', (status, role) => {
+    const keys = keysFor(role, status);
+    expect(keys).not.toContain('saved');
+    expect(keys).not.toContain('settings');
+    expect(keys).not.toContain('help');
   });
 
   it('shows neither sign in nor sign out while loading', () => {

@@ -27,11 +27,10 @@ describe('ConversationProvider', () => {
     mockStatus = 'signedIn';
   });
 
-  it('starts with the welcome message', () => {
+  it('starts empty so the start screen can show', () => {
     const { result } = renderShared();
 
-    expect(result.current.first.messages).toHaveLength(1);
-    expect(result.current.first.messages[0].id).toBe('welcome-1');
+    expect(result.current.first.messages).toEqual([]);
   });
 
   it('shares the same messages with every consumer', () => {
@@ -39,7 +38,7 @@ describe('ConversationProvider', () => {
 
     act(() => result.current.first.appendMessages(message('m1', 'hola')));
 
-    expect(result.current.second.messages.map((item) => item.id)).toEqual(['welcome-1', 'm1']);
+    expect(result.current.second.messages.map((item) => item.id)).toEqual(['m1']);
   });
 
   it('keeps every message when several are appended in a row', () => {
@@ -50,7 +49,7 @@ describe('ConversationProvider', () => {
       result.current.second.appendMessages(message('m2', 'dos'), message('m3', 'tres'));
     });
 
-    expect(result.current.first.messages.map((item) => item.id)).toEqual(['welcome-1', 'm1', 'm2', 'm3']);
+    expect(result.current.first.messages.map((item) => item.id)).toEqual(['m1', 'm2', 'm3']);
   });
 
   it('replaces the whole history with setMessages', () => {
@@ -61,13 +60,13 @@ describe('ConversationProvider', () => {
     expect(result.current.second.messages.map((item) => item.id)).toEqual(['only']);
   });
 
-  it('goes back to the welcome message on reset', () => {
+  it('goes back to empty on reset', () => {
     const { result } = renderShared();
     act(() => result.current.first.appendMessages(message('m1', 'hola')));
 
     act(() => result.current.first.reset());
 
-    expect(result.current.second.messages.map((item) => item.id)).toEqual(['welcome-1']);
+    expect(result.current.second.messages.map((item) => item.id)).toEqual([]);
   });
 
   it('clears the conversation when the user signs out', () => {
@@ -77,7 +76,7 @@ describe('ConversationProvider', () => {
     mockStatus = 'signedOut';
     rerender({});
 
-    expect(result.current.first.messages.map((item) => item.id)).toEqual(['welcome-1']);
+    expect(result.current.first.messages.map((item) => item.id)).toEqual([]);
   });
 
   it('keeps an anonymous conversation while signed out and while the session loads', () => {
@@ -90,7 +89,7 @@ describe('ConversationProvider', () => {
     mockStatus = 'signedOut';
     rerender({});
 
-    expect(result.current.first.messages.map((item) => item.id)).toEqual(['welcome-1', 'm1']);
+    expect(result.current.first.messages.map((item) => item.id)).toEqual(['m1']);
   });
 });
 
@@ -100,9 +99,9 @@ describe('useConversation without a provider', () => {
 
     act(() => result.current.appendMessages(message('m1', 'hola')));
 
-    expect(result.current.messages.map((item) => item.id)).toEqual(['welcome-1', 'm1']);
+    expect(result.current.messages.map((item) => item.id)).toEqual(['m1']);
 
     act(() => result.current.reset());
-    expect(result.current.messages.map((item) => item.id)).toEqual(['welcome-1']);
+    expect(result.current.messages.map((item) => item.id)).toEqual([]);
   });
 });

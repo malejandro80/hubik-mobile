@@ -29,9 +29,6 @@ export function useAppMenu(overrides: MenuActionOverrides = {}) {
         },
         create_agency: () => router.push('/create-agency'),
         my_agency: () => router.push('/agency'),
-        saved: () => Alert.alert(labels.burgerMenu.savedDraftsTitle, labels.burgerMenu.savedDraftsMessage),
-        settings: () => Alert.alert(labels.burgerMenu.settingsTitle, labels.burgerMenu.settingsMessage),
-        help: () => Alert.alert(labels.burgerMenu.helpTitle, labels.burgerMenu.helpMessage),
         ...overrides,
       };
       actions[key]?.();

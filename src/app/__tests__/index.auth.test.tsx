@@ -145,7 +145,7 @@ describe('HomeScreen account menu', () => {
     openMenu(utils);
 
     expect(utils.queryByText('Registrar Vivienda')).toBeNull();
-    expect(utils.getByText('Iniciar sesión')).toBeTruthy();
+    expect(utils.getByLabelText('Iniciar sesión')).toBeTruthy();
   });
 
   it('opens the sign-in screen from the menu', async () => {
@@ -153,7 +153,7 @@ describe('HomeScreen account menu', () => {
     const utils = render(<HomeScreen />);
     openMenu(utils);
 
-    fireEvent.press(utils.getByText('Iniciar sesión'));
+    fireEvent.press(utils.getByLabelText('Iniciar sesión'));
 
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/sign-in'));
   });
@@ -185,7 +185,7 @@ describe('HomeScreen account menu', () => {
     const utils = render(<HomeScreen />);
     openMenu(utils);
 
-    fireEvent.press(utils.getByText('Mi inmobiliaria'));
+    fireEvent.press(utils.getByLabelText('Mi inmobiliaria'));
 
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/agency'));
   });

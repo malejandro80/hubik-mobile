@@ -38,6 +38,12 @@ export interface AgencyAgent {
   displayName: string | null;
 }
 
+export interface ClientCandidate {
+  userId: string;
+  displayName: string | null;
+  maskedEmail: string;
+}
+
 export interface AgentInvite {
   id: string;
   email: string;

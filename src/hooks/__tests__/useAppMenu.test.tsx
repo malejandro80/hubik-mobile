@@ -112,16 +112,13 @@ describe('useAppMenu', () => {
     expect(Alert.alert).toHaveBeenCalledWith('No se pudo cerrar la sesión', 'Compruebe su conexión e inténtelo de nuevo.');
   });
 
-  it.each([
-    ['saved', 'Propiedades Guardadas'],
-    ['settings', 'Ajustes'],
-    ['help', 'Ayuda y Soporte'],
-  ])('shows an informational alert for "%s"', (key, title) => {
+  it.each(['saved', 'settings', 'help'])('does nothing for the removed placeholder item "%s"', (key) => {
     const { result } = renderHook(() => useAppMenu());
 
     act(() => result.current.menuProps.onSelectMenuItem(key));
 
-    expect(Alert.alert).toHaveBeenCalledWith(title, expect.any(String));
+    expect(Alert.alert).not.toHaveBeenCalled();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 
   it('lets a screen replace the default action for an item', () => {

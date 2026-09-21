@@ -2,12 +2,14 @@ import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../lib/supabase';
 import {
   addAgent,
+  addAgentById,
   cancelAgentInvite,
   createAgency,
   fetchAgencyAgents,
   fetchAgencyListings,
   fetchAgentInvites,
   fetchProfile,
+  searchAgentCandidates,
   signInWithProvider,
   signOut,
 } from '../authApi';
@@ -244,6 +246,88 @@ describe('authApi.addAgent', () => {
     (supabase.rpc as jest.Mock).mockResolvedValue({ data: 'something_else', error: null });
 
     await expect(addAgent('ana@correo.com')).rejects.toThrow();
+  });
+});
+
+describe('authApi.searchAgentCandidates', () => {
+  beforeEach(() => {
+    (supabase.rpc as jest.Mock).mockReset();
+  });
+
+  it('calls search_agent_candidates with the trimmed text and maps the rows', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({
+      data: [
+        { user_id: 'u1', display_name: 'Ana García', masked_email: 'a***@gmail.com' },
+        { user_id: 'u2', display_name: null, masked_email: 'n***@correo.com' },
+      ],
+      error: null,
+    });
+
+    await expect(searchAgentCandidates('  ana ')).resolves.toEqual([
+      { userId: 'u1', displayName: 'Ana García', maskedEmail: 'a***@gmail.com' },
+      { userId: 'u2', displayName: null, maskedEmail: 'n***@correo.com' },
+    ]);
+    expect(supabase.rpc).toHaveBeenCalledWith('search_agent_candidates', { p_query: 'ana' });
+  });
+
+  it('does not call the backend below the minimum length', async () => {
+    await expect(searchAgentCandidates(' an ')).resolves.toEqual([]);
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it('returns an empty list when the server returns nothing', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: null });
+
+    await expect(searchAgentCandidates('zzz')).resolves.toEqual([]);
+  });
+
+  it('reports the rate limit as a recognisable error', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: { message: 'rate_limited', code: 'P0001' } });
+
+    await expect(searchAgentCandidates('ana')).rejects.toMatchObject({ name: 'RateLimitedError' });
+  });
+
+  it('throws other database errors as they are', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: new Error('Only agency owners can search clients') });
+
+    await expect(searchAgentCandidates('ana')).rejects.toThrow('Only agency owners can search clients');
+  });
+
+  it('drops rows that do not look like candidates instead of trusting them', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({
+      data: [{ user_id: 'u1', display_name: 'Ana', masked_email: 'a***@x.com' }, { nope: true }, null],
+      error: null,
+    });
+
+    await expect(searchAgentCandidates('ana')).resolves.toEqual([
+      { userId: 'u1', displayName: 'Ana', maskedEmail: 'a***@x.com' },
+    ]);
+  });
+});
+
+describe('authApi.addAgentById', () => {
+  beforeEach(() => {
+    (supabase.rpc as jest.Mock).mockReset();
+  });
+
+  it.each(['agent_added', 'already_listed', 'unavailable'])('calls add_agent_by_id and returns %s', async (outcome) => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: outcome, error: null });
+
+    await expect(addAgentById('user-1')).resolves.toBe(outcome);
+
+    expect(supabase.rpc).toHaveBeenCalledWith('add_agent_by_id', { p_user_id: 'user-1' });
+  });
+
+  it('throws the database message when the function fails', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: new Error('Only agency owners can add agents') });
+
+    await expect(addAgentById('user-1')).rejects.toThrow('Only agency owners can add agents');
+  });
+
+  it('refuses an unexpected server answer instead of trusting it', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: 'something_else', error: null });
+
+    await expect(addAgentById('user-1')).rejects.toThrow();
   });
 });
 

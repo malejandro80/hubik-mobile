@@ -3,7 +3,6 @@ import { labels as defaultLabels } from '../constants/labels';
 import { MAX_COMMAND_WORDS, WORD_SEPARATOR_PATTERN } from '../constants/registrationIntents';
 import { generatePropertyTitle } from '../services/chatApi';
 import {
-  ChatMessage,
   Property,
   PROPERTY_TYPE_LABEL_ES,
   PropertyDraft,
@@ -183,17 +182,3 @@ export function buildPropertyRouteParams(property: Property) {
     ...(property.agent_name ? { agent_name: property.agent_name } : {}),
   };
 }
-
-export function buildInitialMessages(labels: Labels = defaultLabels): ChatMessage[] {
-  return [
-    {
-      id: 'welcome-1',
-      sender: 'assistant',
-      title: labels.chat.welcomeTitle,
-      text: labels.chat.welcomeMessage,
-      timestamp: labels.chat.welcomeTimestamp,
-    },
-  ];
-}
-
-export const INITIAL_MESSAGES: ChatMessage[] = buildInitialMessages(defaultLabels);

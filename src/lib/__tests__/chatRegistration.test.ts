@@ -2,7 +2,6 @@ import { labels } from '../../constants/labels';
 import { Property, PropertyDraft } from '../../types/property';
 import {
   buildDraftPreviewProperty,
-  buildInitialMessages,
   buildPropertyRouteParams,
   formatDraftSummary,
   generateMessageId,
@@ -180,12 +179,4 @@ describe('chatRegistration library', () => {
     });
   });
 
-  describe('buildInitialMessages', () => {
-    it('creates initial assistant greeting message', () => {
-      const msgs = buildInitialMessages(labels);
-      expect(msgs).toHaveLength(1);
-      expect(msgs[0].sender).toBe('assistant');
-      expect(msgs[0].title).toBe(labels.chat.welcomeTitle);
-    });
-  });
 });

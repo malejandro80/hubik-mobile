@@ -34,6 +34,47 @@ export const getAgentsSectionStyles = (theme: ThemeColors) =>
       color: theme.text,
       backgroundColor: theme.surfaceContainerLow,
     },
+    hint: {
+      fontSize: 14,
+      color: theme.textSecondary,
+    },
+    selected: {
+      minHeight: spacing.touchMin + 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderWidth: 1.5,
+      borderColor: theme.secondary,
+      borderRadius: shapes.md,
+      backgroundColor: theme.surfaceContainerLow,
+    },
+    selectedText: {
+      flex: 1,
+    },
+    selectedName: {
+      fontSize: 17,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    selectedEmail: {
+      fontSize: 15,
+      color: theme.textSecondary,
+      marginTop: 2,
+    },
+    changeButton: {
+      minHeight: spacing.touchMin,
+      minWidth: spacing.touchMin,
+      paddingHorizontal: 12,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    changeText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.secondary,
+    },
     feedback: {
       fontSize: 15,
       fontWeight: '600',
