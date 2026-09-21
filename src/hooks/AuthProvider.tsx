@@ -1,12 +1,14 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { getCapabilities, SIGNED_OUT_CAPABILITIES } from '../lib/roles';
 import { supabase } from '../lib/supabase';
+import { getAvatarUrl } from '../lib/userDisplay';
 import { fetchProfile, signInWithProvider, signOut as signOutOfSupabase } from '../services/authApi';
 import { AuthState, Profile } from '../types/auth';
 
 interface SessionState {
   ready: boolean;
   userId: string | null;
+  avatarUrl: string | null;
 }
 
 interface LoadedProfile {
@@ -25,6 +27,12 @@ const SIGNED_OUT_STATE: AuthState = {
 
 export const AuthContext = createContext<AuthState>(SIGNED_OUT_STATE);
 
+const toSessionState = (user?: { id: string; user_metadata?: unknown } | null): SessionState => ({
+  ready: true,
+  userId: user?.id ?? null,
+  avatarUrl: getAvatarUrl(user?.user_metadata),
+});
+
 const buildClientFallback = (userId: string): Profile => ({
   userId,
   role: 'client',
@@ -33,7 +41,7 @@ const buildClientFallback = (userId: string): Profile => ({
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [session, setSession] = useState<SessionState>({ ready: false, userId: null });
+  const [session, setSession] = useState<SessionState>({ ready: false, userId: null, avatarUrl: null });
   const [loaded, setLoaded] = useState<LoadedProfile | null>(null);
   const { userId } = session;
 
@@ -41,11 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let active = true;
 
     supabase.auth.getSession().then(({ data }) => {
-      if (active) setSession({ ready: true, userId: data.session?.user.id ?? null });
+      if (active) setSession(toSessionState(data.session?.user));
     });
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession({ ready: true, userId: nextSession?.user?.id ?? null });
+      setSession(toSessionState(nextSession?.user));
     });
 
     return () => {
@@ -78,7 +86,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [userId]);
 
-  const profile = loaded && loaded.userId === userId ? loaded.profile : null;
+  const loadedProfile = loaded && loaded.userId === userId ? loaded.profile : null;
+  const { avatarUrl } = session;
+  const profile = useMemo<Profile | null>(
+    () => (loadedProfile ? { ...loadedProfile, avatarUrl } : null),
+    [loadedProfile, avatarUrl]
+  );
 
   const value = useMemo<AuthState>(() => {
     if (!session.ready || (userId && !profile)) {

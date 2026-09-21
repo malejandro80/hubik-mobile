@@ -11,6 +11,7 @@ export interface Profile {
   role: Role;
   agencyId: string | null;
   displayName: string | null;
+  avatarUrl?: string | null;
 }
 
 export interface RoleCapabilities {

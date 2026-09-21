@@ -16,7 +16,7 @@ describe('BurgerMenu Component', () => {
       />
     );
 
-    expect(getByText('Don Carlos')).toBeTruthy();
+    expect(getByText('Encuentra la propiedad de tus sueños')).toBeTruthy();
     expect(getByText('Buscar Propiedades')).toBeTruthy();
     expect(getByText('Registrar Vivienda')).toBeTruthy();
     expect(getByText('Reiniciar Chat')).toBeTruthy();

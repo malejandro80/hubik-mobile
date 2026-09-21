@@ -269,3 +269,14 @@ The human lead approved this RFC with the recommended answers:
 7. **`expo-web-browser`** was added. Installing it needed `--legacy-peer-deps` because of an
    existing peer conflict (`@testing-library/react-native@12` vs `expo-router`'s optional
    `>=13.2` peer).
+8. **Signed-in user card (2026-09-20)**: the drawer's profile card, previously hardcoded
+   placeholder text ("Don Carlos"), now shows the real user. Signed in: display name, role label
+   (Cliente / Agente / Propietario) and the Google photo, with initials as fallback when there is
+   no photo or it fails to load. Signed out: a marketing message ("Encuentra la propiedad de tus
+   sueños" / "Regístrate") that opens the sign-in screen. Hidden while the session loads. The photo
+   comes from the session's `user_metadata` (`avatar_url` or `picture`) and is accepted only when
+   it is an `https://` URL; it is display-only and never used for authorization. Email and agency
+   name were considered and left out of this slice. Code: `DrawerProfileCard`,
+   `src/lib/userDisplay.ts`; `Profile.avatarUrl` is filled in `AuthProvider`. The old `BurgerMenu`
+   test asserted the placeholder name; its assertion changed to the guest message because the
+   requirement changed.

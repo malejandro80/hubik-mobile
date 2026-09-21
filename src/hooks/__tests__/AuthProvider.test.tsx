@@ -36,6 +36,8 @@ function Probe() {
     <>
       <Text testID="status">{status}</Text>
       <Text testID="role">{profile?.role ?? 'none'}</Text>
+      <Text testID="name">{profile?.displayName ?? 'none'}</Text>
+      <Text testID="avatar">{profile?.avatarUrl ?? 'none'}</Text>
       <Text testID="canRegister">{String(capabilities.canRegisterProperty)}</Text>
       <Text testID="signIn" onPress={() => signIn('google')}>
         sign-in
@@ -103,6 +105,40 @@ describe('AuthProvider', () => {
     await waitFor(() => expect(getByTestId('status').props.children).toBe('signedIn'));
     expect(getByTestId('role').props.children).toBe('client');
     expect(getByTestId('canRegister').props.children).toBe('false');
+  });
+
+  it('exposes the profile name and the https Google photo from the session', async () => {
+    auth.getSession.mockResolvedValue({
+      data: {
+        session: {
+          user: { id: 'u1', user_metadata: { avatar_url: 'https://lh3.googleusercontent.com/a/me' } },
+        },
+      },
+    });
+    api.fetchProfile.mockResolvedValue({
+      userId: 'u1',
+      role: 'client',
+      agencyId: null,
+      displayName: 'Ana Pérez',
+    });
+
+    const { getByTestId } = renderProvider();
+
+    await waitFor(() => expect(getByTestId('status').props.children).toBe('signedIn'));
+    expect(getByTestId('name').props.children).toBe('Ana Pérez');
+    expect(getByTestId('avatar').props.children).toBe('https://lh3.googleusercontent.com/a/me');
+  });
+
+  it('ignores an unsafe photo URL and keeps the client fallback avatar empty', async () => {
+    auth.getSession.mockResolvedValue({
+      data: { session: { user: { id: 'u1', user_metadata: { avatar_url: 'http://insecure.test/a.png' } } } },
+    });
+    api.fetchProfile.mockRejectedValue(new Error('offline'));
+
+    const { getByTestId } = renderProvider();
+
+    await waitFor(() => expect(getByTestId('status').props.children).toBe('signedIn'));
+    expect(getByTestId('avatar').props.children).toBe('none');
   });
 
   it('reacts to sign-in and sign-out events from Supabase', async () => {

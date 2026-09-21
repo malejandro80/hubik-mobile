@@ -15,6 +15,7 @@ import { colors, hitSlop } from '../theme/colors';
 import { useDrawerAnimation } from '../hooks/useDrawerAnimation';
 
 import { MENU_ITEMS, type BurgerMenuItem, type BurgerMenuItemKey } from './BurgerMenu.items';
+import { DrawerProfileCard } from './DrawerProfileCard';
 import { DRAWER_WIDTH, getBurgerMenuStyles } from './BurgerMenu.styles';
 
 export type { BurgerMenuItem, BurgerMenuItemKey };
@@ -87,15 +88,7 @@ export const BurgerMenu: React.FC<BurgerMenuProps> = ({
               </TouchableOpacity>
             </View>
 
-            <View style={styles.profileCard}>
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>{labels.burgerMenu.avatarInitials}</Text>
-              </View>
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{labels.burgerMenu.profileName}</Text>
-                <Text style={styles.profileRole}>{labels.burgerMenu.profileRole}</Text>
-              </View>
-            </View>
+            <DrawerProfileCard onSignInPress={() => handleItemPress('sign_in')} />
 
             <View style={styles.menuItemsContainer}>
               {items.map((item) => (

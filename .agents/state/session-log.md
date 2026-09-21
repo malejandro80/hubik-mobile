@@ -1400,3 +1400,19 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Verification**: `scripts/verify.sh check-all` - lint 0 errors (warnings remain; 1 in `src/app/property/[id].tsx` is pre-existing), `npm test` 45 suites / 296 tests passing, `tsc --noEmit` clean, pre-commit secret scan clean (nothing staged, so I also grepped the diff and new files for secret patterns: none). The migration SQL and the Deno Edge Function wiring (`auth.ts`, the gates) are not executed by any test - only the pure `decideAgentAccess` is unit-tested, matching the documented repo-wide gap.
 - **Next Actions (human)**: 1) create the Google OAuth client and the Apple Developer Services ID + key, enable both providers in Supabase, allow only `hubikmobile://auth/callback` as redirect (Apple's web-flow client secret expires about every 6 months - calendar a rotation); 2) review and apply the migration, then run the SQL checks in RFC 011 section 6; 3) deploy `property-publish`, `property-intake`, `chat-query` (registration on older app builds stops working after the gates deploy); 4) rename the default agency if wanted; 5) test sign-in on a device/simulator (needs a development build, not Expo Go, for the custom-scheme redirect); 6) plan the follow-up RFCs: account deletion (before App Store), owner add/remove agents, rate limiting `property-describe`.
 
+
+---
+
+### [2026-09-20] Session: Show the signed-in user in the drawer profile card
+- **Status**: Completed locally; NOT committed, NOT pushed.
+- **Scope decided with the human**: signed in shows name + role label + Google photo (initials fallback); signed out shows a marketing message ("Encuentra la propiedad de tus sueños" / "Regístrate") that opens sign-in. Email and agency name deliberately left out.
+- **Changes Made**:
+  - New `src/components/DrawerProfileCard.tsx` (+ `.styles.ts`, moved out of `BurgerMenu.styles.ts`), used by `BurgerMenu.tsx`; card is hidden while `status === 'loading'`.
+  - New `src/lib/userDisplay.ts` (`getInitials`, `getAvatarUrl`, https-only) and `src/constants/userDisplay.ts`.
+  - `src/hooks/AuthProvider.tsx` + `src/types/auth.ts`: `Profile.avatarUrl` (optional) filled from the session's `user_metadata`.
+  - `src/constants/labels.ts`: removed placeholder `profileName/profileRole/avatarInitials`; added role labels, guest copy, a11y strings.
+  - `specs/011-auth-roles-agencies.md`: decision 8.
+- **Test note**: `BurgerMenu.test.tsx` asserted the hardcoded "Don Carlos"; changed to the guest message because the requirement changed (mention in the commit message). Nothing else weakened; `AuthProvider.test.tsx` only gained cases and a probe field.
+- **Verification**: `scripts/verify.sh check-all` passed; `jest --testPathIgnorePatterns /.kilo/` 47 suites / 316 tests (was 45 / 296), typecheck clean, lint 0 errors (5 pre-existing warnings).
+- **Not verified on a device**: the real Google photo rendering and the guest card tap. Needs the EAS dev build.
+- **Next Actions**: test on the dev build (sign in with Google, open the menu); commit the pending work together with `eas.json`, `.npmrc`, `assets/`.
