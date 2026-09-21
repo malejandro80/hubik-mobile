@@ -9,6 +9,7 @@ import {
   propertyIntakeTextInstruction,
 } from '../_shared/prompts.ts';
 import { transcribeAudio } from '../_shared/groqAudio.ts';
+import { buildAssistantMessage, type IntakeField } from '../_shared/intakeMessage.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,19 +49,6 @@ const REQUIRED_FIELDS: (keyof PropertyDraft)[] = [
   'city',
   'address',
 ];
-
-const FIELD_LABELS: Record<keyof PropertyDraft, string> = {
-  catastro: 'referencia catastral',
-  title: 'título',
-  property_type: 'tipo de propiedad',
-  operation_type: 'si es venta o alquiler',
-  price: 'precio',
-  bedrooms: 'habitaciones',
-  bathrooms: 'baños',
-  square_meters: 'metros cuadrados',
-  city: 'ciudad',
-  address: 'dirección',
-};
 
 function extractPropertyType(lower: string): PropertyType | undefined {
   if (
@@ -220,56 +208,6 @@ function heuristicExtract(message: string, known: PropertyDraft, knownCities: st
   if (city) extracted.city = city;
 
   return { ...known, ...extracted };
-}
-
-// Several phrasings per scenario, picked at random, so the assistant doesn't repeat the exact
-// same sentence on every turn - purely cosmetic variety, the underlying data/logic is unchanged.
-const READY_TO_CONFIRM_VARIANTS = [
-  '¡Perfecto! Ya tengo todos los datos necesarios. Aquí tiene el resumen para confirmar.',
-  '¡Listo! Con esto ya completé todos los datos. Revise el resumen y confírmelo cuando guste.',
-  'Excelente, ya reuní todo lo necesario. Eche un vistazo al resumen antes de publicar.',
-];
-
-const MISSING_FIELDS_PREFIX_VARIANTS = ['Me falta: ', 'Aún necesito: ', 'Todavía me falta: '];
-const MISSING_FIELDS_SUFFIX_VARIANTS = [
-  'Puede dármelos todos juntos o de a poco.',
-  'Puede indicármelos todos de una vez o uno a la vez.',
-  'Cuando guste, dígamelos juntos o por partes.',
-];
-
-const CATASTRO_ASK_VARIANTS = [
-  'Para comenzar, indíqueme la referencia catastral de la propiedad (puede consultarla en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de continuar.',
-  'Empecemos por la referencia catastral de la propiedad (está en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de seguir.',
-  'Lo primero que necesito es la referencia catastral (puede encontrarla en el recibo del IBI o en la Sede Electrónica del Catastro). Enseguida la verifico.',
-];
-
-function pick(variants: string[]): string {
-  return variants[Math.floor(Math.random() * variants.length)];
-}
-
-function buildAssistantMessage(
-  missing: (keyof PropertyDraft)[],
-  catastroStatus?: 'verified' | 'unverified'
-): string {
-  const prefix =
-    catastroStatus === 'verified'
-      ? '✅ Referencia catastral verificada: no está duplicada.\n\n'
-      : catastroStatus === 'unverified'
-        ? 'Referencia catastral registrada. La verificaré de nuevo antes de publicar.\n\n'
-        : '';
-
-  if (missing.length === 0) {
-    return `${prefix}${pick(READY_TO_CONFIRM_VARIANTS)}`;
-  }
-  if (missing.includes('catastro')) {
-    return pick(CATASTRO_ASK_VARIANTS);
-  }
-  const labels = missing.map((field) => FIELD_LABELS[field]);
-  const joined =
-    labels.length === 1
-      ? labels[0]
-      : `${labels.slice(0, -1).join(', ')} y ${labels[labels.length - 1]}`;
-  return `${prefix}${pick(MISSING_FIELDS_PREFIX_VARIANTS)}${joined}. ${pick(MISSING_FIELDS_SUFFIX_VARIANTS)}`;
 }
 
 function sanitizeGeminiFields(raw: any): Partial<PropertyDraft> {
@@ -499,7 +437,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         data,
         missing_fields,
-        assistant_message: buildAssistantMessage(missing_fields, catastroStatus),
+        assistant_message: buildAssistantMessage(missing_fields as IntakeField[], catastroStatus),
         ready_to_confirm,
         ...(transcript ? { transcript } : {}),
       }),

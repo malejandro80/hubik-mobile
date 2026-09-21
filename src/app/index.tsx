@@ -11,68 +11,59 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as FileSystem from 'expo-file-system/legacy';
-import * as ImagePicker from 'expo-image-picker';
-import * as Location from 'expo-location';
-import { AmenitiesConfirmation } from '../components/AmenitiesConfirmation';
 import { BurgerMenu } from '../components/BurgerMenu';
-import { getMenuItems } from '../components/BurgerMenu.items';
 import { ChatInputBar } from '../components/ChatInputBar';
 import { ChatMapPicker } from '../components/ChatMapPicker';
 import { ChatMessageItem } from '../components/ChatMessageItem';
+import { DraftPanel } from '../components/DraftPanel';
 import { Header } from '../components/Header';
-import { PropertyPhotoGrid } from '../components/PropertyPhotoGrid';
+import { PhotoOrderModal } from '../components/PhotoOrderModal';
+import { useAppMenu } from '../hooks/useAppMenu';
 import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
+import { useConversation } from '../hooks/useConversation';
+import { useDraftReview } from '../hooks/useDraftReview';
 import { useLabels } from '../hooks/useLabels';
 import { usePropertyRegistrationChat } from '../hooks/usePropertyRegistrationChat';
+import { useRegistrationConversation } from '../hooks/useRegistrationConversation';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
+import { DraftEditableField, FieldEditResult, validateDraftField } from '../lib/draftValidation';
 import {
   AudioPayload,
   sendChatQuery,
   sendChatQueryAudio,
   VOICE_NOTE_MIME_TYPE,
 } from '../services/chatApi';
-import { MAX_PROPERTY_IMAGES } from '../services/propertyImages';
 import { colors } from '../theme/colors';
-import { ChatMessage, Property, PropertyDraft } from '../types/property';
+import { ChatMessage, Property } from '../types/property';
 import { getIndexStyles } from './index.styles';
 import {
-  buildDraftPreviewProperty,
   buildPropertyRouteParams,
-  CANCEL_PHRASES,
-  formatDraftSummary,
-  formatOutcomeMessage,
   generateMessageId,
-  INITIAL_MESSAGES,
-  isConfirmIntent,
-  isContinueIntent,
-  isLocationIntent,
-  isPhotosIntent,
   REGISTER_COMMAND,
 } from '../lib/chatRegistration';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { status: authStatus, capabilities, signOut } = useAuth();
+  const { status: authStatus, capabilities } = useAuth();
   const params = useLocalSearchParams<{ startRegistration?: string }>();
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
   const labels = useLabels();
   const styles = useMemo(() => getIndexStyles(theme), [theme]);
-  const menuItems = useMemo(
-    () => getMenuItems(capabilities, authStatus),
-    [capabilities, authStatus]
-  );
 
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const { messages, setMessages, reset } = useConversation();
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [mapPickerVisible, setMapPickerVisible] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
   const hasAutoStartedRef = useRef(false);
   const registration = usePropertyRegistrationChat();
   const recorder = useVoiceRecorder();
+
+  const { phase, draft } = registration.state;
+  const isComposing = phase !== 'idle';
+  const review = useDraftReview({ draft, setPhotos: registration.setPhotos });
 
   const handlePropertyPress = useCallback(
     (property: Property) => {
@@ -97,8 +88,29 @@ export default function HomeScreen() {
         },
       ]);
     },
-    [labels]
+    [labels, setMessages]
   );
+
+  const openMapPicker = useCallback(() => setMapPickerVisible(true), []);
+
+  const conversation = useRegistrationConversation({
+    registration,
+    messages,
+    appendAssistantMessage,
+    setMessages,
+    setLoading,
+    openMapPicker,
+  });
+
+  const scrollToEndSoon = useCallback(() => {
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }, 100);
+  }, []);
+
+  useEffect(() => {
+    scrollToEndSoon();
+  }, [messages.length, scrollToEndSoon]);
 
   const handleSend = useCallback(
     async (queryText?: string) => {
@@ -130,139 +142,17 @@ export default function HomeScreen() {
       }
 
       if (lower === REGISTER_COMMAND) {
+        if (isComposing) {
+          appendAssistantMessage(newMessages, labels.composer.alreadyComposing);
+          return;
+        }
         registration.start();
         appendAssistantMessage(newMessages, labels.chat.registerExample);
         return;
       }
 
-      if (registration.state.mode !== 'idle' && CANCEL_PHRASES.includes(lower)) {
-        registration.cancel();
-        appendAssistantMessage(newMessages, labels.chat.cancelRegistrationConfirmation);
-        return;
-      }
-
-      if (registration.state.mode === 'confirming') {
-        if (isConfirmIntent(lower)) {
-          setLoading(true);
-          try {
-            const property = await registration.confirmPublish();
-            appendAssistantMessage(
-              newMessages,
-              labels.chat.publishedSuccess(property.title),
-              [property]
-            );
-          } catch (err: any) {
-            appendAssistantMessage(
-              newMessages,
-              labels.chat.publishError(err?.message || 'error desconocido')
-            );
-          } finally {
-            setLoading(false);
-          }
-          return;
-        }
-
-        if (isPhotosIntent(lower)) {
-          registration.editPhotos();
-          appendAssistantMessage(newMessages, labels.chat.photosPrompt);
-          return;
-        }
-
-        if (isLocationIntent(lower)) {
-          registration.editLocation();
-          setMapPickerVisible(true);
-          return;
-        }
-
-        if (lower.includes('corregir') || lower.includes('cambiar') || lower.includes('modificar')) {
-          appendAssistantMessage(newMessages, labels.chat.correctionPrompt);
-          return;
-        }
-      }
-
-      if (registration.state.mode === 'photos') {
-        if (isContinueIntent(lower)) {
-          registration.skipPhotos();
-          appendAssistantMessage(
-            newMessages,
-            labels.chat.photosContinueLocationPrompt
-          );
-          return;
-        }
-
-        if (isPhotosIntent(lower)) {
-          setLoading(true);
-          try {
-            const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
-            const granted = permission.granted
-              ? true
-              : (await ImagePicker.requestMediaLibraryPermissionsAsync()).granted;
-
-            if (!granted) {
-              appendAssistantMessage(
-                newMessages,
-                labels.chat.photosPermissionRequired
-              );
-              return;
-            }
-
-            const remaining = MAX_PROPERTY_IMAGES - (registration.state.draft.images?.length || 0);
-            const result = await ImagePicker.launchImageLibraryAsync({
-              mediaTypes: ImagePicker.MediaTypeOptions.Images,
-              allowsMultipleSelection: true,
-              selectionLimit: remaining,
-              quality: 0.6,
-            });
-            if (!result.canceled && result.assets.length > 0) {
-              const uris = result.assets.map((asset) => asset.uri);
-              const { images } = registration.addPhotos(uris);
-              appendAssistantMessage(
-                newMessages,
-                labels.chat.photosAdded(uris.length, images.length)
-              );
-            } else {
-              appendAssistantMessage(newMessages, labels.chat.photosNoneSelected);
-            }
-          } catch (err: any) {
-            appendAssistantMessage(
-              newMessages,
-              labels.chat.photosSelectionError(err?.message || 'error desconocido')
-            );
-          } finally {
-            setLoading(false);
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }, 100);
-          }
-          return;
-        }
-      }
-
-      if (registration.state.mode === 'location' && isLocationIntent(lower)) {
-        setMapPickerVisible(true);
-        return;
-      }
-
-      if (registration.state.mode !== 'idle') {
-        const wasConfirming = registration.state.mode === 'confirming';
-        setLoading(true);
-        try {
-          const outcome = await registration.processMessage(textToSend);
-          const text = formatOutcomeMessage(
-            outcome.readyToConfirm,
-            wasConfirming,
-            outcome.assistantMessage,
-            outcome.draft
-          );
-          appendAssistantMessage(newMessages, text);
-        } catch (err: any) {
-          appendAssistantMessage(
-            newMessages,
-            labels.chat.processDataError(err?.message || 'Verifica la conexión')
-          );
-        } finally {
-          setLoading(false);
-        }
+      if (isComposing) {
+        await conversation.handleText(textToSend, lower, newMessages);
         return;
       }
 
@@ -277,18 +167,20 @@ export default function HomeScreen() {
         );
       } finally {
         setLoading(false);
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+        scrollToEndSoon();
       }
     },
     [
       inputText,
       loading,
       messages,
+      isComposing,
       registration,
+      conversation,
       appendAssistantMessage,
+      scrollToEndSoon,
       labels,
+      setMessages,
       capabilities.canRegisterProperty,
       authStatus,
     ]
@@ -305,145 +197,8 @@ export default function HomeScreen() {
         });
         const audio: AudioPayload = { data: base64, mimeType: VOICE_NOTE_MIME_TYPE };
 
-        if (registration.state.mode !== 'idle') {
-          const outcome = await registration.processAudioMessage(audio);
-          const transcript = (outcome.transcript || '').trim();
-          const lowerTranscript = transcript.toLowerCase();
-
-          if (CANCEL_PHRASES.some((p) => lowerTranscript.includes(p))) {
-            registration.cancel();
-            const newMessages: ChatMessage[] = [
-              ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
-            ];
-            appendAssistantMessage(newMessages, labels.chat.cancelRegistrationConfirmation);
-            return;
-          }
-
-          if (registration.state.mode === 'confirming' && isConfirmIntent(lowerTranscript)) {
-            const newMessages: ChatMessage[] = [
-              ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
-            ];
-            setMessages(newMessages);
-            try {
-              const property = await registration.confirmPublish();
-              appendAssistantMessage(
-                newMessages,
-                labels.chat.publishedSuccess(property.title),
-                [property]
-              );
-            } catch (err: any) {
-              appendAssistantMessage(
-                newMessages,
-                labels.chat.publishError(err?.message || 'error desconocido')
-              );
-            }
-            return;
-          }
-
-          if (registration.state.mode === 'confirming' && isPhotosIntent(lowerTranscript)) {
-            registration.editPhotos();
-            const newMessages: ChatMessage[] = [
-              ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
-            ];
-            appendAssistantMessage(newMessages, labels.chat.photosPrompt);
-            return;
-          }
-
-          if (registration.state.mode === 'confirming' && isLocationIntent(lowerTranscript)) {
-            registration.editLocation();
-            const newMessages: ChatMessage[] = [
-              ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
-            ];
-            setMessages(newMessages);
-            setMapPickerVisible(true);
-            return;
-          }
-
-          if (registration.state.mode === 'photos' && isPhotosIntent(lowerTranscript)) {
-            const newMessages: ChatMessage[] = [
-              ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
-            ];
-            setMessages(newMessages);
-            try {
-              const permission = await ImagePicker.getMediaLibraryPermissionsAsync();
-              const granted = permission.granted
-                ? true
-                : (await ImagePicker.requestMediaLibraryPermissionsAsync()).granted;
-
-              if (!granted) {
-                appendAssistantMessage(
-                  newMessages,
-                  labels.chat.photosPermissionRequired
-                );
-                return;
-              }
-
-              const remaining = MAX_PROPERTY_IMAGES - (registration.state.draft.images?.length || 0);
-              const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ImagePicker.MediaTypeOptions.Images,
-                allowsMultipleSelection: true,
-                selectionLimit: remaining,
-                quality: 0.6,
-              });
-              if (!result.canceled && result.assets.length > 0) {
-                const uris = result.assets.map((asset) => asset.uri);
-                const { images } = registration.addPhotos(uris);
-                appendAssistantMessage(
-                  newMessages,
-                  labels.chat.photosAdded(uris.length, images.length)
-                );
-              } else {
-                appendAssistantMessage(newMessages, labels.chat.photosNoneSelected);
-              }
-            } catch (err: any) {
-              appendAssistantMessage(
-                newMessages,
-                labels.chat.photosSelectionError(err?.message || 'error desconocido')
-              );
-            }
-            return;
-          }
-
-          if (registration.state.mode === 'photos' && isContinueIntent(lowerTranscript)) {
-            registration.skipPhotos();
-            const newMessages: ChatMessage[] = [
-              ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
-            ];
-            appendAssistantMessage(
-              newMessages,
-              labels.chat.photosContinueLocationPrompt
-            );
-            return;
-          }
-
-          if (registration.state.mode === 'location' && isLocationIntent(lowerTranscript)) {
-            const newMessages: ChatMessage[] = [
-              ...messages,
-              { id: generateMessageId('user'), sender: 'user', text: transcript, timestamp: labels.chat.justNow },
-            ];
-            setMessages(newMessages);
-            setMapPickerVisible(true);
-            return;
-          }
-
-          const wasConfirming = registration.state.mode === 'confirming';
-          const newMessages: ChatMessage[] = [
-            ...messages,
-            { id: generateMessageId('user'), sender: 'user', text: transcript || labels.chat.voiceNote, timestamp: labels.chat.justNow },
-          ];
-          const text = formatOutcomeMessage(
-            outcome.readyToConfirm,
-            wasConfirming,
-            outcome.assistantMessage,
-            outcome.draft
-          );
-          appendAssistantMessage(newMessages, text);
+        if (isComposing) {
+          await conversation.handleAudio(audio);
           return;
         }
 
@@ -464,59 +219,28 @@ export default function HomeScreen() {
         );
       } finally {
         setLoading(false);
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+        scrollToEndSoon();
       }
     },
-    [loading, messages, registration, appendAssistantMessage, labels]
+    [loading, messages, isComposing, conversation, appendAssistantMessage, scrollToEndSoon, labels]
   );
 
   const handleLocationConfirmed = useCallback(
-    async (latitude: number, longitude: number) => {
+    (latitude: number, longitude: number) => {
       setMapPickerVisible(false);
       registration.setLocation(latitude, longitude);
-
-      let addressLine = `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
-      try {
-        const geocoded = await Location.reverseGeocodeAsync({ latitude, longitude });
-        const place = geocoded[0];
-        if (place) {
-          addressLine = [place.street, place.city].filter(Boolean).join(', ') || addressLine;
-        }
-      } catch {
-      }
-
-      const withLocationMessages: ChatMessage[] = [
-        ...messages,
-        {
-          id: generateMessageId('assistant'),
-          sender: 'assistant',
-          text: labels.chat.locationConfirmedNotice(addressLine),
-          timestamp: labels.chat.justNow,
-        },
-      ];
-      setMessages(withLocationMessages);
-      setLoading(true);
-
-      try {
-        const { description } = await registration.generateDescription();
-        const finalDraft: PropertyDraft = { ...registration.state.draft, latitude, longitude, description };
-        appendAssistantMessage(
-          withLocationMessages,
-          labels.chat.previewSummary(formatDraftSummary(finalDraft)),
-          [buildDraftPreviewProperty(finalDraft)]
-        );
-      } catch (err: any) {
-        appendAssistantMessage(
-          withLocationMessages,
-          labels.chat.descriptionGenError(err?.message || 'error desconocido')
-        );
-      } finally {
-        setLoading(false);
-      }
     },
-    [registration, messages, appendAssistantMessage, labels]
+    [registration]
+  );
+
+  const handleEditField = useCallback(
+    (field: DraftEditableField, raw: string): FieldEditResult => {
+      if (field !== 'catastro') return registration.updateField(field, raw);
+      const result = validateDraftField('catastro', raw);
+      if (result.ok) void handleSend(String(result.value));
+      return result;
+    },
+    [registration, handleSend]
   );
 
   useEffect(() => {
@@ -548,44 +272,15 @@ export default function HomeScreen() {
     }
   }, [recorder, handleSendAudio, labels]);
 
-  const handleMenu = () => {
-    setIsMenuOpen(true);
-  };
-
-  const handleMenuItemSelect = (key: string) => {
-    const menuActions: Record<string, () => void> = {
-      register: () => handleSend(REGISTER_COMMAND),
-      sign_in: () => router.push('/sign-in'),
-      sign_out: () => {
-        signOut().catch(() =>
-          Alert.alert(labels.auth.signOutErrorTitle, labels.auth.signOutErrorMessage)
-        );
-      },
-      create_agency: () => router.push('/create-agency'),
-      my_agency: () => router.push('/agency'),
-      new_chat: () => {
-        setMessages(INITIAL_MESSAGES);
-        setInputText('');
-      },
-      saved: () =>
-        Alert.alert(
-          labels.burgerMenu.savedDraftsTitle,
-          labels.burgerMenu.savedDraftsMessage
-        ),
-      settings: () =>
-        Alert.alert(
-          labels.burgerMenu.settingsTitle,
-          labels.burgerMenu.settingsMessage
-        ),
-      help: () =>
-        Alert.alert(
-          labels.burgerMenu.helpTitle,
-          labels.burgerMenu.helpMessage
-        ),
-    };
-
-    menuActions[key]?.();
-  };
+  const menu = useAppMenu({
+    search: () => undefined,
+    register: () => void handleSend(REGISTER_COMMAND),
+    new_chat: () => {
+      registration.cancel();
+      reset();
+      setInputText('');
+    },
+  });
 
   const renderMessageItem: ListRenderItem<ChatMessage> = useCallback(
     ({ item }) => (
@@ -610,43 +305,19 @@ export default function HomeScreen() {
     [styles.listHeader, styles.dateCapsule, styles.dateCapsuleText, labels]
   );
 
-  const stagedImages = useMemo(() => registration.state.draft.images || [], [registration.state.draft.images]);
-  const renderListFooter = useCallback(() => {
-    if (registration.state.mode === 'photos' && stagedImages.length > 0) {
-      return (
-        <View style={styles.photoGridWrapper}>
-          <PropertyPhotoGrid
-            images={stagedImages}
-            maxImages={MAX_PROPERTY_IMAGES}
-            onRemove={registration.removePhoto}
-            onMove={registration.movePhoto}
-            onAddPress={() => handleSend(labels.chat.attachMorePhotos)}
-          />
-        </View>
-      );
-    }
-
-    if (registration.state.mode === 'confirming') {
-      return (
-        <AmenitiesConfirmation
-          amenities={registration.state.draft.amenities || []}
-          onChange={registration.updateAmenities}
-        />
-      );
-    }
-
-    return null;
-  }, [
-    registration.state.mode,
-    registration.state.draft.amenities,
-    stagedImages,
-    styles.photoGridWrapper,
-    registration.removePhoto,
-    registration.movePhoto,
-    registration.updateAmenities,
-    handleSend,
-    labels,
-  ]);
+  const attachments = useMemo(
+    () =>
+      isComposing
+        ? {
+            onAddPhotos: () => void conversation.pickPhotos(),
+            onPickLocation: openMapPicker,
+            onOrderPhotos: review.openOrder,
+            photoCount: draft.images?.length ?? 0,
+            hasPin: draft.latitude !== undefined && draft.longitude !== undefined,
+          }
+        : undefined,
+    [isComposing, conversation, openMapPicker, review.openOrder, draft.images, draft.latitude, draft.longitude]
+  );
 
   return (
     <SafeAreaView
@@ -655,7 +326,7 @@ export default function HomeScreen() {
     >
       <Header
         showBack={false}
-        onMenuPress={handleMenu}
+        onMenuPress={menu.open}
       />
 
       <KeyboardAvoidingView
@@ -669,11 +340,30 @@ export default function HomeScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderMessageItem}
           ListHeaderComponent={renderListHeader}
-          ListFooterComponent={renderListFooter}
           contentContainerStyle={styles.feedContent}
           keyboardShouldPersistTaps="handled"
           initialNumToRender={50}
         />
+
+        {isComposing && (
+          <DraftPanel
+            draft={draft}
+            recentlyChanged={registration.state.recentlyChanged}
+            describing={registration.state.describing}
+            descriptionFailed={registration.state.descriptionFailed}
+            describedFrom={registration.state.describedFrom}
+            publishing={conversation.publishing}
+            onEditField={handleEditField}
+            onAddPhotos={() => void conversation.pickPhotos()}
+            onRemovePhoto={registration.removePhoto}
+            onMovePhoto={registration.movePhoto}
+            onPickLocation={openMapPicker}
+            onAmenitiesChange={registration.updateAmenities}
+            onRequestDescription={() => registration.requestDescription().catch(() => undefined)}
+            onPublish={() => conversation.requestPublish()}
+            onPreview={review.openPreview}
+          />
+        )}
 
         <ChatInputBar
           value={inputText}
@@ -683,20 +373,23 @@ export default function HomeScreen() {
           isRecording={recorder.state.status === 'recording'}
           placeholder={labels.chat.inputPlaceholder}
           loading={loading || recorder.state.status === 'processing'}
+          attachments={attachments}
         />
       </KeyboardAvoidingView>
 
-      <BurgerMenu
-        visible={isMenuOpen}
-        onClose={() => setIsMenuOpen(false)}
-        onSelectMenuItem={handleMenuItemSelect}
-        items={menuItems}
+      <BurgerMenu {...menu.menuProps} />
+
+      <PhotoOrderModal
+        visible={review.orderVisible}
+        photos={draft.images ?? []}
+        onConfirm={review.confirmOrder}
+        onClose={review.closeOrder}
       />
 
       <ChatMapPicker
         visible={mapPickerVisible}
-        initialLatitude={registration.state.draft.latitude}
-        initialLongitude={registration.state.draft.longitude}
+        initialLatitude={draft.latitude}
+        initialLongitude={draft.longitude}
         onConfirm={handleLocationConfirmed}
         onClose={() => setMapPickerVisible(false)}
       />

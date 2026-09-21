@@ -3,7 +3,16 @@ import * as WebBrowser from 'expo-web-browser';
 import { labels } from '../constants/labels';
 import { AUTH_CALLBACK_PATH, extractAuthCode } from '../lib/authCallback';
 import { supabase } from '../lib/supabase';
-import { AuthProviderName, Profile, Role, SignInOutcome } from '../types/auth';
+import { isAddAgentOutcome, isValidInviteEmail, normalizeInviteEmail } from '../lib/agentInvites';
+import {
+  AddAgentOutcome,
+  AgencyAgent,
+  AgentInvite,
+  AuthProviderName,
+  Profile,
+  Role,
+  SignInOutcome,
+} from '../types/auth';
 import { Property } from '../types/property';
 
 const MIN_AGENCY_NAME_LENGTH = 2;
@@ -81,4 +90,50 @@ export async function fetchAgencyListings(agencyId: string): Promise<Property[]>
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data ?? []) as Property[];
+}
+
+interface AgentRow {
+  user_id: string;
+  display_name: string | null;
+}
+
+interface InviteRow {
+  id: string;
+  email: string;
+  created_at: string;
+}
+
+export async function addAgent(email: string): Promise<AddAgentOutcome> {
+  if (!isValidInviteEmail(email)) throw new Error(labels.auth.agents.errors.invalid_email);
+
+  const { data, error } = await supabase.rpc('add_agent', { p_email: normalizeInviteEmail(email) });
+  if (error) throw error;
+  if (!isAddAgentOutcome(data)) throw new Error(labels.auth.agents.errors.generic);
+  return data;
+}
+
+export async function cancelAgentInvite(inviteId: string): Promise<void> {
+  const { error } = await supabase.rpc('cancel_agent_invite', { p_invite_id: inviteId });
+  if (error) throw error;
+}
+
+export async function fetchAgencyAgents(agencyId: string): Promise<AgencyAgent[]> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('user_id, display_name')
+    .eq('agency_id', agencyId)
+    .eq('role', 'agent')
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  return ((data ?? []) as AgentRow[]).map((row) => ({ userId: row.user_id, displayName: row.display_name }));
+}
+
+export async function fetchAgentInvites(agencyId: string): Promise<AgentInvite[]> {
+  const { data, error } = await supabase
+    .from('agent_invites')
+    .select('id, email, created_at')
+    .eq('agency_id', agencyId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return ((data ?? []) as InviteRow[]).map((row) => ({ id: row.id, email: row.email, createdAt: row.created_at }));
 }

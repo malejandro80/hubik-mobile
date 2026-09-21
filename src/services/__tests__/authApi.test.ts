@@ -1,8 +1,12 @@
 import * as WebBrowser from 'expo-web-browser';
 import { supabase } from '../../lib/supabase';
 import {
+  addAgent,
+  cancelAgentInvite,
   createAgency,
+  fetchAgencyAgents,
   fetchAgencyListings,
+  fetchAgentInvites,
   fetchProfile,
   signInWithProvider,
   signOut,
@@ -206,5 +210,119 @@ describe('authApi.fetchAgencyListings', () => {
     });
 
     await expect(fetchAgencyListings('a1')).rejects.toThrow('boom');
+  });
+});
+
+describe('authApi.addAgent', () => {
+  beforeEach(() => {
+    (supabase.rpc as jest.Mock).mockReset();
+  });
+
+  it.each(['agent_added', 'invited', 'already_listed', 'unavailable'])(
+    'calls add_agent with the normalised email and returns %s',
+    async (outcome) => {
+      (supabase.rpc as jest.Mock).mockResolvedValue({ data: outcome, error: null });
+
+      await expect(addAgent('  Ana@Correo.COM ')).resolves.toBe(outcome);
+
+      expect(supabase.rpc).toHaveBeenCalledWith('add_agent', { p_email: 'ana@correo.com' });
+    }
+  );
+
+  it('rejects a malformed email without calling the backend', async () => {
+    await expect(addAgent('not-an-email')).rejects.toThrow();
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it('throws the database message when the function fails', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: new Error('Only agency owners can add agents') });
+
+    await expect(addAgent('ana@correo.com')).rejects.toThrow('Only agency owners can add agents');
+  });
+
+  it('refuses an unexpected server answer instead of trusting it', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: 'something_else', error: null });
+
+    await expect(addAgent('ana@correo.com')).rejects.toThrow();
+  });
+});
+
+describe('authApi.cancelAgentInvite', () => {
+  it('calls cancel_agent_invite with the invite id', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: null });
+
+    await cancelAgentInvite('invite-1');
+
+    expect(supabase.rpc).toHaveBeenCalledWith('cancel_agent_invite', { p_invite_id: 'invite-1' });
+  });
+
+  it('throws when the function fails', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({ data: null, error: new Error('Invite not found') });
+
+    await expect(cancelAgentInvite('invite-1')).rejects.toThrow('Invite not found');
+  });
+});
+
+describe('authApi.fetchAgencyAgents', () => {
+  it('reads the agents of the agency, oldest first, and maps them', async () => {
+    const order = jest.fn().mockResolvedValue({
+      data: [
+        { user_id: 'u1', display_name: 'Ana' },
+        { user_id: 'u2', display_name: null },
+      ],
+      error: null,
+    });
+    const eqRole = jest.fn(() => ({ order }));
+    const eqAgency = jest.fn(() => ({ eq: eqRole }));
+    const select = jest.fn(() => ({ eq: eqAgency }));
+    (supabase.from as jest.Mock).mockReturnValue({ select });
+
+    const agents = await fetchAgencyAgents('a1');
+
+    expect(supabase.from).toHaveBeenCalledWith('profiles');
+    expect(select).toHaveBeenCalledWith('user_id, display_name');
+    expect(eqAgency).toHaveBeenCalledWith('agency_id', 'a1');
+    expect(eqRole).toHaveBeenCalledWith('role', 'agent');
+    expect(order).toHaveBeenCalledWith('created_at', { ascending: true });
+    expect(agents).toEqual([
+      { userId: 'u1', displayName: 'Ana' },
+      { userId: 'u2', displayName: null },
+    ]);
+  });
+
+  it('throws when the query fails', async () => {
+    const order = jest.fn().mockResolvedValue({ data: null, error: new Error('boom') });
+    (supabase.from as jest.Mock).mockReturnValue({
+      select: () => ({ eq: () => ({ eq: () => ({ order }) }) }),
+    });
+
+    await expect(fetchAgencyAgents('a1')).rejects.toThrow('boom');
+  });
+});
+
+describe('authApi.fetchAgentInvites', () => {
+  it('reads the pending invites of the agency, newest first, and maps them', async () => {
+    const order = jest.fn().mockResolvedValue({
+      data: [{ id: 'i1', email: 'ana@correo.com', created_at: '2026-09-21T10:00:00Z' }],
+      error: null,
+    });
+    const eq = jest.fn(() => ({ order }));
+    const select = jest.fn(() => ({ eq }));
+    (supabase.from as jest.Mock).mockReturnValue({ select });
+
+    const invites = await fetchAgentInvites('a1');
+
+    expect(supabase.from).toHaveBeenCalledWith('agent_invites');
+    expect(select).toHaveBeenCalledWith('id, email, created_at');
+    expect(eq).toHaveBeenCalledWith('agency_id', 'a1');
+    expect(order).toHaveBeenCalledWith('created_at', { ascending: false });
+    expect(invites).toEqual([{ id: 'i1', email: 'ana@correo.com', createdAt: '2026-09-21T10:00:00Z' }]);
+  });
+
+  it('throws when the query fails', async () => {
+    const order = jest.fn().mockResolvedValue({ data: null, error: new Error('boom') });
+    (supabase.from as jest.Mock).mockReturnValue({ select: () => ({ eq: () => ({ order }) }) });
+
+    await expect(fetchAgentInvites('a1')).rejects.toThrow('boom');
   });
 });

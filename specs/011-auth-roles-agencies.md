@@ -280,3 +280,4 @@ The human lead approved this RFC with the recommended answers:
    `src/lib/userDisplay.ts`; `Profile.avatarUrl` is filled in `AuthProvider`. The old `BurgerMenu`
    test asserted the placeholder name; its assertion changed to the guest message because the
    requirement changed.
+9. **Owner adds agents (2026-09-21)**: superseded for the in-app path by RFC 013 (`agent_invites`, `add_agent`, `cancel_agent_invite`). The manual SQL in section 4.6 remains as a fallback and for removing agents.

@@ -1,104 +1,189 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { LOCAL_ONLY_FIELDS } from '../constants/draftFields';
+import { getChangedFields, getDescriptionKey, isReadyToPublish } from '../lib/draftStatus';
+import { isSamePhotoSet } from '../lib/photoOrder';
+import { DraftEditableField, FieldEditResult, validateDraftField } from '../lib/draftValidation';
 import {
   AudioPayload,
   generatePropertyDescription,
   intakeProperty,
   intakePropertyAudio,
+  PropertyIntakeResponse,
   publishProperty,
 } from '../services/chatApi';
-import { uploadPropertyImages } from '../services/propertyImages';
+import { MAX_PROPERTY_IMAGES, uploadPropertyImages } from '../services/propertyImages';
 import { Property, PropertyDraft } from '../types/property';
 
-export type RegistrationMode =
-  | 'idle'
-  | 'collecting'
-  | 'photos'
-  | 'location'
-  | 'generating_description'
-  | 'confirming';
+export type ComposerPhase = 'idle' | 'composing';
 
-export interface RegistrationState {
-  mode: RegistrationMode;
+export interface ComposerState {
+  phase: ComposerPhase;
+  draft: PropertyDraft;
+  recentlyChanged: (keyof PropertyDraft)[];
+  describing: boolean;
+  descriptionFailed: boolean;
+  describedFrom: string | null;
+}
+
+export interface IntakeOutcome {
+  assistantMessage: string;
+  readyToConfirm: boolean;
   draft: PropertyDraft;
 }
 
-const INITIAL_STATE: RegistrationState = {
-  mode: 'idle',
-  draft: {},
-};
-
-function generateDraftId(): string {
-  return `d${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+export interface AddPhotosOutcome {
+  images: string[];
+  added: number;
 }
 
+const INITIAL_STATE: ComposerState = {
+  phase: 'idle',
+  draft: {},
+  recentlyChanged: [],
+  describing: false,
+  descriptionFailed: false,
+  describedFrom: null,
+};
+
+const generateSessionId = (): string => `d${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+
+const toOutcome = (response: PropertyIntakeResponse): IntakeOutcome => ({
+  assistantMessage: response.assistant_message,
+  readyToConfirm: response.ready_to_confirm,
+  draft: response.data,
+});
+
+const pickLocalFields = (draft: PropertyDraft): Partial<PropertyDraft> =>
+  Object.fromEntries(LOCAL_ONLY_FIELDS.filter((field) => draft[field] !== undefined).map((field) => [field, draft[field]]));
+
 export function usePropertyRegistrationChat() {
-  const [state, setState] = useState<RegistrationState>(INITIAL_STATE);
-  const draftIdRef = useRef<string>(generateDraftId());
+  const [state, setState] = useState<ComposerState>(INITIAL_STATE);
+  const stateRef = useRef<ComposerState>(state);
+  const sessionRef = useRef<string>(generateSessionId());
+  const describeInFlightRef = useRef(false);
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  const resetSession = useCallback((next: ComposerState) => {
+    sessionRef.current = generateSessionId();
+    setState(next);
+  }, []);
 
   const start = useCallback(() => {
-    draftIdRef.current = generateDraftId();
-    setState({ mode: 'collecting', draft: {} });
-  }, []);
+    resetSession({ ...INITIAL_STATE, phase: 'composing' });
+  }, [resetSession]);
 
   const cancel = useCallback(() => {
-    setState(INITIAL_STATE);
+    resetSession(INITIAL_STATE);
+  }, [resetSession]);
+
+  const requestDescription = useCallback(async (draftOverride?: PropertyDraft): Promise<{ description: string }> => {
+    const sessionId = sessionRef.current;
+    const snapshot = draftOverride ?? stateRef.current.draft;
+    describeInFlightRef.current = true;
+    setState((prev) => ({ ...prev, describing: true, descriptionFailed: false }));
+    try {
+      const { description } = await generatePropertyDescription(snapshot);
+      if (sessionRef.current === sessionId) {
+        setState((prev) => ({
+          ...prev,
+          describing: false,
+          draft: { ...prev.draft, description },
+          describedFrom: getDescriptionKey(snapshot),
+        }));
+      }
+      return { description };
+    } catch (error) {
+      if (sessionRef.current === sessionId) {
+        setState((prev) => ({ ...prev, describing: false, descriptionFailed: true }));
+      }
+      throw error;
+    } finally {
+      describeInFlightRef.current = false;
+    }
   }, []);
 
-  const isAlreadyInConfirmingMode = state.mode === 'confirming';
-  const targetModeOnReady = isAlreadyInConfirmingMode ? 'confirming' : 'photos';
+  const autoDescribe = useCallback(
+    (draft: PropertyDraft) => {
+      const current = stateRef.current;
+      const eligible =
+        !describeInFlightRef.current &&
+        !current.descriptionFailed &&
+        current.describedFrom === null &&
+        !draft.description &&
+        isReadyToPublish(draft);
+      if (eligible) requestDescription(draft).catch(() => undefined);
+    },
+    [requestDescription]
+  );
+
+  const applyIntake = useCallback(
+    (response: PropertyIntakeResponse, sessionId: string) => {
+      if (sessionRef.current !== sessionId) return;
+      setState((prev) => {
+        const draft = { ...response.data, ...pickLocalFields(prev.draft) };
+        return { ...prev, phase: 'composing', draft, recentlyChanged: getChangedFields(prev.draft, draft) };
+      });
+      autoDescribe({ ...response.data, ...pickLocalFields(stateRef.current.draft) });
+    },
+    [autoDescribe]
+  );
 
   const processMessage = useCallback(
-    async (text: string) => {
-      const response = await intakeProperty(text, state.draft);
-      setState({
-        mode: response.ready_to_confirm ? targetModeOnReady : 'collecting',
-        draft: response.data,
-      });
-      return {
-        assistantMessage: response.assistant_message,
-        readyToConfirm: response.ready_to_confirm,
-        draft: response.data,
-      };
+    async (text: string): Promise<IntakeOutcome> => {
+      const sessionId = sessionRef.current;
+      const response = await intakeProperty(text, stateRef.current.draft);
+      applyIntake(response, sessionId);
+      return toOutcome(response);
     },
-    [state.draft, targetModeOnReady]
+    [applyIntake]
   );
 
   const processAudioMessage = useCallback(
-    async (audio: AudioPayload) => {
-      const response = await intakePropertyAudio(audio, state.draft);
-      setState({
-        mode: response.ready_to_confirm ? targetModeOnReady : 'collecting',
-        draft: response.data,
-      });
-      return {
-        assistantMessage: response.assistant_message,
-        readyToConfirm: response.ready_to_confirm,
-        draft: response.data,
-        transcript: response.transcript,
-      };
+    async (audio: AudioPayload): Promise<IntakeOutcome & { transcript: string }> => {
+      const sessionId = sessionRef.current;
+      const response = await intakePropertyAudio(audio, stateRef.current.draft);
+      applyIntake(response, sessionId);
+      return { ...toOutcome(response), transcript: response.transcript };
     },
-    [state.draft, targetModeOnReady]
+    [applyIntake]
   );
 
-  const addPhotos = useCallback(
-    (uris: string[]) => {
-      const images = [...(state.draft.images || []), ...uris];
-      setState((prev) => ({ ...prev, draft: { ...prev.draft, images } }));
-      return { images };
-    },
-    [state.draft.images]
-  );
+  const updateField = useCallback((field: DraftEditableField, raw: string): FieldEditResult => {
+    const result = validateDraftField(field, raw);
+    if (result.ok) {
+      setState((prev) => ({
+        ...prev,
+        draft: { ...prev.draft, [field]: result.value },
+        recentlyChanged: prev.recentlyChanged.filter((changed) => changed !== field),
+      }));
+      autoDescribe({ ...stateRef.current.draft, [field]: result.value });
+    }
+    return result;
+  }, [autoDescribe]);
+
+  const addPhotos = useCallback((uris: string[]): AddPhotosOutcome => {
+    const before = stateRef.current.draft.images ?? [];
+    const images = [...before, ...uris].slice(0, MAX_PROPERTY_IMAGES);
+    setState((prev) => ({
+      ...prev,
+      draft: { ...prev.draft, images: [...(prev.draft.images ?? []), ...uris].slice(0, MAX_PROPERTY_IMAGES) },
+    }));
+    return { images, added: images.length - before.length };
+  }, []);
 
   const removePhoto = useCallback((index: number) => {
     setState((prev) => ({
       ...prev,
-      draft: { ...prev.draft, images: (prev.draft.images || []).filter((_, i) => i !== index) },
+      draft: { ...prev.draft, images: (prev.draft.images ?? []).filter((_, i) => i !== index) },
     }));
   }, []);
 
   const movePhoto = useCallback((index: number, direction: 'up' | 'down') => {
     setState((prev) => {
-      const images = [...(prev.draft.images || [])];
+      const images = [...(prev.draft.images ?? [])];
       const target = direction === 'up' ? index - 1 : index + 1;
       if (target < 0 || target >= images.length) return prev;
       [images[index], images[target]] = [images[target], images[index]];
@@ -106,72 +191,56 @@ export function usePropertyRegistrationChat() {
     });
   }, []);
 
+  const setPhotos = useCallback((uris: string[]) => {
+    setState((prev) =>
+      isSamePhotoSet(prev.draft.images ?? [], uris) ? { ...prev, draft: { ...prev.draft, images: uris } } : prev
+    );
+  }, []);
+
+  const setLocation = useCallback((latitude: number, longitude: number) => {
+    setState((prev) => ({ ...prev, draft: { ...prev.draft, latitude, longitude } }));
+  }, []);
+
+  const clearLocation = useCallback(() => {
+    setState((prev) => ({ ...prev, draft: { ...prev.draft, latitude: undefined, longitude: undefined } }));
+  }, []);
+
   const updateAmenities = useCallback((amenities: string[]) => {
     setState((prev) => ({ ...prev, draft: { ...prev.draft, amenities } }));
   }, []);
 
-  const skipPhotos = useCallback(() => {
-    setState((prev) => ({ ...prev, mode: 'location' }));
-  }, []);
-
-  const editPhotos = useCallback(() => {
-    setState((prev) => ({ ...prev, mode: 'photos' }));
-  }, []);
-
-  const editLocation = useCallback(() => {
-    setState((prev) => ({ ...prev, mode: 'location' }));
-  }, []);
-
-  const setLocation = useCallback((latitude: number, longitude: number) => {
-    setState((prev) => ({
-      ...prev,
-      mode: 'generating_description',
-      draft: { ...prev.draft, latitude, longitude },
-    }));
-  }, []);
-
-  const generateDescription = useCallback(async () => {
-    try {
-      const { description } = await generatePropertyDescription(state.draft);
-      setState((prev) => ({ ...prev, mode: 'confirming', draft: { ...prev.draft, description } }));
-      return { description };
-    } catch (err) {
-      setState((prev) => ({ ...prev, mode: 'location' }));
-      throw err;
-    }
-  }, [state.draft]);
-
   const confirmPublish = useCallback(async (): Promise<Property> => {
-    const draftImages = state.draft.images || [];
+    const { draft } = stateRef.current;
+    const draftImages = draft.images ?? [];
     const localUris = draftImages.filter((uri) => uri.startsWith('file://'));
 
     let images = draftImages;
     if (localUris.length > 0) {
-      const uploaded = await uploadPropertyImages(draftIdRef.current, localUris);
+      const uploaded = await uploadPropertyImages(sessionRef.current, localUris);
       let next = 0;
       images = draftImages.map((uri) => (uri.startsWith('file://') ? uploaded[next++] : uri));
     }
 
-    const property = await publishProperty({ ...state.draft, images });
-    setState(INITIAL_STATE);
+    const property = await publishProperty({ ...draft, images });
+    resetSession(INITIAL_STATE);
     return property;
-  }, [state.draft]);
+  }, [resetSession]);
 
   return {
     state,
     start,
+    cancel,
     processMessage,
     processAudioMessage,
+    updateField,
     addPhotos,
     removePhoto,
     movePhoto,
-    updateAmenities,
-    skipPhotos,
-    editPhotos,
-    editLocation,
+    setPhotos,
     setLocation,
-    generateDescription,
+    clearLocation,
+    updateAmenities,
+    requestDescription,
     confirmPublish,
-    cancel,
   };
 }

@@ -15,6 +15,21 @@ export const getPropertyDetailStyles = (theme: ThemeColors) => ({
       paddingTop: 14,
       paddingBottom: 24,
     },
+    previewBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      padding: 12,
+      marginBottom: 12,
+      borderRadius: shapes.lg,
+      backgroundColor: theme.secondaryContainer,
+    },
+    previewBannerText: {
+      flex: 1,
+      fontSize: 14,
+      fontWeight: '600',
+      color: theme.onSecondaryContainer,
+    },
     imageWrapper: {
       width: '100%',
       height: 240,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, Image } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import PropertyDetailScreen from '../[id]';
 import * as chatApi from '../../../services/chatApi';
@@ -21,6 +21,7 @@ let mockParams: {
   image_url: string;
   description?: string;
   images?: string;
+  preview?: string;
 } = {
   id: 'prop-123',
   title: 'Barrio de Salamanca, Madrid',
@@ -178,5 +179,53 @@ describe('PropertyDetailScreen', () => {
     expect(queryByText('Características de Accesibilidad y Confort')).toBeNull();
     expect(queryByText('Cercanías a pie')).toBeNull();
     expect(queryByText(/Vivienda totalmente exterior y luminosa/)).toBeNull();
+  });
+
+  describe('in preview mode', () => {
+    const PHOTOS = ['file:///photos/cover.jpg', 'file:///photos/second.jpg'];
+
+    beforeEach(() => {
+      mockParams = { ...mockParams, id: 'draft-preview', preview: '1', images: JSON.stringify(PHOTOS) };
+    });
+
+    it('says the listing is not published yet', () => {
+      const { getByText } = render(<PropertyDetailScreen />);
+
+      expect(getByText('Vista previa: así verán su anuncio. Todavía no está publicado.')).toBeTruthy();
+    });
+
+    it('never asks the server to write a description, even when the draft has none', () => {
+      const { queryByText } = render(<PropertyDetailScreen />);
+
+      expect(chatApi.generatePropertyDescription).not.toHaveBeenCalled();
+      expect(queryByText('Características de Accesibilidad y Confort')).toBeNull();
+      expect(queryByText('Cercanías a pie')).toBeNull();
+    });
+
+    it('shows the draft description, the cover photo and the photo count', () => {
+      mockParams = { ...mockParams, description: 'Piso luminoso en el centro.' };
+
+      const { getByText, UNSAFE_getAllByType } = render(<PropertyDetailScreen />);
+
+      expect(getByText('Piso luminoso en el centro.')).toBeTruthy();
+      expect(getByText('1 de 2 fotos')).toBeTruthy();
+      const uris = UNSAFE_getAllByType(Image).map((node: any) => node.props.source.uri);
+      expect(uris[0]).toBe(PHOTOS[0]);
+    });
+
+    it('hides the question bar but keeps navigating back', () => {
+      const { queryByPlaceholderText, getByLabelText } = render(<PropertyDetailScreen />);
+
+      expect(queryByPlaceholderText('Escriba su consulta aquí...')).toBeNull();
+      fireEvent.press(getByLabelText('Regresar'));
+      expect(mockBack).toHaveBeenCalled();
+    });
+  });
+
+  it('shows no preview banner when browsing a normal listing', async () => {
+    const { queryByText } = render(<PropertyDetailScreen />);
+    await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
+
+    expect(queryByText(/Vista previa: así verán/)).toBeNull();
   });
 });

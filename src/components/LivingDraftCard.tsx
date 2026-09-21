@@ -3,6 +3,8 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
+import { FieldStatusEntry } from '../lib/draftStatus';
+import { DraftEditableField, FieldEditResult } from '../lib/draftValidation';
 import {
   capitalize,
   formatKnownValue,
@@ -16,6 +18,7 @@ import {
   REQUIRED_PROPERTY_DRAFT_FIELDS,
 } from '../types/property';
 import { colors } from '../theme/colors';
+import { DraftFieldRow } from './DraftFieldRow';
 import { getLivingDraftCardStyles } from './LivingDraftCard.styles';
 
 export interface LivingDraftCardProps {
@@ -25,6 +28,8 @@ export interface LivingDraftCardProps {
   onSelectMissingField?: (fieldLabel: string) => void;
   onQuickAnswer?: (option: string) => void;
   onSelectField?: (fieldLabel: string) => void;
+  statuses?: FieldStatusEntry[];
+  onEditField?: (field: DraftEditableField, raw: string) => FieldEditResult;
 }
 
 export const LivingDraftCard: React.FC<LivingDraftCardProps> = ({
@@ -34,6 +39,8 @@ export const LivingDraftCard: React.FC<LivingDraftCardProps> = ({
   onSelectMissingField,
   onQuickAnswer,
   onSelectField,
+  statuses,
+  onEditField,
 }) => {
   const handleEnumOptionSelect = onSelectEnumOption ?? onQuickAnswer ?? (() => {});
   const handleMissingFieldSelect = onSelectMissingField ?? onSelectField ?? (() => {});
@@ -46,6 +53,17 @@ export const LivingDraftCard: React.FC<LivingDraftCardProps> = ({
     [theme]
   );
   const [expandedField, setExpandedField] = useState<keyof PropertyDraft | null>(null);
+
+  if (statuses && onEditField) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>{labels.livingDraft.title}</Text>
+        {statuses.map(({ field, status }) => (
+          <DraftFieldRow key={field} field={field} status={status} draft={draft} onEdit={onEditField} />
+        ))}
+      </View>
+    );
+  }
 
   const knownFields = REQUIRED_PROPERTY_DRAFT_FIELDS.filter((field) => !missingFields.includes(field));
 

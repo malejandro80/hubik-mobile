@@ -60,3 +60,18 @@ export function formatKnownValue(
       return String(draft[field] ?? '');
   }
 }
+
+export interface EnumOption {
+  value: string;
+  label: string;
+}
+
+export function getEnumOptions(field: EnumField, labels: Labels): EnumOption[] {
+  if (field === 'property_type') {
+    return Object.entries(PROPERTY_TYPE_LABEL_ES).map(([value, label]) => ({ value, label }));
+  }
+  return [
+    { value: 'sale', label: labels.livingDraft.sale },
+    { value: 'rent', label: labels.livingDraft.rent },
+  ];
+}

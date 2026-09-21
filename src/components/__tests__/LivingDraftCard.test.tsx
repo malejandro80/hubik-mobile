@@ -1,6 +1,7 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import { LivingDraftCard } from '../LivingDraftCard';
+import { getFieldStatuses } from '../../lib/draftStatus';
 import { PropertyDraft } from '../../types/property';
 
 describe('LivingDraftCard', () => {
@@ -86,5 +87,43 @@ describe('LivingDraftCard', () => {
     fireEvent.press(getByLabelText('Operación: Alquiler'));
 
     expect(onQuickAnswer).toHaveBeenCalledWith('Alquiler');
+  });
+});
+
+describe('LivingDraftCard editable mode', () => {
+  const draft: PropertyDraft = { operation_type: 'sale', price: 175000, city: 'Valencia' };
+  const statuses = getFieldStatuses(draft, ['price']);
+
+  it('shows one row per required field with a status word instead of chips', () => {
+    const { getByText, getAllByText } = render(
+      <LivingDraftCard draft={draft} missingFields={[]} statuses={statuses} onEditField={jest.fn()} />
+    );
+
+    expect(getByText('Ficha en progreso')).toBeTruthy();
+    expect(getByText('Nuevo')).toBeTruthy();
+    expect(getAllByText('Listo')).toHaveLength(2);
+    expect(getAllByText('Falta')).toHaveLength(6);
+  });
+
+  it('lists the cadastral reference last', () => {
+    const { getAllByLabelText } = render(
+      <LivingDraftCard draft={draft} missingFields={[]} statuses={statuses} onEditField={jest.fn()} />
+    );
+
+    const rows = getAllByLabelText(/Toque para editar/);
+    expect(rows[rows.length - 1].props.accessibilityLabel).toContain('Referencia catastral');
+  });
+
+  it('sends an inline edit to onEditField', () => {
+    const onEditField = jest.fn(() => ({ ok: true as const, value: 'Madrid' }));
+    const { getByLabelText } = render(
+      <LivingDraftCard draft={draft} missingFields={[]} statuses={statuses} onEditField={onEditField} />
+    );
+
+    fireEvent.press(getByLabelText('Ciudad: Valencia, Listo. Toque para editar'));
+    fireEvent.changeText(getByLabelText('Editar ciudad'), 'Madrid');
+    fireEvent.press(getByLabelText('Guardar'));
+
+    expect(onEditField).toHaveBeenCalledWith('city', 'Madrid');
   });
 });

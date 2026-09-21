@@ -1,10 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, ListRenderItem, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, ListRenderItem, Platform, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useRouter } from 'expo-router';
+import { AgentsSection } from '../components/AgentsSection';
+import { BurgerMenu } from '../components/BurgerMenu';
 import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { PropertyCard } from '../components/PropertyCard';
+import { ScreenChatBar } from '../components/ScreenChatBar';
+import { useAgencyAgents } from '../hooks/useAgencyAgents';
+import { useAgencyChat } from '../hooks/useAgencyChat';
+import { useAppMenu } from '../hooks/useAppMenu';
 import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
@@ -27,10 +33,13 @@ export default function AgencyScreen() {
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
   const labels = useLabels();
+  const menu = useAppMenu();
   const styles = useMemo(() => getAgencyStyles(theme), [theme]);
   const [state, setState] = useState<ListingsState>({ phase: 'loading' });
   const agencyId = profile?.agencyId ?? null;
   const canView = capabilities.canViewAgencyListings;
+  const agents = useAgencyAgents(agencyId);
+  const chat = useAgencyChat(agents);
 
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -72,33 +81,49 @@ export default function AgencyScreen() {
 
   const isLoading = status === 'loading' || state.phase === 'loading';
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <Header title={labels.auth.myAgencyTitle} showBack onBackPress={router.back} />
-      {isLoading && (
-        <View style={styles.centered}>
+  const renderStatus = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.statusBlock}>
           <ActivityIndicator color={theme.primary} size="large" />
         </View>
-      )}
-      {!isLoading && state.phase === 'error' && (
-        <View style={styles.centered}>
+      );
+    }
+    if (state.phase === 'error') {
+      return (
+        <View style={styles.statusBlock}>
           <Text style={styles.message}>{labels.auth.myAgencyLoadError}</Text>
           <Button testID="agency-retry" title={labels.auth.retry} onPress={handleRetry} />
         </View>
-      )}
-      {!isLoading && state.phase === 'ready' && state.listings.length === 0 && (
-        <View style={styles.centered}>
-          <Text style={styles.message}>{labels.auth.myAgencyEmpty}</Text>
-        </View>
-      )}
-      {!isLoading && state.phase === 'ready' && state.listings.length > 0 && (
+      );
+    }
+    return (
+      <View style={styles.statusBlock}>
+        <Text style={styles.message}>{labels.auth.myAgencyEmpty}</Text>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <Header title={labels.auth.myAgencyTitle} showBack onBackPress={router.back} onMenuPress={menu.open} />
+      <KeyboardAvoidingView
+        style={styles.body}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+      >
         <FlatList
-          data={state.listings}
+          data={state.phase === 'ready' ? state.listings : []}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
+          ListHeaderComponent={agencyId ? <AgentsSection agents={agents} /> : null}
+          ListEmptyComponent={renderStatus}
           contentContainerStyle={styles.list}
+          keyboardShouldPersistTaps="handled"
         />
-      )}
+        <ScreenChatBar chat={chat} onOpenConversation={() => router.push('/')} />
+      </KeyboardAvoidingView>
+      <BurgerMenu {...menu.menuProps} />
     </SafeAreaView>
   );
 }

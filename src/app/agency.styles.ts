@@ -7,6 +7,9 @@ export const getAgencyStyles = (theme: ThemeColors) =>
       flex: 1,
       backgroundColor: theme.background,
     },
+    body: {
+      flex: 1,
+    },
     list: {
       paddingHorizontal: spacing.gutter,
       paddingBottom: spacing.spaceLG,
@@ -17,6 +20,11 @@ export const getAgencyStyles = (theme: ThemeColors) =>
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: spacing.margin,
+      gap: spacing.spaceMD,
+    },
+    statusBlock: {
+      alignItems: 'center',
+      paddingVertical: spacing.spaceLG,
       gap: spacing.spaceMD,
     },
     message: {

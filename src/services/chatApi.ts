@@ -9,6 +9,7 @@ import {
 } from '../types/property';
 import { extractAmenityKeywords, normalizeAmenities } from '../lib/amenities';
 import { supabase } from '../lib/supabase';
+import { CATASTRO_LAST_VARIANTS, DESCRIBE_INVITE_VARIANTS } from '../constants/intakeMessages';
 
 export interface ChatResponse {
   answer: string;
@@ -470,12 +471,6 @@ const MISSING_FIELDS_SUFFIX_VARIANTS = [
   'Cuando guste, dígamelos juntos o por partes.',
 ];
 
-const CATASTRO_ASK_VARIANTS = [
-  'Para comenzar, indíqueme la referencia catastral de la propiedad (puede consultarla en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de continuar.',
-  'Empecemos por la referencia catastral de la propiedad (está en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de seguir.',
-  'Lo primero que necesito es la referencia catastral (puede encontrarla en el recibo del IBI o en la Sede Electrónica del Catastro). Enseguida la verifico.',
-];
-
 function pickVariant(variants: string[]): string {
   return variants[Math.floor(Math.random() * variants.length)];
 }
@@ -488,10 +483,14 @@ function buildAssistantMessage(missing: (keyof PropertyDraft)[], catastroJustPro
   if (missing.length === 0) {
     return `${prefix}${pickVariant(READY_TO_CONFIRM_VARIANTS)}`;
   }
-  if (missing.includes('catastro')) {
-    return pickVariant(CATASTRO_ASK_VARIANTS);
+  if (missing.length >= REQUIRED_PROPERTY_DRAFT_FIELDS.length) {
+    return pickVariant(DESCRIBE_INVITE_VARIANTS);
   }
-  const labels = missing.map((field) => PROPERTY_DRAFT_FIELD_LABELS[field as keyof typeof PROPERTY_DRAFT_FIELD_LABELS]);
+  const askable = missing.filter((field) => field !== 'catastro');
+  if (askable.length === 0) {
+    return `${prefix}${pickVariant(CATASTRO_LAST_VARIANTS)}`;
+  }
+  const labels = askable.map((field) => PROPERTY_DRAFT_FIELD_LABELS[field as keyof typeof PROPERTY_DRAFT_FIELD_LABELS]);
   const joined =
     labels.length === 1
       ? labels[0]

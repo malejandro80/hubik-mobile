@@ -348,11 +348,34 @@ describe('chatApi - parsePropertyDraft (heuristic extraction)', () => {
     expect(result.data.city).toBe('Barcelona');
   });
 
-  it('asks only for the cadastral reference when it is missing, even if other fields are also missing', () => {
+  it('never asks for the cadastral reference while other fields are missing', () => {
     const result = parsePropertyDraft('Quiero alquilar mi estudio en Barcelona', {});
     expect(result.missing_fields).toContain('catastro');
+    expect(result.assistant_message).not.toContain('referencia catastral');
+    expect(result.assistant_message).toContain('precio');
+  });
+
+  it('asks for the cadastral reference alone once every other field is known', () => {
+    const known = {
+      property_type: 'Apartment' as const,
+      operation_type: 'sale' as const,
+      price: 180000,
+      bedrooms: 3,
+      bathrooms: 2,
+      square_meters: 90,
+      city: 'Valencia',
+      address: 'Calle Colón 12',
+    };
+    const result = parsePropertyDraft('gracias', known);
+    expect(result.missing_fields).toEqual(['catastro']);
     expect(result.assistant_message).toContain('referencia catastral');
-    expect(result.assistant_message).not.toContain('precio');
+  });
+
+  it('invites a free description instead of a question when nothing was understood yet', () => {
+    const result = parsePropertyDraft('hola', {});
+    expect(result.ready_to_confirm).toBe(false);
+    expect(result.assistant_message).not.toContain('referencia catastral');
+    expect(result.assistant_message).toContain('propiedad');
   });
 
   it('extracts a standalone cadastral reference and moves on to the rest once it is set', () => {

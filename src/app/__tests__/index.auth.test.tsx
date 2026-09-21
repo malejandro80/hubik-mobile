@@ -93,7 +93,7 @@ describe('HomeScreen registration access by role', () => {
     expect(
       await utils.findByText(/inicie sesión con su cuenta de agente/)
     ).toBeTruthy();
-    expect(utils.queryByText(/indíqueme la referencia catastral/)).toBeNull();
+    expect(utils.queryByText(/Cuénteme la propiedad con sus propias palabras/)).toBeNull();
   });
 
   it.each<Role>(['client', 'owner'])(
@@ -105,7 +105,7 @@ describe('HomeScreen registration access by role', () => {
       typeAndSend(utils, '/agregar-propiedad');
 
       expect(await utils.findByText(/Solo los agentes de una inmobiliaria/)).toBeTruthy();
-      expect(utils.queryByText(/indíqueme la referencia catastral/)).toBeNull();
+      expect(utils.queryByText(/Cuénteme la propiedad con sus propias palabras/)).toBeNull();
     }
   );
 
@@ -115,7 +115,7 @@ describe('HomeScreen registration access by role', () => {
 
     typeAndSend(utils, '/agregar-propiedad');
 
-    expect(await utils.findByText(/indíqueme la referencia catastral/)).toBeTruthy();
+    expect(await utils.findByText(/Cuénteme la propiedad con sus propias palabras/)).toBeTruthy();
   });
 
   it('ignores the startRegistration link parameter for non-agents', async () => {
@@ -124,7 +124,7 @@ describe('HomeScreen registration access by role', () => {
     const utils = render(<HomeScreen />);
 
     expect(await utils.findByText(/Solo los agentes de una inmobiliaria/)).toBeTruthy();
-    expect(utils.queryByText(/indíqueme la referencia catastral/)).toBeNull();
+    expect(utils.queryByText(/Cuénteme la propiedad con sus propias palabras/)).toBeNull();
     expect(chatApi.intakeProperty).not.toHaveBeenCalled();
   });
 });

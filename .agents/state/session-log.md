@@ -1416,3 +1416,79 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Verification**: `scripts/verify.sh check-all` passed; `jest --testPathIgnorePatterns /.kilo/` 47 suites / 316 tests (was 45 / 296), typecheck clean, lint 0 errors (5 pre-existing warnings).
 - **Not verified on a device**: the real Google photo rendering and the guest card tap. Needs the EAS dev build.
 - **Next Actions**: test on the dev build (sign in with Google, open the menu); commit the pending work together with `eas.json`, `.npmrc`, `assets/`.
+
+---
+
+### [2026-09-20] Session: RFC 012 - AI listing composer (scope, RFC, implementation, property-intake deploy)
+- **Status**: Implemented and verified locally; `property-intake` deployed (v19). NOT committed, NOT pushed. Not yet exercised on a device as an agent.
+- **Workflow**: scope skill (2 rounds, brief approved) -> RFC 012 (approved) -> TDD implementation.
+- **Root cause of "goes through all steps again"**: the old hook reset the mode to `photos` on any text edit unless already in `confirming`. Removed by dropping the mode machine.
+- **Changes Made**:
+  - `src/hooks/usePropertyRegistrationChat.ts` rewritten (draft, recentlyChanged, describing, describedFrom; no modes). New `useRegistrationConversation.ts` (text/voice intents, photos, publish confirm). `src/app/index.tsx` 705 -> 421 lines.
+  - New pure logic `src/lib/draftStatus.ts`, `src/lib/draftValidation.ts` (+ constants in `src/constants/draft*.ts`, `registrationIntents.ts`, `intakeMessages.ts`).
+  - UI: `DraftPanel`, `DraftFieldRow`, `DraftDescriptionBlock`; `LivingDraftCard` editable mode; `ChatInputBar` attach buttons; new `composer` label namespace.
+  - Server: `_shared/intakeMessage.ts` (+ constants) used by `property-intake` (cadastral asked last, free-description opening); client twin in `chatApi.ts`.
+  - Docs: `specs/012-ai-listing-composer.md` (section 8 lists deviations), feature graph updated.
+- **Test changes (requirement change, not weakening)**: see RFC 012 section 8. Commit message must say so.
+- **Verification**: `scripts/verify.sh check-all` and `jest --testPathIgnorePatterns /.kilo/`: 52 suites / 405 tests passing (was 47 / 316 after the previous feature), typecheck clean, lint 0 errors (same 5 pre-existing warnings), no comments in new files.
+- **Deploy**: `property-intake` v18 -> v19 via MCP; smoke test 401 for a non-agent. Agent-path behaviour (question order) not testable live without an agent account.
+- **Not verified on a device**: the whole agent flow (panel layout with keyboard on small phones, photo picker, map pin, publish). The test account is a `client`, so it must be promoted to agent first (RFC 011 section 4.6).
+- **Next Actions**: promote a test account to agent and run RFC 012 stories 1-6 on iOS simulator and Android dev build; commit the pending work (also `eas.json`, `.npmrc`, `assets/`, scripts/apple-client-secret.mjs); slice 2 (RFC 013): address->pin, AI reading photos, price check.
+
+---
+
+### [2026-09-21] Session: RFC 013 - Owners add agents by email
+- **Status**: Implemented and verified; migration applied to the live project. NOT committed, NOT pushed. Not yet exercised end to end with a second real account.
+- **Workflow**: scope skill (2 rounds; the human chose pending invites, automatic, add + cancel-pending, neutral conflict message, no limit) -> RFC 013 (approved) -> TDD.
+- **Database (applied via MCP as `agent_invites`)**: `agent_invites` table (pending only, RLS owner-read, no client writes), `add_agent`, `cancel_agent_invite`, `apply_pending_invite`, extended `handle_new_user`, new `on_auth_user_confirmed` trigger. Matching trusts only confirmed emails (existing users) or a google/apple claim in `raw_app_meta_data` (new users), never `user_metadata`.
+- **Database tests**: `supabase/tests/agent_invites.test.sql`, 34 checks, all PASS against the live project inside an always-aborting `DO` block; afterwards no test data remained. Advisors: only the expected SECURITY DEFINER warnings.
+- **App**: `src/lib/agentInvites.ts` (+ constants), `authApi` (`addAgent`, `cancelAgentInvite`, `fetchAgencyAgents`, `fetchAgentInvites`), `useAgencyAgents`, `AgentsSection`, `agency.tsx` restructured around one list with the section as header, new `auth.agents` labels.
+- **Verification**: `scripts/verify.sh check-all` passed; `jest --testPathIgnorePatterns /.kilo/` 55 suites / 462 tests (was 52 / 405); typecheck clean; lint 0 errors (same 5 pre-existing warnings); no comments in new files.
+- **Test changes**: only additive (the agency screen test mock gained the new API functions).
+- **Accepted limits**: no cap and no rate limit; neutral message still distinguishes "added" from "not added"; Apple Hide My Email users will not match a real-email invite; invites never expire.
+- **Not verified**: the app screens on a device, and the new-user path in production (needs a second Google account that has never signed in).
+- **Next Actions**: promote the owner account in the app (create the agency, then use Agentes); test with a second Google account; commit the pending work; consider disabling the Email auth provider if password sign-in is unused, and per-owner rate limiting.
+
+---
+
+### [2026-09-21] Session: shared app menu (bug fix) + stale Metro
+- **Bug**: the hamburger on "Mi inmobiliaria" did nothing (no handler), and the property screen had an older, role-blind copy of the menu logic. New `src/hooks/useAppMenu.ts` is the single source (role-aware items, default navigation, per-screen overrides); home, agency and property use it. `BurgerMenu` props come from `menu.menuProps`.
+- **Not a code bug**: the agents section did not show on the simulator because Metro had been started with `CI=1`, which disables file watching, so it kept serving old code. Restart Metro WITHOUT `CI=1` (`nohup npx expo start --dev-client --port 8081 --clear < /dev/null`). Grepping the entry bundle for app strings proves nothing (Expo Router splits routes out).
+- **Tests**: `useAppMenu.test.tsx` (15), two new agency menu tests; existing app tests unchanged and green.
+- **Open request (needs scoping first)**: "the chat must be the main feature in all views to interact with screens".
+
+---
+
+### [2026-09-21] Session: RFC 014 - Chat on every screen (slice 1: Mi inmobiliaria)
+- **Status**: Implemented and verified locally; NOT committed, NOT pushed. Client only (no server change, no migration).
+- **Workflow**: scope skill (2 rounds; chat bar on every screen, Mi inmobiliaria first, one shared conversation, typing first) -> RFC 014 (approved) -> TDD.
+- **Built**: `ConversationProvider`/`useConversation` (shared history, works without a provider, clears on sign-out), `parseAgencyCommand` (+ constants), `useScreenChat`, `useAgencyChat`, `ScreenChatBar`, `agency.tsx` rewired, `useAgencyAgents` (`addAgentByEmail`, `cancelInvite` boolean, null agency id), `ChatInputBar` disabled send without a mic, `useAppMenu` (menu bug fix), home moved to the shared conversation.
+- **Bugs found on the simulator and fixed**: dead menu button on Mi inmobiliaria (three drifting copies of the menu logic -> `useAppMenu`); chat did not scroll to new messages in the composer flow; English "Just now" timestamp; a timing-flaky AgentsSection test (resolve outside `act`).
+- **Environment lesson**: Metro started with `CI=1` does not watch files (stale bundle). Start it without `CI=1` (`nohup npx expo start --dev-client --port 8081 --clear < /dev/null`).
+- **Production evidence**: the owner account (Casa Norte) added `houseapp122@gmail.com` through the new Agentes feature and it is now an agent; 0 pending invites.
+- **Live check of RFC 012 as an agent** on the iOS simulator: panel and buttons render, a description fills the draft (0 -> 4 of 9), the server asks for missing fields without asking for the catastro, chat auto-scrolls.
+- **Verification**: `scripts/verify.sh check-all` passed; `jest --testPathIgnorePatterns /.kilo/` 61 suites / 573 tests (three identical runs); typecheck clean; lint 0 errors (same 5 pre-existing warnings); no comments in new code.
+- **Not verified on a device**: the owner-only chat on Mi inmobiliaria (needs a session signed in as the owner), photos/map/publish of the composer, Android.
+- **Next Actions**: sign in as the owner and run the RFC 014 stories; commit the pending work (large: RFCs 012-014, profile card, EAS, Apple script); slice 2: chat on property detail, sign-in, create agency, voice, free-form understanding.
+
+---
+
+### [2026-09-21] Session: RFC 015 - Listing preview and photo order
+- **Status**: Implemented and verified locally; NOT committed, NOT pushed. Client only (no server change, no migration).
+- **Workflow**: owner's device test ("can't see the preview after adding all data", "need to organise the order of the pictures") -> scope questions -> RFC 015 (approved) -> TDD.
+- **Built**: `src/lib/photoOrder.ts`, `setPhotos` in `usePropertyRegistrationChat`, `PhotoOrderModal` (+styles), `useDraftReview`, `ChatInputBar` **Ordenar**, `DraftPanel` **Vista previa**, preview mode in `src/app/property/[id].tsx` (`preview=1`: banner, no description call, no question bar), `src/constants/{photoOrder,listingPreview}.ts`, labels. New dependency `react-native-reorderable-list@0.18.1` (pinned, JS only, no native rebuild).
+- **Test tooling**: `react-native-gesture-handler/jestSetup` added to `jest.config.js`; root `__mocks__/react-native-reorderable-list.js`.
+- **Verified on the iOS simulator as the `houseapp` agent**: three test photos in the library, Ordenar opens, press-and-hold drag moves the blue photo to Portada, the arrow buttons do the same, Listo applies, Vista previa opens the listing with banner, blue cover, "1 de 3 fotos", price, address and the written description, back returns to the composer with 9 of 9 data and 3 photos intact.
+- **Bugs found on the simulator and fixed**: ordering header under the status bar (Modal needs its own `SafeAreaProvider`); the third attachment button cut off at the right edge (row now wraps).
+- **Verification**: `scripts/verify.sh check-all` passed (109 suites); `jest --testPathIgnorePatterns /.kilo/` 608 tests, three identical runs (was 573); typecheck clean; lint 0 errors (5 pre-existing warnings); no comments in new code.
+- **Test changes**: only additive (new props in the `DraftPanel` test builder; `PhotoOrderModal`, `index.preview`, detail preview-mode tests added). No assertion weakened.
+- **Not verified**: Android; a gallery in the preview (the property screen shows only the cover and a count).
+- **Next Actions**: run the same flow on an Android dev build; commit the pending work (RFCs 012-015 are all uncommitted); RFC 014 slice 2.
+
+
+---
+
+### [2026-09-21] Bug fix: tapping a search result crashed ("Cannot read property 'toString' of null")
+- **Cause**: `buildPropertyRouteParams` guarded coordinates with `!== undefined`, but properties from the database carry `null` for `latitude`/`longitude` when no pin was set, so `null.toString()` threw on tapping a result card.
+- **Fix**: `typeof value === 'number'` guards in `src/lib/chatRegistration.ts` (zero still passes). Three tests added in `chatRegistration.test.ts` (null, missing, real values including 0); `check-all` green, 907 tests.
+- **Residual risk**: the same helper still calls `.toString()` on `price`, `bedrooms`, `bathrooms` and `square_meters`; fine while those columns are NOT NULL, worth confirming against the schema.

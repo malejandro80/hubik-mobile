@@ -5,12 +5,13 @@ import {
   buildInitialMessages,
   buildPropertyRouteParams,
   formatDraftSummary,
-  formatOutcomeMessage,
   generateMessageId,
   isConfirmIntent,
   isContinueIntent,
   isLocationIntent,
   isPhotosIntent,
+  isPublishRequest,
+  isShortCommand,
 } from '../chatRegistration';
 
 describe('chatRegistration library', () => {
@@ -20,6 +21,23 @@ describe('chatRegistration library', () => {
       expect(isConfirmIntent('¡Sí, dale!')).toBe(true);
       expect(isConfirmIntent('correcto')).toBe(true);
       expect(isConfirmIntent('buscar departamento')).toBe(false);
+    });
+
+    it('accepts a short confirmation as a publish request', () => {
+      expect(isPublishRequest('publicar')).toBe(true);
+      expect(isPublishRequest('Confirmar y publicar')).toBe(true);
+      expect(isPublishRequest('sí, dale')).toBe(true);
+    });
+
+    it('does not read a long description that ends with a confirmation word as a publish request', () => {
+      expect(isPublishRequest('es un piso de tres habitaciones con vistas al mar, listo')).toBe(false);
+      expect(isPublishRequest('buscar departamento')).toBe(false);
+    });
+
+    it('only treats short messages as commands, so a description that mentions photos or the location is not swallowed', () => {
+      expect(isShortCommand('fotos')).toBe(true);
+      expect(isShortCommand('abrir mapa')).toBe(true);
+      expect(isShortCommand('piso muy luminoso con excelente ubicación y fotos recientes')).toBe(false);
     });
 
     it('detects continue intents (skip photos)', () => {
@@ -63,25 +81,6 @@ describe('chatRegistration library', () => {
       expect(summary).toContain('Piso');
       expect(summary).toContain('320.000 €');
       expect(summary).toContain('Calle Mayor 10, Madrid');
-    });
-  });
-
-  describe('formatOutcomeMessage', () => {
-    it('returns collecting stage if not ready to confirm', () => {
-      const msg = formatOutcomeMessage(false, false, 'Faltan datos', {}, labels);
-      expect(msg).toBe('Faltan datos');
-    });
-
-    it('returns ask_photos stage if ready to confirm for the first time', () => {
-      const msg = formatOutcomeMessage(true, false, 'Datos listos', {}, labels);
-      expect(msg).toContain('Datos listos');
-      expect(msg).toContain(labels.chat.askPhotosPrompt(10));
-    });
-
-    it('returns confirming stage if already was confirming', () => {
-      const msg = formatOutcomeMessage(true, true, 'Confirmación', {}, labels);
-      expect(msg).toContain('Confirmación');
-      expect(msg).toContain(labels.chat.confirmDataPrompt(''));
     });
   });
 
@@ -137,6 +136,47 @@ describe('chatRegistration library', () => {
       expect(params.id).toBe('prop-1');
       expect(params.price).toBe('600000');
       expect(params.images).toBe(JSON.stringify(['https://example.com/img.jpg']));
+    });
+
+    describe('coordinates', () => {
+      const baseProperty: Property = {
+        id: 'prop-2',
+        title: 'Piso',
+        property_type: 'Apartment',
+        price: 200000,
+        bedrooms: 2,
+        bathrooms: 1,
+        square_meters: 70,
+        city: 'Madrid',
+        address: 'Calle Sol',
+        image_url: '',
+        status: 'Available',
+        images: [],
+        amenities: [],
+      };
+
+      it('omits lat and lng when the database returned null coordinates', () => {
+        const fromDatabase = { ...baseProperty, latitude: null, longitude: null } as unknown as Property;
+
+        const params = buildPropertyRouteParams(fromDatabase);
+
+        expect(params).not.toHaveProperty('lat');
+        expect(params).not.toHaveProperty('lng');
+      });
+
+      it('omits lat and lng when they are missing', () => {
+        const params = buildPropertyRouteParams(baseProperty);
+
+        expect(params).not.toHaveProperty('lat');
+        expect(params).not.toHaveProperty('lng');
+      });
+
+      it('passes real coordinates as strings, including zero', () => {
+        const params = buildPropertyRouteParams({ ...baseProperty, latitude: 40.4168, longitude: 0 });
+
+        expect(params.lat).toBe('40.4168');
+        expect(params.lng).toBe('0');
+      });
     });
   });
 

@@ -1,3 +1,5 @@
+import { ADD_AGENT_OUTCOMES } from '../constants/agentInvites';
+
 export type Role = 'client' | 'agent' | 'owner';
 
 export type AuthProviderName = 'google' | 'apple';
@@ -27,4 +29,17 @@ export interface AuthState {
   signIn: (provider: AuthProviderName) => Promise<SignInOutcome>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+}
+
+export type AddAgentOutcome = (typeof ADD_AGENT_OUTCOMES)[number];
+
+export interface AgencyAgent {
+  userId: string;
+  displayName: string | null;
+}
+
+export interface AgentInvite {
+  id: string;
+  email: string;
+  createdAt: string;
 }

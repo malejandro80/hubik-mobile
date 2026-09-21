@@ -1,6 +1,6 @@
 import { Labels } from '../hooks/useLabels';
 import { labels as defaultLabels } from '../constants/labels';
-import { MAX_PROPERTY_IMAGES } from '../services/propertyImages';
+import { MAX_COMMAND_WORDS, WORD_SEPARATOR_PATTERN } from '../constants/registrationIntents';
 import { generatePropertyTitle } from '../services/chatApi';
 import {
   ChatMessage,
@@ -37,6 +37,14 @@ export function isConfirmIntent(text: string): boolean {
     'proceder',
   ];
   return phrases.some((p) => lower === p || lower.startsWith(p + ' ') || lower.endsWith(' ' + p));
+}
+
+export function isShortCommand(text: string): boolean {
+  return text.trim().split(WORD_SEPARATOR_PATTERN).length <= MAX_COMMAND_WORDS;
+}
+
+export function isPublishRequest(text: string): boolean {
+  return isShortCommand(text) && isConfirmIntent(text);
 }
 
 export function isContinueIntent(text: string): boolean {
@@ -127,30 +135,6 @@ export function formatDraftSummary(draft: PropertyDraft, labels: Labels = defaul
   ].join('\n\n');
 }
 
-export type OutcomeStage = 'confirming' | 'ask_photos' | 'collecting';
-
-export function formatOutcomeMessage(
-  readyToConfirm: boolean,
-  wasConfirming: boolean,
-  assistantMessage: string,
-  draft: PropertyDraft,
-  labels: Labels = defaultLabels
-): string {
-  const getStage = (): OutcomeStage => {
-    if (!readyToConfirm) return 'collecting';
-    if (wasConfirming) return 'confirming';
-    return 'ask_photos';
-  };
-
-  const stageTemplates: Record<OutcomeStage, string> = {
-    confirming: `${assistantMessage}\n\n${labels.chat.confirmDataPrompt(formatDraftSummary(draft, labels))}`,
-    ask_photos: `${assistantMessage}\n\n${labels.chat.askPhotosPrompt(MAX_PROPERTY_IMAGES)}`,
-    collecting: assistantMessage,
-  };
-
-  return stageTemplates[getStage()];
-}
-
 export function generateMessageId(prefix: 'user' | 'assistant'): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -193,8 +177,8 @@ export function buildPropertyRouteParams(property: Property) {
     ...(property.images && property.images.length > 0
       ? { images: JSON.stringify(property.images) }
       : {}),
-    ...(property.latitude !== undefined ? { lat: property.latitude.toString() } : {}),
-    ...(property.longitude !== undefined ? { lng: property.longitude.toString() } : {}),
+    ...(typeof property.latitude === 'number' ? { lat: property.latitude.toString() } : {}),
+    ...(typeof property.longitude === 'number' ? { lng: property.longitude.toString() } : {}),
     ...(property.agency_name ? { agency_name: property.agency_name } : {}),
     ...(property.agent_name ? { agent_name: property.agent_name } : {}),
   };

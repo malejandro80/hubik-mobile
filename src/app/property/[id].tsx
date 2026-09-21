@@ -16,10 +16,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { BurgerMenu } from '../../components/BurgerMenu';
 import { ChatInputBar } from '../../components/ChatInputBar';
 import { Header } from '../../components/Header';
+import { useAppMenu } from '../../hooks/useAppMenu';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { useLabels } from '../../hooks/useLabels';
 import { generatePropertyDescription } from '../../services/chatApi';
 import { colors } from '../../theme/colors';
+import { PREVIEW_PARAM_VALUE } from '../../constants/listingPreview';
 import { getPropertyDetailStyles } from './[id].styles';
 import {
   AccessibilityCardItem,
@@ -49,6 +51,7 @@ export default function PropertyDetailScreen() {
     lng?: string;
     agency_name?: string;
     agent_name?: string;
+    preview?: string;
   }>();
 
   const colorScheme = useColorScheme();
@@ -61,7 +64,7 @@ export default function PropertyDetailScreen() {
     iconColorOnPrimary,
     primaryColor,
   } = useMemo(() => getPropertyDetailStyles(theme), [theme]);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menu = useAppMenu();
   const [quickQuestion, setQuickQuestion] = useState('');
   const nearbyAmenities = useMemo(() => getNearbyAmenities(labels), [labels]);
 
@@ -73,7 +76,8 @@ export default function PropertyDetailScreen() {
   const bathrooms = params.bathrooms || '2';
   const squareMeters = params.square_meters || '120';
   const realImages = useMemo(() => parsePropertyImages(params.images), [params.images]);
-  const isRealDraft = Boolean(params.description);
+  const isPreview = params.preview === PREVIEW_PARAM_VALUE;
+  const isRealDraft = isPreview || Boolean(params.description);
   const imageUrl =
     realImages[0] ||
     params.image_url ||
@@ -182,33 +186,6 @@ export default function PropertyDetailScreen() {
     );
   };
 
-  const handleMenuItemSelect = (key: string) => {
-    setIsMenuOpen(false);
-    const menuActions: Record<string, () => void> = {
-      register: () =>
-        router.push({ pathname: '/', params: { startRegistration: '1' } }),
-      new_chat: () => router.push('/'),
-      search: () => router.push('/'),
-      saved: () =>
-        Alert.alert(
-          labels.burgerMenu.savedDraftsTitle,
-          labels.burgerMenu.savedDraftsMessage
-        ),
-      settings: () =>
-        Alert.alert(
-          labels.burgerMenu.settingsTitle,
-          labels.burgerMenu.settingsMessage
-        ),
-      help: () =>
-        Alert.alert(
-          labels.burgerMenu.helpTitle,
-          labels.burgerMenu.helpMessage
-        ),
-    };
-
-    menuActions[key]?.();
-  };
-
   return (
     <SafeAreaView
       style={styles.safeArea}
@@ -216,7 +193,7 @@ export default function PropertyDetailScreen() {
     >
       <Header
         onBackPress={() => router.back()}
-        onMenuPress={() => setIsMenuOpen(true)}
+        onMenuPress={menu.open}
       />
 
       <KeyboardAvoidingView
@@ -230,6 +207,13 @@ export default function PropertyDetailScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+        {isPreview && (
+          <View style={styles.previewBanner}>
+            <Ionicons name="eye-outline" size={18} color={iconColorSecondary} />
+            <Text style={styles.previewBannerText}>{labels.propertyDetail.previewBanner}</Text>
+          </View>
+        )}
+
         <View style={styles.imageWrapper}>
           <Image source={{ uri: imageUrl }} style={styles.heroImage} resizeMode="cover" />
           <View style={styles.photoCountBadge}>
@@ -392,23 +376,21 @@ export default function PropertyDetailScreen() {
           <Text style={styles.contactButtonText}>{labels.propertyDetail.contactAdvisor}</Text>
         </TouchableOpacity>
 
-        <ChatInputBar
-          value={quickQuestion}
-          onChangeText={setQuickQuestion}
-          onSend={handleQuickQuestion}
-          onMicPress={handleMicPress}
-          placeholder={labels.chat.inputPlaceholder}
-          hasTopBorder={false}
-          containerStyle={styles.detailInputContainer}
-        />
+        {!isPreview && (
+          <ChatInputBar
+            value={quickQuestion}
+            onChangeText={setQuickQuestion}
+            onSend={handleQuickQuestion}
+            onMicPress={handleMicPress}
+            placeholder={labels.chat.inputPlaceholder}
+            hasTopBorder={false}
+            containerStyle={styles.detailInputContainer}
+          />
+        )}
       </View>
     </KeyboardAvoidingView>
 
-    <BurgerMenu
-      visible={isMenuOpen}
-      onClose={() => setIsMenuOpen(false)}
-      onSelectMenuItem={handleMenuItemSelect}
-    />
+    <BurgerMenu {...menu.menuProps} />
   </SafeAreaView>
 );
 }
