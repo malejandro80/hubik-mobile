@@ -26,7 +26,11 @@ describe('propertyImages - uploadPropertyImages', () => {
       getPublicUrl: getPublicUrlMock,
     });
     global.fetch = jest.fn().mockResolvedValue({
-      blob: jest.fn().mockResolvedValue({ size: 123 }),
+      blob: jest.fn().mockResolvedValue({
+        size: 123,
+        type: '',
+        slice: jest.fn((_start: number, _end: number, type: string) => ({ size: 123, type })),
+      }),
     }) as any;
   });
 
@@ -41,6 +45,15 @@ describe('propertyImages - uploadPropertyImages', () => {
     expect(uploadMock).toHaveBeenCalledTimes(2);
     expect(urls).toHaveLength(2);
     urls.forEach((url) => expect(url).toMatch(/^https:\/\/storage\.example\.com\/drafts\/draft-1\//));
+  });
+
+  it('uploads the file as image/jpeg, not with the empty type a picked file arrives with, so storage and link previews see an image', async () => {
+    await uploadPropertyImages('draft-1', ['file://a.jpg']);
+
+    const [, uploaded, options] = uploadMock.mock.calls[0];
+    expect(uploaded.type).toBe('image/jpeg');
+    expect(uploaded.size).toBe(123);
+    expect(options).toEqual(expect.objectContaining({ contentType: 'image/jpeg' }));
   });
 
   it('uploads under a path scoped to the given draft id', async () => {

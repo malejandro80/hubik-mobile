@@ -10,6 +10,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { PROPERTY_TYPE_LABEL_ES, Property } from '../types/property';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
+import { buildShareUrl } from '../lib/shareLink';
 import { colors } from '../theme/colors';
 import { getPropertyCardStyles } from './PropertyCard.styles';
 
@@ -46,14 +47,16 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
 
   const handleShare = async () => {
     try {
+      const message = labels.propertyCard.shareMessage(
+        property.title,
+        formattedPrice,
+        property.city,
+        property.address
+      );
+      const link = buildShareUrl(property);
       await Share.share({
         title: property.title,
-        message: labels.propertyCard.shareMessage(
-          property.title,
-          formattedPrice,
-          property.city,
-          property.address
-        ),
+        message: link ?? message,
       });
     } catch {
     }

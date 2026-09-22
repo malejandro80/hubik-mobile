@@ -1,7 +1,18 @@
 import React from 'react';
+import { Share } from 'react-native';
 import { fireEvent, render } from '@testing-library/react-native';
 import { PropertyCard } from '../PropertyCard';
 import { Property } from '../../types/property';
+
+let mockShareBase = '';
+
+jest.mock('../../constants/share', () => ({
+  get SHARE_BASE_URL() {
+    return mockShareBase;
+  },
+  SHARE_PAGE_PATH: '/p',
+  SHARE_QUERY_PARAM: 'id',
+}));
 
 const mockProperty: Property = {
   id: 'test-1',
@@ -68,3 +79,48 @@ describe('PropertyCard Component', () => {
     expect(handlePress).toHaveBeenCalledWith(mockProperty);
   });
 });
+
+describe('PropertyCard share', () => {
+  const LISTING_ID = '3f2b1c9e-8a44-4d0e-9a51-7c6d2e1b0a55';
+  const baseText =
+    'Mira esta propiedad en Hubik: Luxury Downtown Loft por $450,000 en Austin.\nDirección: 100 Congress Ave';
+
+  beforeEach(() => {
+    mockShareBase = '';
+    jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('shares the link alone when a share base URL is configured, so Copy gives just the URL', () => {
+    mockShareBase = 'https://hubik.example.app';
+    const { getByLabelText } = render(<PropertyCard property={{ ...mockProperty, id: LISTING_ID }} />);
+
+    fireEvent.press(getByLabelText('Compartir Luxury Downtown Loft'));
+
+    expect(Share.share).toHaveBeenCalledWith({
+      title: 'Luxury Downtown Loft',
+      message: 'https://hubik.example.app/p/luxury-downtown-loft-3f2b1c9e',
+    });
+  });
+
+  it('sends exactly the plain text when no share base URL is configured', () => {
+    const { getByLabelText } = render(<PropertyCard property={{ ...mockProperty, id: LISTING_ID }} />);
+
+    fireEvent.press(getByLabelText('Compartir Luxury Downtown Loft'));
+
+    expect(Share.share).toHaveBeenCalledWith({ title: 'Luxury Downtown Loft', message: baseText });
+  });
+
+  it('sends no link for an id that is not a real listing id', () => {
+    mockShareBase = 'https://hubik.example.app';
+    const { getByLabelText } = render(<PropertyCard property={mockProperty} />);
+
+    fireEvent.press(getByLabelText('Compartir Luxury Downtown Loft'));
+
+    expect(Share.share).toHaveBeenCalledWith({ title: 'Luxury Downtown Loft', message: baseText });
+  });
+});
+

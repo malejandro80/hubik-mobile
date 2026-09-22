@@ -2,13 +2,13 @@ import React, { useMemo, useState } from 'react';
 import { Image, Modal, Pressable, Text, TouchableOpacity, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReorderableList, { ReorderableListReorderEvent, useReorderableDrag } from 'react-native-reorderable-list';
-import { initialWindowMetrics, SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { EMPTY_SAFE_AREA_METRICS } from '../constants/photoOrder';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { moveItem } from '../lib/photoOrder';
 import { colors } from '../theme/colors';
+import { ModalSafeArea } from './ModalSafeArea';
 import { getPhotoOrderModalStyles, gestureRootStyle } from './PhotoOrderModal.styles';
 
 export interface PhotoOrderModalProps {
@@ -130,9 +130,9 @@ const PhotoOrderContent: React.FC<Omit<PhotoOrderModalProps, 'visible'>> = ({ ph
 export const PhotoOrderModal: React.FC<PhotoOrderModalProps> = ({ visible, photos, onConfirm, onClose }) => (
   <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
     <GestureHandlerRootView style={gestureRootStyle}>
-      <SafeAreaProvider initialMetrics={initialWindowMetrics ?? EMPTY_SAFE_AREA_METRICS}>
+      <ModalSafeArea>
         {visible && <PhotoOrderContent photos={photos} onConfirm={onConfirm} onClose={onClose} />}
-      </SafeAreaProvider>
+      </ModalSafeArea>
     </GestureHandlerRootView>
   </Modal>
 );

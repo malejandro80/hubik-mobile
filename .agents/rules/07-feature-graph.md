@@ -168,5 +168,39 @@ graph TD
   ClientSearchDB -. "narrow owner-only exception to private client profiles (RFC 011)" .-> Tenancy
   ClientSearchDB -. "same outcomes as add_agent; removes a pending invite of the same agency" .-> Invites
   ClientSearchUI -. "extends the Agentes email field; useAgencyAgents gains addAgentById" .-> AgentsUI
+
+  RFC019["RFC 019: Public shared-property page + install sheet<br/>(client only; web export route /p)"]
+  RFC011 --> RFC019
+  SharePage["src/app/p.tsx + SharedPropertyView + InstallSheet/InstallBar<br/>(useSharedProperty, useInstallPrompt, storeLinks)"]
+  ShareLink["PropertyCard Compartir + lib/shareLink<br/>(link only when EXPO_PUBLIC_SHARE_BASE_URL is set)"]
+
+  RFC019 --> SharePage
+  RFC019 --> ShareLink
+  ShareLink -. "opens https://host/p?id=listing-id" .-> SharePage
+  SharePage -. "anon read of property_listings display columns (no coordinates, creator id or embedding)" .-> Tenancy
+
+  RFC020["RFC 020: Rich link previews + SEO<br/>(web.output server + unstable_useServerRendering; client/server code only)"]
+  RFC019 --> RFC020
+  ShareMeta["p/[slug].tsx + p/index.tsx generateMetadata<br/>listingSlug, listingMetadata, sharedMetadata"]
+  SeoApi["sitemap.xml+api.ts + robots.txt+api.ts<br/>(lib/sitemap, fetchSitemapListings)"]
+
+  RFC020 --> ShareMeta
+  RFC020 --> SeoApi
+  ShareMeta -. "resolves the 8-char id prefix by uuid range on property_listings" .-> Tenancy
+  ShareLink -. "now shares the slug URL alone" .-> ShareMeta
+  ShareMeta -. "server-rendered HTML carries OG/Twitter/canonical/robots" .-> SharePage
+
+  RFC021["RFC 021: Full photo gallery<br/>(client only)"]
+  RFC019 --> RFC021
+  Gallery["PhotoGallery + usePhotoGallery + useGalleryKeys<br/>(modal viewer: swipe, thumbnails, web arrows)"]
+  RFC021 --> Gallery
+  Gallery -. "hero of the in-app property screen and of the shared web page opens it" .-> SharePage
+
+  RFC022["RFC 022: Abrir en la app<br/>(client only; custom scheme hubikmobile://)"]
+  RFC019 --> RFC022
+  RFC020 --> RFC022
+  OpenApp["appLink + useOpenApp + InstallSheet open button<br/>SharedListingRoute -> SharedListingRedirect on native"]
+  RFC022 --> OpenApp
+  OpenApp -. "hubikmobile://p/slug on native replaces to property/[id] with fetched listing params" .-> ShareMeta
 ```
 

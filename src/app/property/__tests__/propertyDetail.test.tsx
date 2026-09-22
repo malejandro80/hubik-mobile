@@ -222,6 +222,47 @@ describe('PropertyDetailScreen', () => {
     });
   });
 
+  describe('photo gallery', () => {
+    const PHOTOS = ['https://storage.example.com/a.jpg', 'https://storage.example.com/b.jpg', 'https://storage.example.com/c.jpg'];
+
+    it('opens every photo full screen from the main photo', () => {
+      mockParams = { ...mockParams, description: 'Piso luminoso.', images: JSON.stringify(PHOTOS) };
+      const { getByLabelText, getByText, getByTestId } = render(<PropertyDetailScreen />);
+
+      fireEvent.press(getByLabelText('Ver todas las fotos (3)'));
+
+      expect(getByText('1 de 3')).toBeTruthy();
+      expect(getByTestId('photo-gallery-image-0').props.source).toEqual({ uri: PHOTOS[0] });
+    });
+
+    it('goes back to the listing when the viewer is closed', () => {
+      mockParams = { ...mockParams, description: 'Piso luminoso.', images: JSON.stringify(PHOTOS) };
+      const { getByLabelText, queryByText } = render(<PropertyDetailScreen />);
+      fireEvent.press(getByLabelText('Ver todas las fotos (3)'));
+
+      fireEvent.press(getByLabelText('Cerrar las fotos'));
+
+      expect(queryByText('1 de 3')).toBeNull();
+    });
+
+    it('opens the preview photos, which are local files', () => {
+      const local = ['file:///photos/a.jpg', 'file:///photos/b.jpg'];
+      mockParams = { ...mockParams, preview: '1', images: JSON.stringify(local) };
+      const { getByLabelText, getByTestId } = render(<PropertyDetailScreen />);
+
+      fireEvent.press(getByLabelText('Ver todas las fotos (2)'));
+
+      expect(getByTestId('photo-gallery-image-1').props.source).toEqual({ uri: local[1] });
+    });
+
+    it('offers nothing to open for a listing with stock content and no photos', async () => {
+      const { queryByLabelText } = render(<PropertyDetailScreen />);
+      await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
+
+      expect(queryByLabelText(/Ver todas las fotos/)).toBeNull();
+    });
+  });
+
   it('shows no preview banner when browsing a normal listing', async () => {
     const { queryByText } = render(<PropertyDetailScreen />);
     await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());

@@ -4,6 +4,8 @@ export const MAX_PROPERTY_IMAGES = 10;
 
 const BUCKET = 'property-images';
 
+const IMAGE_CONTENT_TYPE = 'image/jpeg';
+
 export async function uploadPropertyImages(draftId: string, uris: string[]): Promise<string[]> {
   if (uris.length > MAX_PROPERTY_IMAGES) {
     throw new Error(`No se pueden subir más de ${MAX_PROPERTY_IMAGES} fotos`);
@@ -14,11 +16,12 @@ export async function uploadPropertyImages(draftId: string, uris: string[]): Pro
   for (let i = 0; i < uris.length; i++) {
     const uri = uris[i];
     const response = await fetch(uri);
-    const blob = await response.blob();
+    const picked = await response.blob();
+    const blob = picked.slice(0, picked.size, IMAGE_CONTENT_TYPE);
     const path = `drafts/${draftId}/${i}-${Date.now()}.jpg`;
 
     const { error } = await supabase.storage.from(BUCKET).upload(path, blob, {
-      contentType: 'image/jpeg',
+      contentType: IMAGE_CONTENT_TYPE,
       upsert: false,
     });
 

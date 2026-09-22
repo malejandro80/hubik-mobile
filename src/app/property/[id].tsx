@@ -16,9 +16,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { BurgerMenu } from '../../components/BurgerMenu';
 import { ChatInputBar } from '../../components/ChatInputBar';
 import { Header } from '../../components/Header';
+import { PhotoGallery } from '../../components/PhotoGallery';
 import { useAppMenu } from '../../hooks/useAppMenu';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { useLabels } from '../../hooks/useLabels';
+import { usePhotoGallery } from '../../hooks/usePhotoGallery';
 import { generatePropertyDescription } from '../../services/chatApi';
 import { colors } from '../../theme/colors';
 import { PREVIEW_PARAM_VALUE } from '../../constants/listingPreview';
@@ -65,6 +67,7 @@ export default function PropertyDetailScreen() {
     primaryColor,
   } = useMemo(() => getPropertyDetailStyles(theme), [theme]);
   const menu = useAppMenu();
+  const { galleryVisible, openGallery, closeGallery } = usePhotoGallery();
   const [quickQuestion, setQuickQuestion] = useState('');
   const nearbyAmenities = useMemo(() => getNearbyAmenities(labels), [labels]);
 
@@ -162,6 +165,16 @@ export default function PropertyDetailScreen() {
     },
   ];
 
+  const heroContent = (
+    <>
+      <Image source={{ uri: imageUrl }} style={styles.heroImage} resizeMode="cover" />
+      <View style={styles.photoCountBadge}>
+        <Ionicons name="images-outline" size={14} color={iconColor} style={styles.badgeIcon} />
+        <Text style={styles.photoCountText}>{photoCountLabel}</Text>
+      </View>
+    </>
+  );
+
   const handleContactAdvisor = () => {
     Alert.alert(
       labels.propertyDetail.contactAdvisorAlertTitle,
@@ -214,13 +227,19 @@ export default function PropertyDetailScreen() {
           </View>
         )}
 
-        <View style={styles.imageWrapper}>
-          <Image source={{ uri: imageUrl }} style={styles.heroImage} resizeMode="cover" />
-          <View style={styles.photoCountBadge}>
-            <Ionicons name="images-outline" size={14} color={iconColor} style={styles.badgeIcon} />
-            <Text style={styles.photoCountText}>{photoCountLabel}</Text>
-          </View>
-        </View>
+        {realImages.length > 0 ? (
+          <TouchableOpacity
+            style={styles.imageWrapper}
+            onPress={openGallery}
+            accessibilityRole="button"
+            accessibilityLabel={labels.gallery.openA11y(realImages.length)}
+          >
+            {heroContent}
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.imageWrapper}>{heroContent}</View>
+        )}
+        <PhotoGallery visible={galleryVisible} images={realImages} onClose={closeGallery} />
 
         <View style={styles.priceLocationBlock}>
           <Text style={styles.priceText}>

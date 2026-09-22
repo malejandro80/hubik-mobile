@@ -1538,3 +1538,68 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Accepted limits**: any owner can find any client by name or email start (no opt-out); an owner can probe slowly within 20/min; masked email only.
 - **Next Actions**: sign in as the owner with a second (client) Google account to run the RFC 018 stories; commit the pending work (RFCs 012-018 are all uncommitted); consider client opt-out and chat-bar suggestions.
 
+---
+
+### [2026-09-21] Session: RFC 019 - Shared property page with an install bottom sheet
+- **Status**: Implemented and verified locally and in a real browser; NOT deployed to a host, NOT committed, NOT pushed. Client only (no migration, no Edge Function).
+- **Workflow**: scope skill (2 rounds; free hosting URL for now, store links not ready so "Próximamente", TikTok-style sheet visible right away and dismissible, full public listing info, existing Compartir button, plain link now, open-in-app deferred) -> web-export spike (the whole app exports; no secrets in the bundle) -> RFC 019 -> TDD.
+- **Built**: `src/lib/shareLink.ts`, `src/lib/storeLinks.ts`, `src/services/sharedProperty.ts`, `useSharedProperty`, `useInstallPrompt`, `InstallSheet`, `InstallBar`, `SharedPropertyView`, route `src/app/p.tsx` (`/p?id=<uuid>`), `PropertyCard` share message with the link, `constants/{share,appStore}.ts`, `labels.sharedProperty`, npm script `export:web`.
+- **Verification**: `scripts/verify.sh check-all` passed (147 suites); jest 769 tests, three identical runs; typecheck clean; lint 0 errors (5 pre-existing warnings); no comments in new code. One `.kilo` worktree suite failed once under load and passes alone (17/17); ignored per the repo note.
+- **Browser check**: served `dist` with clean URLs; real listing shown with the sheet; dismiss leaves the bar; unknown id shows the not-available page; store links inlined with `--clear`.
+- **Lesson**: rebuild the web export with `--clear` whenever an `EXPO_PUBLIC_*` value changes (script does it).
+- **Not verified**: a real host (clean-URL mapping, HTTPS), the share sheet on a physical phone with a real base URL, Android and iOS share from the app, light mode of the page.
+- **Next Actions**: pick a host and deploy (steps in RFC 019 section 8); set `EXPO_PUBLIC_SHARE_BASE_URL` and rebuild the app; add store links once listings exist; follow-up slices: rich link previews, open-in-app / universal links, share from the property screen; commit the pending work (RFCs 012-019 are all uncommitted).
+
+---
+
+### [2026-09-21] Deploy: RFC 019 shared-property page on EAS Hosting (preview)
+- **What**: `npm run export:web` then `eas deploy` (preview, `EAS_NO_VCS=1`, logged in as `malejandro80`). Preview URL: `https://hubik-mobile--j04kqea0p5.expo.app`; dashboard: `https://expo.dev/projects/b558f89a-d4f6-40dc-90c4-e374d03931ec/hosting/deployments`.
+- **Checked in a browser on that host**: `/p?id=<real listing id>` (clean URL, no config file needed) shows the listing with the install sheet and "Próximamente".
+- **Not done**: production deploy (`eas deploy --prod`), setting `EXPO_PUBLIC_SHARE_BASE_URL` in the app, store links.
+- **Note**: the Supabase URL and public anon key were baked in from the local `.env` at export time; no private key is in the bundle.
+
+---
+
+### [2026-09-21] Session: RFC 020 - Rich link previews and SEO for shared listings
+- **Status**: Implemented and verified locally, on a local server and on an EAS Hosting PREVIEW; NOT production, NOT committed, NOT pushed. No database change.
+- **Workflow**: scope skill (1 round: link alone, readable slug URL, indexable) -> spike (Expo Router 57 `generateMetadata` needs `unstable_useServerRendering`) -> RFC 020 -> TDD.
+- **Built**: see RFC 020 section 8. `app.json`: `web.output: "server"` and the router plugin flag. Routes `p/index.tsx`, `p/[slug].tsx`, `sitemap.xml+api.ts`, `robots.txt+api.ts`; `SharedPropertyPage`; libs `listingSlug`, `shareLink`, `listingMetadata`, `sitemap`; services `sharedProperty` (by ref, sitemap), `sharedMetadata`; `PropertyCard` shares the link alone.
+- **Preview**: `https://hubik-mobile--udojikamk6.expo.app` (crawler fetch verified: tags, canonical, noindex, sitemap, robots). Earlier static preview `...--j04kqea0p5...` is obsolete.
+- **Bugs found and fixed**: (1) hydration mismatch of the colour scheme under server rendering (sheet lost its background) - `useColorScheme` is hydration-safe; (2) every uploaded photo was stored/served as `text/plain` - `uploadPropertyImages` re-types the blob as `image/jpeg` (unit-tested; not verified with a real upload).
+- **Deviations from the brief**: no JSON-LD structured data; missing listings return 200 + noindex instead of a real 404 (both explained in RFC 020).
+- **Verification**: `scripts/verify.sh check-all` passed (152 suites); jest 840+ tests, three identical runs; typecheck clean; lint 0 errors (5 pre-existing warnings); no comments in new code.
+- **Test changes (requirement changes, say so in the commit message)**: `shareLink` and `PropertyCard` tests now expect the slug URL and the link alone; `useSharedProperty` / route tests use `fetchSharedPropertyByRef`.
+- **Not verified**: a real chat app (WhatsApp/iMessage) card; a real photo upload after the content-type fix; Facebook Sharing Debugger / Google Rich Results (need a public production URL).
+- **Next Actions**: `eas deploy --prod`, set `EXPO_PUBLIC_SHARE_BASE_URL` to that URL in `.env` and rebuild the app; publish a NEW listing (so its photos are `image/jpeg`) and paste its link in WhatsApp; consider shrinking photos on upload; commit the pending work (RFCs 012-020 are all uncommitted).
+
+
+---
+
+### [2026-09-21] Rebuild: iOS dev build after RFC 020
+- **What**: killed Metro and the app, rebuilt the iOS dev build for the iPhone 16e simulator (`npx expo run:ios --no-bundler --device "iPhone 16e"`), then started Metro fresh (`nohup npx expo start --dev-client --port 8081 --clear < /dev/null`, no `CI=1`).
+- **Gotcha**: `pod install` failed under this shell (Ruby "Unicode Normalization not appropriate for ASCII-8BIT"); fix: `export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8` before `expo run:ios`.
+- **Config seen**: `.env` now has `EXPO_PUBLIC_SHARE_BASE_URL=https://hubik-mobile.expo.app` (the production alias, live and serving the RFC 020 pages).
+- **Verified on the device**: signed in as `houseapp`, start screen, live search, and Compartir on a listing opens the iOS share sheet with a rich link preview (cover photo, title, `hubik-mobile.expo.app`) built from the live URL; Copy there gives the link alone.
+
+---
+
+### [2026-09-21] Session: RFC 021 (full photo gallery) and RFC 022 (open in app)
+- **Status**: Both implemented and verified locally (simulator and browser); a PREVIEW is deployed: `https://hubik-mobile--6ukxjwyxcm.expo.app`. NOT production, NOT committed, NOT pushed. Client only (no migration, no native rebuild).
+- **Workflow**: scope skill (1 round: button now with the app's own scheme and universal links later; gallery in the app and on the web; full-screen swipe viewer with thumbnails) -> RFC 021 and RFC 022 -> TDD.
+- **Gallery** (`PhotoGallery`, `usePhotoGallery`, `useGalleryKeys`, `labels.gallery`): wired into `SharedPropertyView` and `property/[id].tsx`. Layout bugs found only on the simulator and fixed: `flex: 1` collapses inside a `Modal` (explicit width/height), the horizontal thumbnail `FlatList` grew (`flexGrow: 0`), pages sized from the measured pager, light status bar. Verified: open, swipe, thumbnail jump, close on iOS; next button, arrow keys, thumbnails on the web.
+- **Open in app** (`appLink`, `useOpenApp`, `SharedListingRedirect`, `SharedListingRoute`, sheet button and hint): verified: the deep link opens the listing (loaded from the DB) and a bad address returns to the start screen on iOS; the not-opened hint appears in a browser.
+- **Verification**: `scripts/verify.sh check-all` passed (157 suites); jest 894 tests, three identical runs; typecheck clean; lint 0 errors (5 pre-existing warnings); no comments in new code.
+- **Test changes**: route tests now run the web page under `Platform.OS = 'web'` (the route branches by platform); additive otherwise.
+- **Observations, not changed**: the start-screen example "Alquiler de estudios hasta 900 euros" returns no results with today's data (there are no rentals), so an example can dead-end; legacy demo listings keep a hard-coded "1 de 8 fotos" and are not tappable; `property/[id].tsx` is about 415 lines.
+- **Not verified**: the web button opening the installed app from a phone browser; the gallery in Android and on a phone-sized browser; production deploy.
+- **Next Actions**: `eas deploy --prod` when happy with the preview; test the full loop on a phone (open the preview link, tap Abrir en la app); swap the dead-end example on the start screen; later, universal links / app links once the app is in the stores; commit the pending work (RFCs 012-022 are all uncommitted).
+
+---
+
+### [2026-09-21] Bug fix: gallery close button could not be tapped (iOS)
+- **Cause**: the gallery `Modal` did not get the safe-area padding on some mounts, so the cross was drawn over the status bar (the "X" over the clock) where taps never reach it. Reproduced on the simulator; on desktop web the cross was fine.
+- **Fix**: `ModalSafeArea` (SafeAreaProvider with `initialWindowMetrics`, fallback `constants/safeArea.ts`) wraps the gallery and the photo-ordering modal; the metrics constant moved out of `constants/photoOrder.ts`. Regression test in `PhotoGallery.test.tsx`.
+- **Verified on the simulator**: fresh and hot-reloaded opens show the cross below the status bar; tapping it closes the viewer and returns to the listing (confirmed by screenshot).
+- **Verification**: `scripts/verify.sh check-all` passed (157 suites); jest 895 tests, three identical runs; typecheck clean; lint 0 errors (5 pre-existing warnings).
+- **Not redeployed**: the web preview `--6ukxjwyxcm` still has the old modal wrapper (web is unaffected: no insets there); a redeploy would only sync it.
+
