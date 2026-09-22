@@ -41,3 +41,41 @@ export function buildMapHtml(latitude: number, longitude: number): string {
 </body>
 </html>`;
 }
+
+export function buildReadOnlyMapHtml(latitude: number, longitude: number, isApproximate?: boolean): string {
+  const circleScript = isApproximate
+    ? `L.circle([${latitude}, ${longitude}], { radius: 300, color: '#2563EB', fillColor: '#3B82F6', fillOpacity: 0.25, weight: 2 }).addTo(map);`
+    : '';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body, #map { height: 100%; margin: 0; padding: 0; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map', {
+      zoomControl: false,
+      dragging: false,
+      touchZoom: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      keyboard: false
+    }).setView([${latitude}, ${longitude}], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+    }).addTo(map);
+    L.marker([${latitude}, ${longitude}]).addTo(map);
+    ${circleScript}
+  </script>
+</body>
+</html>`;
+}

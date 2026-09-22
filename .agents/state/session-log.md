@@ -1671,3 +1671,59 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Not verified live**: attached to the running iPhone 16e simulator (signed in as agent `houseapp`) to visually confirm the new badges/amenities chips, but the simulator stopped responding to tap input partway through navigation (unrelated to this change - same simulator session had been open a while) and reload/retry didn't recover it in the time available. Relied on the test suite above instead; a real device/simulator check is still worth doing next session.
 - **Next Actions**: if useful, persisting `currency` on `properties` (DB migration + `property-publish`) would let real published listings also show the correct currency instead of just the draft preview - that's a distinct, larger change not attempted here. Otherwise verify the new badges/amenities chips visually next session (simulator input stopped responding this time) and commit when the user is ready.
 
+---
+
+### [2026-09-22] Follow-up: removed the fabricated "Características de Accesibilidad y Confort" and "Cercanías a pie" sections
+- **Report**: user pointed out these two sections don't appear in the preview and are themselves hardcoded - the same category of issue as the previous session's amenities/currency fix, now flagged for these two specifically.
+- **Why removal, not "make it real"**: there is no data source for either concept anywhere in the app - no accessibility/elevator/adapted-bath fields exist on `PropertyDraft`/`Property`, and no nearby-places/POI data is ever collected. Both sections were pure fabricated content (specific fake distances, a fake pharmacy/health-center name) that only ever rendered for legacy listings with no description (`!isRealDraft`) - never reachable from a user's own draft. If a user wants to convey real accessibility features (e.g. "ascensor"), that already flows through the real `Comodidades`/amenities chip list added last session. Kept everything else from that gate (mock photo count, legacy AI-description generation, the Madrid/Claudio Coello/3-2-120 field fallbacks) untouched - not named this time and each is a separate concern.
+- **Removed**: `src/app/property/[id].tsx` - the `accessibilityFeatures` array, both `{!isRealDraft && (...)}` render blocks, the `nearbyAmenities` memo, and the fabricated `· 2ª planta con ascensor cota cero` address suffix (same category of fabricated specific detail, right next to the section that was just removed). `src/lib/propertyDetail.ts` - `getNearbyAmenities`, `AccessibilityCardItem`, `AmenityItem` (now-dead). `src/app/property/[id].styles.ts` - the now-unused `gridContainer`/`featureCard`/`featureIconBadge`/`featureTitle`/`featureSubtitle`/`amenitiesCard`/`amenitiesTitle`/`amenitiesList`/`amenityRow`/`amenityBorder`/`amenityLeft`/`amenityIcon`/`amenityName`/`amenityDistance` styles. `src/constants/labels.ts` - `accessibilitySectionTitle`, `nearbyAmenitiesSectionTitle`, `groundLevelElevator`, `features.*` (6 keys), `amenities.*` (8 keys), all confirmed unused elsewhere via grep before deleting.
+- **Bug found and fixed in passing**: while re-reading the file to plan this, found the "Sin honorarios de agencia" badge (`agencyBadge`) had gone missing from the `badgeRow` View entirely - present in this session's starting file per the editor's on-disk-change notice, but not something introduced by today's edits (git diff would show whether this predates today; not checked). Restored it as the first child of `badgeRow`, confirmed by the previously-passing test `renders hero photo badge, price, and agency badge correctly` failing then passing again.
+- **TDD**: removed the now-meaningless `getNearbyAmenities`/6-accessibility-features tests; added one compact regression test (`never shows the fabricated accessibility or nearby-places sections, for a legacy listing or otherwise`) asserting both section titles are permanently absent; kept the AI-description test, trimmed to just the description assertions.
+- **Verification**: `npm test` - 915/915 passed (93 suites); `npm run lint` - 0 errors (5 pre-existing warnings, none in touched files); `npm run typecheck` - clean.
+- **Not verified live**: did not re-attempt the simulator after last session's tap-input failure; relied on the test suite.
+- **Next Actions**: none pending; still uncommitted (this + everything from prior sessions).
+
+---
+
+### [2026-09-22] Implemented RFC 023: Property Detail Page Enrichment & Address Privacy
+- **Scope & Problem**: Completed full implementation of RFC 023. Protected location privacy at the data layer by masking sensitive columns (`address`, `latitude`, `longitude`) for client and unauthenticated callers, while enriching the property detail screen with an extensible stats bar, rental price suffix (`/mes`), dedicated agent/agency card, and read-only map preview.
+- **Database Layer**:
+  - Created migration `supabase/migrations/20260922_property_address_privacy.sql`:
+    - `jitter_coordinate`: Deterministic ~300m coordinate offset using MD5 hash of `(property_id, axis)`.
+    - `viewer_has_agency_access`: `SECURITY DEFINER` function checking if `auth.uid()` has an `agent` or `owner` role in the listing's `agency_id`.
+    - `masked_property_address`: Returns real address if viewer has agency access, `NULL` otherwise.
+    - `masked_property_latitude` & `masked_property_longitude`: Returns exact coordinates if authorized, jittered coordinates otherwise.
+    - Column-level permission lockdown: `REVOKE SELECT (address, latitude, longitude) ON public.properties FROM anon, authenticated`.
+    - Updated `public.property_listings` view with `security_invoker = true` calling the masking functions for `address`, `latitude`, `longitude`.
+- **Backend Edge Function & Client Fallback**:
+  - `supabase/functions/chat-query/index.ts`: Built `callerSupabase` client passing `SUPABASE_ANON_KEY` and forwarding incoming `Authorization` header so `auth.uid()` resolves properly in `viewer_has_agency_access`. Used `callerSupabase` for `match_properties_hybrid` RPC and `property_listings` select (including `operation_type`, `latitude`, `longitude`).
+  - `src/services/chatApi.ts`: Updated `querySupabaseDirectly` fallback to query `property_listings` including `operation_type`, `latitude`, `longitude`, `agency_name`, `agent_name`.
+- **Client Library & Navigation Plumbing**:
+  - `src/lib/propertyStats.ts`: Implemented `PropertyStatField` interface, `DEFAULT_RESIDENTIAL_STATS`, `PROPERTY_TYPE_STATS` dictionary mapping all `PropertyType`s, and `getStatsForType`.
+  - `src/lib/propertyDetail.ts`: Updated `formatPrice` to append `labels.propertyDetail.rentSuffix` (`/mes`) when `operation_type === 'rent'` across all currency branches. Exported `PropertyDetailRouteParams` with optional route parameters.
+  - `src/lib/mapPicker.ts`: Added `buildReadOnlyMapHtml` generating non-interactive Leaflet HTML with marker and optional approximate circle overlay.
+  - `src/lib/chatRegistration.ts`: Updated `buildPropertyRouteParams` to omit `address` when falsy, ensuring masked properties pass `address: undefined`.
+  - `src/constants/labels.ts`: Centralized copy for `approximateLocation`, `rentSuffix`, `stats` (bedrooms, bathrooms, square meters), and `agentCard`.
+- **UI Components & Screen**:
+  - `PropertyStatsBar` + `.styles.ts`: Renders horizontal row of stat chips based on `getStatsForType`.
+  - `PropertyAgentCard` + `.styles.ts`: Renders attribution card near bottom dock with circular initial avatar and agency/agent labels (`testID="listing-attribution"`).
+  - `PropertyMapPreview` + `.styles.ts`: Renders read-only WebView pin map (`testID="property-map-preview"`) with approximate badge when masked, falls back to `null` if coordinates are absent.
+  - `PropertyDescriptionSection` + `.styles.ts` & `useLegacyDescription`: Extracted description rendering and legacy async description fetching into dedicated modules to keep `src/app/property/[id].tsx` strictly under 300 lines (281 lines).
+  - `src/app/property/[id].tsx`: Integrated `PropertyStatsBar`, `PropertyMapPreview`, `PropertyAgentCard`, dynamic address rendering (`address || labels.propertyDetail.approximateLocation`), and rent price formatting.
+- **Verification**:
+  - Unit Tests: 163 test suites passed (1555 total tests passing, 0 failures).
+  - Toolchain Gate: `./scripts/verify.sh check-all` passed cleanly (linting clean, TypeScript `tsc --noEmit` clean, Jest clean, pre-commit secret scanner clean).
+
+---
+
+### [2026-09-22] RFC 023 review, fixes, amenities in description, and deploy
+- **Review findings fixed**:
+  - Column-level `REVOKE SELECT (address, latitude, longitude)` was a no-op: `anon`/`authenticated` held table-level SELECT on `properties`. Migration now revokes table SELECT and re-grants every non-sensitive column.
+  - `match_properties_hybrid` (default search path) didn't return `operation_type`/`latitude`/`longitude`, so map pin and "/mes" never showed for hybrid results. New migration `20260922_hybrid_search_location.sql` recreates it with those columns (still reads the masked `property_listings`, `search_path = public`) and drops the stale unused 8-arg overload.
+  - `publishPropertyDirect` read back `*` after insert, which would now hit 42501; it selects `PUBLIC_PROPERTY_COLUMNS` (`src/constants/propertyColumns.ts`) and keeps address/coords from the draft. Note: `properties` has no INSERT RLS policy, so this fallback was already blocked by RLS before this change.
+  - Masked listings sent the "Ubicación aproximada" label to the description generator as the address; now sends `params.address` (undefined when masked).
+- **Amenities in description**: `useLegacyDescription` now passes the listing's amenities to `property-describe`; the edge function's deterministic fallback adds "Cuenta con ...". Draft flow already sent amenities.
+- **Deployed (MCP)**: migrations `property_address_privacy`, `hybrid_search_location`; edge functions `chat-query` v16, `property-describe` v5 (both `verify_jwt: true`).
+- **Verified live**: as anon and as an unrelated authenticated user, `property_listings` returns `address = NULL` and a stable offset pin; the listing's own agency agent gets exact values; `select address from properties` as anon → 42501; non-sensitive columns still readable; hybrid RPC returns masked lat/lng + operation_type. Advisors: only expected SECURITY DEFINER warnings for the four masking functions.
+- **Local gate**: typecheck clean, lint 0 errors, 1558/1558 tests.
+- **Next Actions**: simulator check of the detail screen (map preview, "/mes", agent card); still uncommitted.

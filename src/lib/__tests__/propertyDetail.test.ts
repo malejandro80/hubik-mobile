@@ -1,7 +1,6 @@
 import { labels } from '../../constants/labels';
 import {
   formatPrice,
-  getNearbyAmenities,
   parsePropertyAmenities,
   parsePropertyImages,
   resolveDescriptionState,
@@ -9,15 +8,6 @@ import {
 } from '../propertyDetail';
 
 describe('propertyDetail library', () => {
-  describe('getNearbyAmenities', () => {
-    it('returns standard list of 4 amenities with labels and icons', () => {
-      const amenities = getNearbyAmenities(labels);
-      expect(amenities).toHaveLength(4);
-      expect(amenities[0].title).toBe(labels.propertyDetail.amenities.pharmacy);
-      expect(amenities[1].title).toBe(labels.propertyDetail.amenities.supermarket);
-    });
-  });
-
   describe('parsePropertyImages', () => {
     it('returns empty array when imagesParam is undefined or empty', () => {
       expect(parsePropertyImages(undefined)).toEqual([]);
@@ -63,6 +53,19 @@ describe('propertyDetail library', () => {
 
     it('returns a neutral placeholder instead of a fabricated price when the price is missing', () => {
       expect(formatPrice(undefined)).toBe('—');
+    });
+
+    it('appends rent suffix only when operation_type is rent, for every currency branch', () => {
+      expect(formatPrice('350000', 'EUR', 'rent')).toBe('350.000 €/mes');
+      expect(formatPrice('350000', 'VES', 'rent')).toBe('350.000 Bs./mes');
+      expect(formatPrice('350000', 'USD', 'rent')).toBe('$350,000/mes');
+      expect(formatPrice('350000', undefined, 'rent')).toBe('$350,000/mes');
+    });
+
+    it('does not append rent suffix when operation_type is sale or omitted', () => {
+      expect(formatPrice('350000', 'EUR', 'sale')).toBe('350.000 €');
+      expect(formatPrice('350000', 'USD', 'sale')).toBe('$350,000');
+      expect(formatPrice('350000', 'EUR', undefined)).toBe('350.000 €');
     });
   });
 

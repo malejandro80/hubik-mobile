@@ -105,6 +105,10 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
     const result = await sendChatQuery('Austin 2-bed under $400k');
 
     expect(supabase.functions.invoke).toHaveBeenCalled();
+    // Reads through property_listings, not the raw properties table: address/latitude/
+    // longitude are masked there for a non-agency viewer (RFC 023), and are revoked outright
+    // on the raw table for anon/authenticated, so this fallback must never query it directly.
+    expect(supabase.from).toHaveBeenCalledWith('property_listings');
     expect(result).toBeDefined();
     expect(result.data).toHaveLength(1);
     expect(result.data[0].title).toBe('Austin Condo');
@@ -605,6 +609,26 @@ describe('chatApi - publishProperty', () => {
       expect.objectContaining({ city: 'Madrid', status: 'Available' })
     );
     expect(result).toEqual(insertedRow);
+  });
+
+  it('never reads the revoked address/coordinate columns back from the direct insert, and keeps them from the draft', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({ data: null, error: new Error('unreachable') });
+
+    const mockSingle = jest.fn().mockResolvedValueOnce({ data: { id: 'new-prop-3', city: 'Madrid' }, error: null });
+    const mockSelect = jest.fn().mockReturnValue({ single: mockSingle });
+    const mockInsert = jest.fn().mockReturnValue({ select: mockSelect });
+    (supabase.from as jest.Mock).mockReturnValue({ insert: mockInsert });
+
+    const result = await publishProperty({ ...completeDraft, address: 'Calle Mayor 1', latitude: 40.41, longitude: -3.7 });
+
+    const selectedColumns: string = mockSelect.mock.calls[0][0];
+    expect(selectedColumns).toBeTruthy();
+    expect(selectedColumns.split(',').map((c) => c.trim())).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/^(address|latitude|longitude|\*)$/)])
+    );
+    expect(result).toEqual(
+      expect.objectContaining({ id: 'new-prop-3', address: 'Calle Mayor 1', latitude: 40.41, longitude: -3.7 })
+    );
   });
 
   it('passes images, coordinates and the AI description through to the direct insert fallback', async () => {

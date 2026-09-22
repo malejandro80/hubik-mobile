@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   Image,
   KeyboardAvoidingView,
@@ -17,70 +16,50 @@ import { BurgerMenu } from '../../components/BurgerMenu';
 import { ChatInputBar } from '../../components/ChatInputBar';
 import { Header } from '../../components/Header';
 import { PhotoGallery } from '../../components/PhotoGallery';
+import { PropertyAgentCard } from '../../components/PropertyAgentCard';
+import { PropertyDescriptionSection } from '../../components/PropertyDescriptionSection';
+import { PropertyMapPreview } from '../../components/PropertyMapPreview';
+import { PropertyStatsBar } from '../../components/PropertyStatsBar';
+import { PREVIEW_PARAM_VALUE } from '../../constants/listingPreview';
 import { useAppMenu } from '../../hooks/useAppMenu';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { useLabels } from '../../hooks/useLabels';
+import { useLegacyDescription } from '../../hooks/useLegacyDescription';
 import { usePhotoGallery } from '../../hooks/usePhotoGallery';
-import { generatePropertyDescription } from '../../services/chatApi';
-import { colors } from '../../theme/colors';
-import { PREVIEW_PARAM_VALUE } from '../../constants/listingPreview';
-import { getPropertyDetailStyles } from './[id].styles';
 import {
-  AccessibilityCardItem,
-  DescriptionState,
   formatPrice,
-  getNearbyAmenities,
   parsePropertyAmenities,
   parsePropertyImages,
-  resolveDescriptionState,
+  PropertyDetailRouteParams,
   resolvePhotoCountLabel,
 } from '../../lib/propertyDetail';
+import { colors } from '../../theme/colors';
 import { PROPERTY_TYPE_LABEL_ES, PropertyType } from '../../types/property';
+import { getPropertyDetailStyles } from './[id].styles';
 
 export default function PropertyDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    id: string;
-    title?: string;
-    price?: string;
-    currency?: string;
-    city?: string;
-    address?: string;
-    bedrooms?: string;
-    bathrooms?: string;
-    square_meters?: string;
-    property_type?: string;
-    operation_type?: string;
-    amenities?: string;
-    image_url?: string;
-    description?: string;
-    images?: string;
-    lat?: string;
-    lng?: string;
-    agency_name?: string;
-    agent_name?: string;
-    preview?: string;
-  }>();
+  const params = useLocalSearchParams<PropertyDetailRouteParams>();
 
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
   const labels = useLabels();
-  const {
-    styles,
-    iconColor,
-    iconColorSecondary,
-    iconColorOnPrimary,
-    primaryColor,
-  } = useMemo(() => getPropertyDetailStyles(theme), [theme]);
+  const { styles, iconColor, iconColorSecondary, iconColorOnPrimary } = useMemo(
+    () => getPropertyDetailStyles(theme),
+    [theme]
+  );
   const menu = useAppMenu();
   const { galleryVisible, openGallery, closeGallery } = usePhotoGallery();
   const [quickQuestion, setQuickQuestion] = useState('');
-  const nearbyAmenities = useMemo(() => getNearbyAmenities(labels), [labels]);
 
   const city = params.city || 'Madrid';
   const title = params.title || `Barrio de Salamanca, ${city}`;
-  const price = useMemo(() => formatPrice(params.price, params.currency), [params.price, params.currency]);
-  const address = params.address || 'Calle Claudio Coello';
+  const price = useMemo(
+    () => formatPrice(params.price, params.currency, params.operation_type),
+    [params.price, params.currency, params.operation_type]
+  );
+  const isAddressMasked = !params.address;
+  const address = params.address || labels.propertyDetail.approximateLocation;
   const bedrooms = params.bedrooms || '3';
   const bathrooms = params.bathrooms || '2';
   const squareMeters = params.square_meters || '120';
@@ -106,80 +85,21 @@ export default function PropertyDetailScreen() {
     [isRealDraft, realImages.length, labels]
   );
 
-  const [legacyDescription, setLegacyDescription] = useState<string | null>(null);
-  const [legacyDescriptionLoading, setLegacyDescriptionLoading] = useState(false);
-  const [legacyDescriptionError, setLegacyDescriptionError] = useState(false);
+  const latitude = params.lat ? parseFloat(params.lat) : undefined;
+  const longitude = params.lng ? parseFloat(params.lng) : undefined;
 
-  useEffect(() => {
-    if (isRealDraft) return;
-    let cancelled = false;
-    setLegacyDescriptionLoading(true);
-    setLegacyDescriptionError(false);
-    generatePropertyDescription({
+  const { description: legacyDescription, loading: legacyDescriptionLoading, hasError: legacyDescriptionError } =
+    useLegacyDescription({
       title,
-      price: Number(params.price) || undefined,
-      bedrooms: Number(bedrooms) || undefined,
-      bathrooms: Number(bathrooms) || undefined,
-      square_meters: Number(squareMeters) || undefined,
+      price: params.price,
+      bedrooms,
+      bathrooms,
+      squareMeters,
       city,
-      address,
-    })
-      .then(({ description }) => {
-        if (!cancelled) setLegacyDescription(description);
-      })
-      .catch(() => {
-        if (!cancelled) setLegacyDescriptionError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLegacyDescriptionLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    isRealDraft,
-    params.id,
-    title,
-    params.price,
-    bedrooms,
-    bathrooms,
-    squareMeters,
-    city,
-    address,
-  ]);
-
-  const accessibilityFeatures: AccessibilityCardItem[] = [
-    {
-      icon: 'business-outline',
-      title: labels.propertyDetail.features.directElevator,
-      subtitle: labels.propertyDetail.features.directElevatorSub,
-    },
-    {
-      icon: 'walk-outline',
-      title: labels.propertyDetail.features.flatAccess,
-      subtitle: labels.propertyDetail.features.flatAccessSub,
-    },
-    {
-      icon: 'water-outline',
-      title: labels.propertyDetail.features.adaptedBaths(bathrooms),
-      subtitle: labels.propertyDetail.features.adaptedBathsSub,
-    },
-    {
-      icon: 'sunny-outline',
-      title: labels.propertyDetail.features.sunnySqm(squareMeters),
-      subtitle: labels.propertyDetail.features.sunnySqmSub,
-    },
-    {
-      icon: 'bed-outline',
-      title: labels.propertyDetail.features.bedroomsCount(bedrooms),
-      subtitle: labels.propertyDetail.features.bedroomsCountSub,
-    },
-    {
-      icon: 'thermometer-outline',
-      title: labels.propertyDetail.features.centralHeating,
-      subtitle: labels.propertyDetail.features.centralHeatingSub,
-    },
-  ];
+      address: params.address,
+      amenities: realAmenities,
+      isRealDraft,
+    });
 
   const heroContent = (
     <>
@@ -209,21 +129,12 @@ export default function PropertyDetailScreen() {
   };
 
   const handleMicPress = () => {
-    Alert.alert(
-      labels.propertyDetail.micAlertTitle,
-      labels.propertyDetail.micAlertMessage
-    );
+    Alert.alert(labels.propertyDetail.micAlertTitle, labels.propertyDetail.micAlertMessage);
   };
 
   return (
-    <SafeAreaView
-      style={styles.safeArea}
-      edges={['top', 'left', 'right', 'bottom']}
-    >
-      <Header
-        onBackPress={() => router.back()}
-        onMenuPress={menu.open}
-      />
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+      <Header onBackPress={() => router.back()} onMenuPress={menu.open} />
 
       <KeyboardAvoidingView
         style={styles.container}
@@ -236,221 +147,136 @@ export default function PropertyDetailScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-        {isPreview && (
-          <View style={styles.previewBanner}>
-            <Ionicons name="eye-outline" size={18} color={iconColorSecondary} />
-            <Text style={styles.previewBannerText}>{labels.propertyDetail.previewBanner}</Text>
-          </View>
-        )}
+          {isPreview && (
+            <View style={styles.previewBanner}>
+              <Ionicons name="eye-outline" size={18} color={iconColorSecondary} />
+              <Text style={styles.previewBannerText}>{labels.propertyDetail.previewBanner}</Text>
+            </View>
+          )}
 
-        {realImages.length > 0 ? (
-          <TouchableOpacity
-            style={styles.imageWrapper}
-            onPress={openGallery}
-            accessibilityRole="button"
-            accessibilityLabel={labels.gallery.openA11y(realImages.length)}
-          >
-            {heroContent}
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.imageWrapper}>{heroContent}</View>
-        )}
-        <PhotoGallery visible={galleryVisible} images={realImages} onClose={closeGallery} />
+          {realImages.length > 0 ? (
+            <TouchableOpacity
+              style={styles.imageWrapper}
+              onPress={openGallery}
+              accessibilityRole="button"
+              accessibilityLabel={labels.gallery.openA11y(realImages.length)}
+            >
+              {heroContent}
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.imageWrapper}>{heroContent}</View>
+          )}
+          <PhotoGallery visible={galleryVisible} images={realImages} onClose={closeGallery} />
 
-        <View style={styles.priceLocationBlock}>
-          <Text style={styles.priceText}>
-            {price}
-          </Text>
+          <View style={styles.priceLocationBlock}>
+            <Text style={styles.priceText}>{price}</Text>
 
-          <View style={styles.badgeRow}>
-            {propertyTypeLabel && (
-              <View style={styles.typeBadge}>
-                <Text style={styles.typeBadgeText}>{propertyTypeLabel}</Text>
+            <View style={styles.badgeRow}>
+              <View style={styles.agencyBadge}>
+                <Text style={styles.agencyBadgeText}>{labels.propertyDetail.noAgencyFees}</Text>
               </View>
-            )}
-            {operationLabel && (
-              <View style={styles.typeBadge}>
-                <Text style={styles.typeBadgeText}>{operationLabel}</Text>
-              </View>
-            )}
-          </View>
-
-          <View style={styles.locationRow}>
-            <Ionicons
-              name="location-outline"
-              size={20}
-              color={iconColorSecondary}
-              style={styles.locationPin}
-            />
-            <View style={styles.locationTexts}>
-              <Text style={styles.neighborhoodTitle}>
-                {title}
-              </Text>
-              <Text style={styles.addressSubtitle}>
-                {isRealDraft ? address : `${address}${labels.propertyDetail.groundLevelElevator}`}
-              </Text>
-              {params.agency_name && (
-                <Text testID="listing-attribution" style={styles.addressSubtitle}>
-                  {labels.auth.listedBy(params.agency_name, params.agent_name)}
-                </Text>
+              {propertyTypeLabel && (
+                <View style={styles.typeBadge}>
+                  <Text style={styles.typeBadgeText}>{propertyTypeLabel}</Text>
+                </View>
+              )}
+              {operationLabel && (
+                <View style={styles.typeBadge}>
+                  <Text style={styles.typeBadgeText}>{operationLabel}</Text>
+                </View>
               )}
             </View>
-          </View>
-        </View>
 
-        {!isRealDraft && (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>
-              {labels.propertyDetail.accessibilitySectionTitle}
-            </Text>
+            <PropertyStatsBar
+              propertyType={params.property_type as PropertyType | undefined}
+              bedrooms={bedrooms}
+              bathrooms={bathrooms}
+              squareMeters={squareMeters}
+            />
 
-            <View style={styles.gridContainer}>
-              {accessibilityFeatures.map((item, index) => (
-                <View
-                  key={index}
-                  style={styles.featureCard}
-                >
-                  <View style={styles.featureIconBadge}>
-                    <Ionicons name={item.icon} size={20} color={iconColorSecondary} />
-                  </View>
-                  <Text style={styles.featureTitle}>
-                    {item.title}
-                  </Text>
-                  <Text style={styles.featureSubtitle}>
-                    {item.subtitle}
-                  </Text>
-                </View>
-              ))}
+            <View style={styles.locationRow}>
+              <Ionicons
+                name="location-outline"
+                size={20}
+                color={iconColorSecondary}
+                style={styles.locationPin}
+              />
+              <View style={styles.locationTexts}>
+                <Text style={styles.neighborhoodTitle}>{title}</Text>
+                <Text style={styles.addressSubtitle}>{address}</Text>
+              </View>
             </View>
+
+            <PropertyMapPreview
+              latitude={latitude}
+              longitude={longitude}
+              isApproximate={isAddressMasked}
+            />
           </View>
-        )}
 
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>
-            {labels.propertyDetail.descriptionSectionTitle}
-          </Text>
+          <PropertyDescriptionSection
+            isRealDraft={isRealDraft}
+            draftDescription={params.description}
+            legacyDescription={legacyDescription}
+            loading={legacyDescriptionLoading}
+            hasError={legacyDescriptionError}
+          />
 
-          <View style={styles.descriptionBlock}>
-            {(() => {
-              const descriptionState = resolveDescriptionState(
-                isRealDraft,
-                legacyDescriptionLoading,
-                Boolean(legacyDescription),
-                legacyDescriptionError
-              );
-
-              const descriptionRenderers: Record<DescriptionState, React.ReactNode> = {
-                real_draft: (
-                  <Text style={styles.descriptionParagraph}>
-                    {params.description}
-                  </Text>
-                ),
-                loading: <ActivityIndicator color={primaryColor} />,
-                ready: (
-                  <Text style={styles.descriptionParagraph}>
-                    {legacyDescription}
-                  </Text>
-                ),
-                error: (
-                  <Text style={styles.descriptionParagraphSecondary}>
-                    {labels.propertyDetail.errorGeneratingDescription}
-                  </Text>
-                ),
-                empty: <Text style={styles.descriptionParagraphSecondary} />,
-              };
-
-              return descriptionRenderers[descriptionState];
-            })()}
-          </View>
-        </View>
-
-        {realAmenities.length > 0 && (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>
-              {labels.propertyDetail.featuresSectionTitle}
-            </Text>
-
-            <View style={styles.featuresChipsRow}>
-              {realAmenities.map((amenity) => (
-                <View key={amenity} style={styles.featureChip}>
-                  <Text style={styles.featureChipText}>{amenity}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {!isRealDraft && (
-          <View style={styles.sectionContainer}>
-            <View style={styles.amenitiesCard}>
-              <Text style={styles.amenitiesTitle}>
-                {labels.propertyDetail.nearbyAmenitiesSectionTitle}
+          {realAmenities.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>
+                {labels.propertyDetail.featuresSectionTitle}
               </Text>
 
-              <View style={styles.amenitiesList}>
-                {nearbyAmenities.map((amenity, idx) => (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.amenityRow,
-                      idx < nearbyAmenities.length - 1 && styles.amenityBorder,
-                    ]}
-                  >
-                    <View style={styles.amenityLeft}>
-                      <Ionicons
-                        name={amenity.icon}
-                        size={20}
-                        color={iconColorSecondary}
-                        style={styles.amenityIcon}
-                      />
-                      <Text style={styles.amenityName}>
-                        {amenity.title}
-                      </Text>
-                    </View>
-                    <Text style={styles.amenityDistance}>
-                      {amenity.distance}
-                    </Text>
+              <View style={styles.featuresChipsRow}>
+                {realAmenities.map((amenity) => (
+                  <View key={amenity} style={styles.featureChip}>
+                    <Text style={styles.featureChipText}>{amenity}</Text>
                   </View>
                 ))}
               </View>
             </View>
-          </View>
-        )}
+          )}
 
-        <View style={{ height: 140 }} />
-      </ScrollView>
-
-      <View style={styles.bottomDock}>
-        <TouchableOpacity
-          style={styles.contactButton}
-          onPress={handleContactAdvisor}
-          accessibilityRole="button"
-          accessibilityLabel={labels.propertyDetail.contactAdvisorA11y}
-        >
-          <Ionicons
-            name="headset-outline"
-            size={22}
-            color={iconColorOnPrimary}
-            style={styles.contactIcon}
+          <PropertyAgentCard
+            agencyName={params.agency_name}
+            agentName={params.agent_name}
           />
-          <Text style={styles.contactButtonText}>{labels.propertyDetail.contactAdvisor}</Text>
-        </TouchableOpacity>
 
-        {!isPreview && (
-          <ChatInputBar
-            value={quickQuestion}
-            onChangeText={setQuickQuestion}
-            onSend={handleQuickQuestion}
-            onMicPress={handleMicPress}
-            placeholder={labels.chat.inputPlaceholder}
-            hasTopBorder={false}
-            containerStyle={styles.detailInputContainer}
-          />
-        )}
-      </View>
-    </KeyboardAvoidingView>
+          <View style={{ height: 140 }} />
+        </ScrollView>
 
-    <BurgerMenu {...menu.menuProps} />
-  </SafeAreaView>
-);
+        <View style={styles.bottomDock}>
+          <TouchableOpacity
+            style={styles.contactButton}
+            onPress={handleContactAdvisor}
+            accessibilityRole="button"
+            accessibilityLabel={labels.propertyDetail.contactAdvisorA11y}
+          >
+            <Ionicons
+              name="headset-outline"
+              size={22}
+              color={iconColorOnPrimary}
+              style={styles.contactIcon}
+            />
+            <Text style={styles.contactButtonText}>{labels.propertyDetail.contactAdvisor}</Text>
+          </TouchableOpacity>
+
+          {!isPreview && (
+            <ChatInputBar
+              value={quickQuestion}
+              onChangeText={setQuickQuestion}
+              onSend={handleQuickQuestion}
+              onMicPress={handleMicPress}
+              placeholder={labels.chat.inputPlaceholder}
+              hasTopBorder={false}
+              containerStyle={styles.detailInputContainer}
+            />
+          )}
+        </View>
+      </KeyboardAvoidingView>
+
+      <BurgerMenu {...menu.menuProps} />
+    </SafeAreaView>
+  );
 }

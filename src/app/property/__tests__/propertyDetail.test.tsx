@@ -25,6 +25,10 @@ let mockParams: {
   amenities?: string;
   description?: string;
   images?: string;
+  lat?: string;
+  lng?: string;
+  agency_name?: string;
+  agent_name?: string;
   preview?: string;
 } = {
   id: 'prop-123',
@@ -78,29 +82,18 @@ describe('PropertyDetailScreen', () => {
     expect(getByText('$485,000')).toBeTruthy();
     expect(getByText('Sin honorarios de agencia')).toBeTruthy();
     expect(getByText('Barrio de Salamanca, Madrid')).toBeTruthy();
-    expect(getByText(/Calle Claudio Coello · 2ª planta con ascensor cota cero/)).toBeTruthy();
+    expect(getByText('Calle Claudio Coello')).toBeTruthy();
   });
 
-  it('renders all 6 accessibility and comfort features', async () => {
-    const { getByText } = render(<PropertyDetailScreen />);
+  it('never shows the fabricated accessibility or nearby-places sections, for a legacy listing or otherwise', async () => {
+    const { queryByText } = render(<PropertyDetailScreen />);
     await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
 
-    expect(getByText('Características de Accesibilidad y Confort')).toBeTruthy();
-    expect(getByText('Ascensor directo')).toBeTruthy();
-    expect(getByText('Sin escalón en portal')).toBeTruthy();
-    expect(getByText('Acceso plano')).toBeTruthy();
-    expect(getByText('Pasillos anchos (95cm)')).toBeTruthy();
-    expect(getByText('2 Baños adaptados')).toBeTruthy();
-    expect(getByText('Ducha llana antideslizante')).toBeTruthy();
-    expect(getByText('120 m² soleados')).toBeTruthy();
-    expect(getByText('Luz natural de mañana')).toBeTruthy();
-    expect(getByText('3 Habitaciones')).toBeTruthy();
-    expect(getByText('Armarios empotrados')).toBeTruthy();
-    expect(getByText('Calefacción central')).toBeTruthy();
-    expect(getByText('Excelente aislamiento')).toBeTruthy();
+    expect(queryByText('Características de Accesibilidad y Confort')).toBeNull();
+    expect(queryByText('Cercanías a pie')).toBeNull();
   });
 
-  it('renders an AI-generated property description (not hardcoded) and walking distance amenities', async () => {
+  it('renders an AI-generated property description (not hardcoded)', async () => {
     const { getByText } = render(<PropertyDetailScreen />);
 
     expect(getByText('Descripción de la vivienda')).toBeTruthy();
@@ -111,16 +104,6 @@ describe('PropertyDetailScreen', () => {
       expect(getByText(/Vivienda totalmente exterior y luminosa/)).toBeTruthy();
     });
     expect(getByText(/portero físico y ascensor accesible a cota cero/)).toBeTruthy();
-
-    expect(getByText('Cercanías a pie')).toBeTruthy();
-    expect(getByText('Farmacia 24 horas')).toBeTruthy();
-    expect(getByText('A 80 metros')).toBeTruthy();
-    expect(getByText('Supermercado tradicional')).toBeTruthy();
-    expect(getByText('A 120 metros')).toBeTruthy();
-    expect(getByText('Líneas de autobús 1, 9 y 19')).toBeTruthy();
-    expect(getByText('A 150 metros')).toBeTruthy();
-    expect(getByText('Centro de Salud Lagasca')).toBeTruthy();
-    expect(getByText('A 380 metros')).toBeTruthy();
   });
 
   it('handles contact advisor action from fixed dock', async () => {
@@ -327,4 +310,74 @@ describe('PropertyDetailScreen', () => {
 
     expect(queryByText(/Vista previa: así verán/)).toBeNull();
   });
+
+  describe('RFC 023 Property Detail Enrichment & Privacy', () => {
+    it('renders the approximate-location copy and map preview when address is absent from params', () => {
+      mockParams = {
+        ...mockParams,
+        address: undefined as any,
+        lat: '40.4200',
+        lng: '-3.7000',
+      };
+      const { getAllByText, queryByText, getByTestId } = render(<PropertyDetailScreen />);
+
+      expect(getAllByText('Ubicación aproximada').length).toBeGreaterThanOrEqual(1);
+      expect(queryByText('Calle Claudio Coello')).toBeNull();
+      expect(getByTestId('property-map-preview')).toBeTruthy();
+    });
+
+    it('renders the real address when address is present in params', () => {
+      mockParams = {
+        ...mockParams,
+        address: 'Calle Claudio Coello',
+        lat: '40.4168',
+        lng: '-3.7038',
+      };
+      const { getByText, queryByText } = render(<PropertyDetailScreen />);
+
+      expect(getByText('Calle Claudio Coello')).toBeTruthy();
+      expect(queryByText('Ubicación aproximada')).toBeNull();
+    });
+
+    it('renders stats bar chips for bedrooms, bathrooms, and square meters', () => {
+      mockParams = {
+        ...mockParams,
+        property_type: 'Apartment',
+        bedrooms: '4',
+        bathrooms: '3',
+        square_meters: '180',
+      };
+      const { getByTestId, getByText } = render(<PropertyDetailScreen />);
+
+      expect(getByTestId('property-stats-bar')).toBeTruthy();
+      expect(getByText('4 hab.')).toBeTruthy();
+      expect(getByText('3 baños')).toBeTruthy();
+      expect(getByText('180 m²')).toBeTruthy();
+    });
+
+    it('renders rental price suffix /mes when operation_type is rent', () => {
+      mockParams = {
+        ...mockParams,
+        price: '350000',
+        currency: 'EUR',
+        operation_type: 'rent',
+      };
+      const { getByText } = render(<PropertyDetailScreen />);
+
+      expect(getByText('350.000 €/mes')).toBeTruthy();
+    });
+
+    it('renders agent/agency card near bottom dock when agency_name is present', () => {
+      mockParams = {
+        ...mockParams,
+        agency_name: 'Inmobiliaria Chamberí',
+        agent_name: 'Carlos',
+      };
+      const { getByTestId, getByText } = render(<PropertyDetailScreen />);
+
+      expect(getByTestId('listing-attribution')).toBeTruthy();
+      expect(getByText('Inmobiliaria Chamberí · Carlos')).toBeTruthy();
+    });
+  });
 });
+

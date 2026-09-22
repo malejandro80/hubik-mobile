@@ -21,6 +21,7 @@ interface PropertyDraft {
   images?: string[];
   latitude?: number;
   longitude?: number;
+  amenities?: string[];
 }
 
 function generateFallbackDescription(known: PropertyDraft): string {
@@ -40,12 +41,14 @@ function generateFallbackDescription(known: PropertyDraft): string {
   if (known.bathrooms) features.push(`${known.bathrooms} baños`);
   if (known.square_meters) features.push(`${known.square_meters} m²`);
   const featuresStr = features.length > 0 ? ` Distribuida en ${features.join(', ')}.` : '';
+  const amenitiesStr =
+    known.amenities && known.amenities.length > 0 ? ` Cuenta con ${known.amenities.join(', ')}.` : '';
 
   const priceFormatted = known.price ? known.price.toLocaleString('es-ES') : '';
   const currencyStr = known.currency === 'USD' ? 'USD' : known.currency === 'VES' ? 'Bs.' : '€';
   const priceStr = priceFormatted ? ` Precio: ${priceFormatted} ${currencyStr}.` : '';
 
-  return `Excelente oportunidad de ${typeLabel} ${opLabel}${location ? ` ubicada en ${location}` : ''}.${featuresStr}${priceStr} Lista para habitar con excelente distribución.`;
+  return `Excelente oportunidad de ${typeLabel} ${opLabel}${location ? ` ubicada en ${location}` : ''}.${featuresStr}${amenitiesStr}${priceStr} Lista para habitar con excelente distribución.`;
 }
 
 Deno.serve(async (req: Request) => {

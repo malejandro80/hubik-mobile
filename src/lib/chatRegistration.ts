@@ -167,7 +167,7 @@ export function buildPropertyRouteParams(property: Property) {
     title: property.title,
     price: property.price.toString(),
     city: property.city,
-    address: property.address,
+    ...(property.address ? { address: property.address } : {}),
     bedrooms: property.bedrooms.toString(),
     bathrooms: property.bathrooms.toString(),
     square_meters: property.square_meters.toString(),

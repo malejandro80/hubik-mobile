@@ -10,6 +10,7 @@ import {
 } from '../types/property';
 import { extractAmenityKeywords, normalizeAmenities } from '../lib/amenities';
 import { supabase } from '../lib/supabase';
+import { PUBLIC_PROPERTY_COLUMNS } from '../constants/propertyColumns';
 import { CATASTRO_LAST_VARIANTS, DESCRIBE_INVITE_VARIANTS, READY_TO_CONFIRM_VARIANTS } from '../constants/intakeMessages';
 
 // Voice notes have no local fallback (transcription can't happen on-device), and their server-side
@@ -293,9 +294,9 @@ export async function querySupabaseDirectly(message: string): Promise<ChatRespon
   const filters = parsePromptFilters(message);
 
   let query = supabase
-    .from('properties')
+    .from('property_listings')
     .select(
-      'id, title, property_type, price, bedrooms, bathrooms, square_meters, city, address, status, image_url, images, amenities, created_at'
+      'id, title, property_type, operation_type, price, bedrooms, bathrooms, square_meters, city, address, latitude, longitude, status, image_url, images, amenities, created_at, agency_name, agent_name'
     );
 
   if (filters.city) {
@@ -650,14 +651,19 @@ async function publishPropertyDirect(draft: PropertyDraft): Promise<Property> {
       image_url: draft.images?.[0] || null,
       amenities: normalizeAmenities(draft.amenities),
     })
-    .select()
+    .select(PUBLIC_PROPERTY_COLUMNS)
     .single();
 
   if (error) {
     throw new Error(`No se pudo publicar la propiedad: ${error.message}`);
   }
 
-  return data as Property;
+  return {
+    ...(data as unknown as Property),
+    address: draft.address,
+    latitude: draft.latitude,
+    longitude: draft.longitude,
+  } as Property;
 }
 
 export async function publishProperty(draft: PropertyDraft): Promise<Property> {

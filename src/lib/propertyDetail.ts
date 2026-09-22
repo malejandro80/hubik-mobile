@@ -1,45 +1,30 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { Labels } from '../hooks/useLabels';
+import { labels as defaultLabels, Labels } from '../constants/labels';
 import { CURRENCY_SYMBOLS } from './chatRegistration';
 
-export interface AccessibilityCardItem {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-}
-
-export interface AmenityItem {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  distance: string;
-}
-
-export function getNearbyAmenities(labels: Labels): AmenityItem[] {
-  return [
-    {
-      icon: 'medical-outline',
-      title: labels.propertyDetail.amenities.pharmacy,
-      distance: labels.propertyDetail.amenities.pharmacyDist,
-    },
-    {
-      icon: 'cart-outline',
-      title: labels.propertyDetail.amenities.supermarket,
-      distance: labels.propertyDetail.amenities.supermarketDist,
-    },
-    {
-      icon: 'bus-outline',
-      title: labels.propertyDetail.amenities.busLines,
-      distance: labels.propertyDetail.amenities.busLinesDist,
-    },
-    {
-      icon: 'fitness-outline',
-      title: labels.propertyDetail.amenities.healthCenter,
-      distance: labels.propertyDetail.amenities.healthCenterDist,
-    },
-  ];
-}
-
 export type PhotoCountType = 'real_with_photos' | 'real_empty' | 'mock';
+
+export type PropertyDetailRouteParams = {
+  id?: string;
+  title?: string;
+  price?: string;
+  currency?: string;
+  city?: string;
+  address?: string;
+  bedrooms?: string;
+  bathrooms?: string;
+  square_meters?: string;
+  property_type?: string;
+  operation_type?: string;
+  amenities?: string;
+  image_url?: string;
+  description?: string;
+  images?: string;
+  lat?: string;
+  lng?: string;
+  agency_name?: string;
+  agent_name?: string;
+  preview?: string;
+};
 
 function parseStringArrayParam(param?: string): string[] {
   if (!param) return [];
@@ -61,11 +46,20 @@ export function parsePropertyAmenities(amenitiesParam?: string): string[] {
   return parseStringArrayParam(amenitiesParam);
 }
 
-export function formatPrice(rawPrice?: string, currency?: string): string {
+export function formatPrice(
+  rawPrice?: string,
+  currency?: string,
+  operationType?: string,
+  labels: Labels = defaultLabels
+): string {
   if (!rawPrice) return '—';
   const amount = Number(rawPrice);
   const symbol = currency && currency !== 'USD' ? CURRENCY_SYMBOLS[currency] : undefined;
-  return symbol ? `${amount.toLocaleString('es-ES')} ${symbol}` : `$${amount.toLocaleString('en-US')}`;
+  const baseFormatted = symbol ? `${amount.toLocaleString('es-ES')} ${symbol}` : `$${amount.toLocaleString('en-US')}`;
+  if (operationType === 'rent') {
+    return `${baseFormatted}${labels.propertyDetail.rentSuffix}`;
+  }
+  return baseFormatted;
 }
 
 export function resolvePhotoCountLabel(

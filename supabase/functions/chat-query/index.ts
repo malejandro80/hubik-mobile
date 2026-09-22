@@ -233,6 +233,14 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    const callerAuthHeader = req.headers.get('Authorization') ?? req.headers.get('authorization');
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? supabaseKey;
+    const callerSupabase = createClient(supabaseUrl, anonKey, {
+      global: {
+        headers: callerAuthHeader ? { Authorization: callerAuthHeader } : {},
+      },
+    });
+
     // 1. Resolve the message: transcribe-only for audio (no field extraction in that call),
     // then run text and audio through the exact same cascade from here on.
     let transcript: string | undefined;
@@ -335,7 +343,7 @@ Deno.serve(async (req: Request) => {
       try {
         const queryEmbedding = await embedText(effectiveMessage, geminiKey!, 'RETRIEVAL_QUERY');
         if (queryEmbedding) {
-          const { data: hybridMatches, error: hybridError } = await supabase.rpc('match_properties_hybrid', {
+          const { data: hybridMatches, error: hybridError } = await callerSupabase.rpc('match_properties_hybrid', {
             query_embedding: queryEmbedding,
             p_city: filters.city ?? null,
             p_property_type: filters.property_type ?? null,
@@ -356,10 +364,10 @@ Deno.serve(async (req: Request) => {
     }
 
     if (!usedHybridSearch) {
-      let query = supabase
+      let query = callerSupabase
         .from('property_listings')
         .select(
-          'id, title, property_type, price, bedrooms, bathrooms, square_meters, city, address, status, image_url, images, amenities, created_at, agency_id, agency_name, agent_name'
+          'id, title, property_type, operation_type, price, bedrooms, bathrooms, square_meters, city, address, latitude, longitude, status, image_url, images, amenities, created_at, agency_id, agency_name, agent_name'
         );
 
       if (filters.city) {

@@ -161,6 +161,27 @@ describe('chatRegistration library', () => {
       expect(params).not.toHaveProperty('operation_type');
     });
 
+    it('omits address when address is empty or undefined', () => {
+      const property: Property = {
+        id: 'prop-1',
+        title: 'Chalet',
+        property_type: 'Single Family',
+        price: 600000,
+        bedrooms: 4,
+        bathrooms: 3,
+        square_meters: 250,
+        city: 'Madrid',
+        address: '',
+        image_url: '',
+        images: [],
+        amenities: [],
+        status: 'Available',
+      };
+      const params = buildPropertyRouteParams(property);
+
+      expect(params).not.toHaveProperty('address');
+    });
+
     it('forwards amenities as a JSON string, and omits the param when there are none', () => {
       const withAmenities: Property = {
         id: 'prop-1',
