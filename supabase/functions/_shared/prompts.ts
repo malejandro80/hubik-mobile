@@ -52,7 +52,10 @@ export function propertyIntakeTextInstruction(known: Record<string, unknown>): s
     '4. State Preservation:\n' +
     '   - Merge new findings with the current draft. If a field was previously extracted and is not explicitly contradicted or updated in the message, retain its previous value.\n' +
     '5. Field Schema (optional keys in output JSON):\n' +
-    '   - catastro (string, cadastral reference: typically 14-20 alphanumeric code, possibly with hyphens or prefixed like LEGACY-...),\n' +
+    '   - catastro (string, cadastral reference: typically a 14-20 alphanumeric code, possibly ' +
+    'with hyphens or prefixed like LEGACY-..., but extract whatever value the user gives when ' +
+    'directly answering a request for it, even if shorter or differently shaped - do not reject ' +
+    'or omit it for not matching the typical format),\n' +
     '   - title (string, title if mentioned),\n' +
     '   - property_type (exactly one of: Apartment, Single Family, Townhouse, Studio, Condo),\n' +
     '   - operation_type (exactly one of: sale, rent),\n' +

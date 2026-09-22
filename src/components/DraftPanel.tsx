@@ -3,12 +3,13 @@ import { ScrollView, Text, TouchableOpacity, useWindowDimensions, View } from 'r
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { DRAFT_FIELD_DISPLAY_ORDER } from '../constants/draftFields';
 import { PANEL_MAX_HEIGHT_RATIO } from '../constants/draftPanel';
+import { MIN_PHOTOS_TO_ORDER } from '../constants/photoOrder';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { getFieldStatuses, getMissingCount, getMissingFields, getSuggestions } from '../lib/draftStatus';
 import { DraftEditableField, FieldEditResult } from '../lib/draftValidation';
 import { MAX_PROPERTY_IMAGES } from '../services/propertyImages';
-import { colors } from '../theme/colors';
+import { colors, hitSlop } from '../theme/colors';
 import { PropertyDraft } from '../types/property';
 import { AmenitiesConfirmation } from './AmenitiesConfirmation';
 import { DraftDescriptionBlock } from './DraftDescriptionBlock';
@@ -27,6 +28,7 @@ export interface DraftPanelProps {
   onAddPhotos: () => void;
   onRemovePhoto: (index: number) => void;
   onMovePhoto: (index: number, direction: 'up' | 'down') => void;
+  onOrderPhotos?: () => void;
   onPickLocation: () => void;
   onAmenitiesChange: (amenities: string[]) => void;
   onRequestDescription: () => void;
@@ -45,6 +47,7 @@ export const DraftPanel: React.FC<DraftPanelProps> = ({
   onAddPhotos,
   onRemovePhoto,
   onMovePhoto,
+  onOrderPhotos,
   onPickLocation,
   onAmenitiesChange,
   onRequestDescription,
@@ -65,36 +68,97 @@ export const DraftPanel: React.FC<DraftPanelProps> = ({
   const suggestions = getSuggestions(draft, describedFrom);
   const statuses = getFieldStatuses(draft, recentlyChanged);
   const publishDisabled = !ready || publishing;
+  const canOrderPhotos = Boolean(onOrderPhotos) && photoCount >= MIN_PHOTOS_TO_ORDER;
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity
-          style={styles.summary}
-          onPress={() => setExpanded((current) => !current)}
-          accessibilityRole="button"
-          accessibilityLabel={expanded ? composer.collapsePanelA11y : composer.expandPanelA11y}
-          accessibilityState={{ expanded }}
-        >
-          <View style={styles.summaryLine}>
-            <Text style={styles.progress}>
-              {composer.panelProgress(DRAFT_FIELD_DISPLAY_ORDER.length - missingCount, DRAFT_FIELD_DISPLAY_ORDER.length)}
-            </Text>
-            <Text style={styles.summaryPart}>{composer.photosSummary(photoCount)}</Text>
-            <Text style={styles.summaryPart}>{composer.pinSummary(hasPin)}</Text>
-            <Ionicons
-              name={expanded ? 'chevron-down' : 'chevron-up'}
-              size={18}
-              color={theme.textSecondary}
-              style={styles.chevron}
-            />
-          </View>
-          <Text style={styles.hint}>{ready ? composer.readyToPublish : composer.missingHint(missingCount)}</Text>
-          {!expanded && suggestions.length > 0 && (
-            <Text style={styles.topSuggestion} numberOfLines={2}>
-              {composer.suggestions[suggestions[0]]}
+      <TouchableOpacity
+        style={styles.headerRow}
+        onPress={() => setExpanded((current) => !current)}
+        accessibilityRole="button"
+        accessibilityLabel={expanded ? composer.collapsePanelA11y : composer.expandPanelA11y}
+        accessibilityState={{ expanded }}
+      >
+        <View style={[styles.progressBadge, ready && styles.progressBadgeReady]}>
+          {ready ? (
+            <Ionicons name="checkmark" size={18} color={theme.onSecondary} />
+          ) : (
+            <Text style={styles.progressBadgeText}>
+              {DRAFT_FIELD_DISPLAY_ORDER.length - missingCount}/{DRAFT_FIELD_DISPLAY_ORDER.length}
             </Text>
           )}
+        </View>
+        <View style={styles.headerText}>
+          <Text style={styles.progress}>
+            {composer.panelProgress(DRAFT_FIELD_DISPLAY_ORDER.length - missingCount, DRAFT_FIELD_DISPLAY_ORDER.length)}
+          </Text>
+          <Text style={styles.hint}>{ready ? composer.mediaStatus(photoCount > 0, hasPin) : composer.missingHint(missingCount)}</Text>
+        </View>
+        <Ionicons
+          name={expanded ? 'chevron-down' : 'chevron-up'}
+          size={18}
+          color={theme.textSecondary}
+        />
+      </TouchableOpacity>
+
+      <View style={styles.chipRow}>
+        <TouchableOpacity
+          style={[styles.chip, photoCount > 0 && styles.chipDone]}
+          onPress={onAddPhotos}
+          accessibilityRole="button"
+          accessibilityLabel={composer.attachPhotosA11y(photoCount)}
+        >
+          <Ionicons
+            name={photoCount > 0 ? 'checkmark-circle' : 'camera-outline'}
+            size={18}
+            color={photoCount > 0 ? theme.secondary : theme.onSurfaceVariant}
+          />
+          <View style={styles.chipText}>
+            <Text style={styles.chipLabel}>{composer.photoChipLabel(photoCount)}</Text>
+            <Text style={styles.chipHint}>{composer.photoChipHint(photoCount)}</Text>
+          </View>
+          {canOrderPhotos && (
+            <TouchableOpacity
+              style={styles.chipAction}
+              onPress={onOrderPhotos}
+              hitSlop={hitSlop.spacious}
+              accessibilityRole="button"
+              accessibilityLabel={composer.orderPhotosA11y}
+            >
+              <Ionicons name="swap-vertical" size={16} color={theme.secondary} />
+            </TouchableOpacity>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.chip, hasPin && styles.chipDone]}
+          onPress={onPickLocation}
+          accessibilityRole="button"
+          accessibilityLabel={composer.pickLocationA11y(hasPin)}
+        >
+          <Ionicons
+            name={hasPin ? 'checkmark-circle' : 'location-outline'}
+            size={18}
+            color={hasPin ? theme.secondary : theme.onSurfaceVariant}
+          />
+          <View style={styles.chipText}>
+            <Text style={styles.chipLabel}>{composer.locationChipLabel(hasPin)}</Text>
+            <Text style={styles.chipHint}>{composer.locationChipHint(hasPin)}</Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.actionsRow}>
+        <TouchableOpacity
+          style={[styles.previewButton, !ready && styles.previewButtonDisabled]}
+          onPress={onPreview}
+          disabled={!ready}
+          accessibilityRole="button"
+          accessibilityLabel={ready ? composer.previewA11yReady : composer.previewA11yBlocked}
+          accessibilityState={{ disabled: !ready }}
+        >
+          <Ionicons name="eye-outline" size={20} color={theme.secondary} />
+          <Text style={styles.pillText}>{composer.preview}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -108,20 +172,6 @@ export const DraftPanel: React.FC<DraftPanelProps> = ({
           accessibilityState={{ disabled: publishDisabled, busy: publishing }}
         >
           <Text style={styles.publishText}>{publishing ? composer.publishing : composer.publish}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.previewRow}>
-        <TouchableOpacity
-          style={[styles.previewButton, !ready && styles.previewButtonDisabled]}
-          onPress={onPreview}
-          disabled={!ready}
-          accessibilityRole="button"
-          accessibilityLabel={ready ? composer.previewA11yReady : composer.previewA11yBlocked}
-          accessibilityState={{ disabled: !ready }}
-        >
-          <Ionicons name="eye-outline" size={20} color={theme.secondary} />
-          <Text style={styles.pillText}>{composer.preview}</Text>
         </TouchableOpacity>
       </View>
 

@@ -119,6 +119,7 @@ describe('chatRegistration library', () => {
         id: 'prop-1',
         title: 'Chalet',
         property_type: 'Single Family',
+        operation_type: 'sale',
         price: 600000,
         bedrooms: 4,
         bathrooms: 3,
@@ -135,6 +136,53 @@ describe('chatRegistration library', () => {
       expect(params.id).toBe('prop-1');
       expect(params.price).toBe('600000');
       expect(params.images).toBe(JSON.stringify(['https://example.com/img.jpg']));
+      expect(params.property_type).toBe('Single Family');
+      expect(params.operation_type).toBe('sale');
+    });
+
+    it('omits operation_type when the property has none', () => {
+      const property: Property = {
+        id: 'prop-1',
+        title: 'Chalet',
+        property_type: 'Single Family',
+        price: 600000,
+        bedrooms: 4,
+        bathrooms: 3,
+        square_meters: 250,
+        city: 'Madrid',
+        address: 'Calle Roble',
+        image_url: '',
+        images: [],
+        amenities: [],
+        status: 'Available',
+      };
+      const params = buildPropertyRouteParams(property);
+
+      expect(params).not.toHaveProperty('operation_type');
+    });
+
+    it('forwards amenities as a JSON string, and omits the param when there are none', () => {
+      const withAmenities: Property = {
+        id: 'prop-1',
+        title: 'Chalet',
+        property_type: 'Single Family',
+        price: 600000,
+        bedrooms: 4,
+        bathrooms: 3,
+        square_meters: 250,
+        city: 'Madrid',
+        address: 'Calle Roble',
+        image_url: '',
+        images: [],
+        amenities: ['piscina', 'garaje'],
+        status: 'Available',
+      };
+      expect(buildPropertyRouteParams(withAmenities).amenities).toBe(
+        JSON.stringify(['piscina', 'garaje'])
+      );
+
+      const withoutAmenities = { ...withAmenities, amenities: [] };
+      expect(buildPropertyRouteParams(withoutAmenities)).not.toHaveProperty('amenities');
     });
 
     describe('coordinates', () => {

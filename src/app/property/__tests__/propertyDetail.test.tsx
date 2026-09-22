@@ -19,6 +19,10 @@ let mockParams: {
   bathrooms: string;
   square_meters: string;
   image_url: string;
+  currency?: string;
+  property_type?: string;
+  operation_type?: string;
+  amenities?: string;
   description?: string;
   images?: string;
   preview?: string;
@@ -179,6 +183,60 @@ describe('PropertyDetailScreen', () => {
     expect(queryByText('Características de Accesibilidad y Confort')).toBeNull();
     expect(queryByText('Cercanías a pie')).toBeNull();
     expect(queryByText(/Vivienda totalmente exterior y luminosa/)).toBeNull();
+  });
+
+  it('shows the real property type and operation as badges when provided', () => {
+    mockParams = {
+      ...mockParams,
+      description: 'Piso luminoso.',
+      property_type: 'Apartment',
+      operation_type: 'rent',
+    };
+
+    const { getByText } = render(<PropertyDetailScreen />);
+
+    expect(getByText('Piso')).toBeTruthy();
+    expect(getByText('En alquiler')).toBeTruthy();
+  });
+
+  it('does not show type/operation badges when they were not provided', () => {
+    mockParams = { ...mockParams, description: 'Piso luminoso.' };
+
+    const { queryByText } = render(<PropertyDetailScreen />);
+
+    expect(queryByText('En venta')).toBeNull();
+    expect(queryByText('En alquiler')).toBeNull();
+  });
+
+  it('shows the real amenities written by the agent as chips', () => {
+    mockParams = {
+      ...mockParams,
+      description: 'Piso luminoso.',
+      amenities: JSON.stringify(['piscina', 'garaje', 'ascensor']),
+    };
+
+    const { getByText } = render(<PropertyDetailScreen />);
+
+    expect(getByText('Comodidades')).toBeTruthy();
+    expect(getByText('piscina')).toBeTruthy();
+    expect(getByText('garaje')).toBeTruthy();
+    expect(getByText('ascensor')).toBeTruthy();
+  });
+
+  it('hides the amenities section entirely when there are none', () => {
+    mockParams = { ...mockParams, description: 'Piso luminoso.' };
+
+    const { queryByText } = render(<PropertyDetailScreen />);
+
+    expect(queryByText('Comodidades')).toBeNull();
+  });
+
+  it('formats the price using the real currency instead of always assuming dollars', () => {
+    mockParams = { ...mockParams, description: 'Piso luminoso.', price: '350000', currency: 'EUR' };
+
+    const { getByText } = render(<PropertyDetailScreen />);
+
+    expect(getByText('350.000 €')).toBeTruthy();
   });
 
   describe('in preview mode', () => {

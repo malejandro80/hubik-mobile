@@ -315,20 +315,6 @@ export default function HomeScreen() {
     [styles.listHeader, styles.dateCapsule, styles.dateCapsuleText, labels]
   );
 
-  const attachments = useMemo(
-    () =>
-      isComposing
-        ? {
-            onAddPhotos: () => void conversation.pickPhotos(),
-            onPickLocation: openMapPicker,
-            onOrderPhotos: review.openOrder,
-            photoCount: draft.images?.length ?? 0,
-            hasPin: draft.latitude !== undefined && draft.longitude !== undefined,
-          }
-        : undefined,
-    [isComposing, conversation, openMapPicker, review.openOrder, draft.images, draft.latitude, draft.longitude]
-  );
-
   return (
     <SafeAreaView
       style={styles.safeArea}
@@ -368,6 +354,7 @@ export default function HomeScreen() {
             onAddPhotos={() => void conversation.pickPhotos()}
             onRemovePhoto={registration.removePhoto}
             onMovePhoto={registration.movePhoto}
+            onOrderPhotos={review.openOrder}
             onPickLocation={openMapPicker}
             onAmenitiesChange={registration.updateAmenities}
             onRequestDescription={() => registration.requestDescription().catch(() => undefined)}
@@ -386,7 +373,6 @@ export default function HomeScreen() {
           isRecording={recorder.state.status === 'recording'}
           placeholder={labels.chat.inputPlaceholder}
           loading={loading || recorder.state.status === 'processing'}
-          attachments={attachments}
         />
       </KeyboardAvoidingView>
 

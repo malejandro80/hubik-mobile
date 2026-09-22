@@ -1,3 +1,4 @@
+import { FunctionsFetchError } from '@supabase/supabase-js';
 import {
   sendChatQuery,
   sendChatQueryAudio,
@@ -214,7 +215,7 @@ describe('chatApi - sendChatQueryAudio', () => {
 
   const audio = { data: 'YmFzZTY0LWF1ZGlv', mimeType: 'audio/mp4' };
 
-  it('invokes chat-query with the audio payload and returns the transcript', async () => {
+  it('invokes chat-query with the audio payload and a bounded timeout, and returns the transcript', async () => {
     const mockApiResponse = {
       answer: 'Encontré 1 apartamento en Austin',
       data: [],
@@ -229,17 +230,42 @@ describe('chatApi - sendChatQueryAudio', () => {
 
     expect(supabase.functions.invoke).toHaveBeenCalledWith('chat-query', {
       body: { audio },
+      timeout: 20000,
     });
     expect(result).toEqual(mockApiResponse);
   });
 
-  it('throws (no local fallback) when the Edge Function fails', async () => {
+  it('throws immediately, with no retry, on a non-transient Edge Function error', async () => {
     (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
       data: null,
       error: new Error('Gemini unreachable'),
     });
 
     await expect(sendChatQueryAudio(audio)).rejects.toThrow('Gemini unreachable');
+    expect(supabase.functions.invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries once after a transient network failure and succeeds', async () => {
+    (supabase.functions.invoke as jest.Mock)
+      .mockRejectedValueOnce(new FunctionsFetchError(new Error('network drop')))
+      .mockResolvedValueOnce({
+        data: { answer: 'ok', data: [], transcript: 'hola' },
+        error: null,
+      });
+
+    const result = await sendChatQueryAudio(audio);
+
+    expect(supabase.functions.invoke).toHaveBeenCalledTimes(2);
+    expect(result.transcript).toBe('hola');
+  });
+
+  it('gives a clear connectivity message when both attempts fail transiently', async () => {
+    (supabase.functions.invoke as jest.Mock).mockRejectedValue(new FunctionsFetchError(new Error('network drop')));
+
+    await expect(sendChatQueryAudio(audio)).rejects.toThrow(
+      'No se pudo conectar para procesar la nota de voz. Verifica tu conexión e inténtalo de nuevo.'
+    );
+    expect(supabase.functions.invoke).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -250,7 +276,7 @@ describe('chatApi - intakePropertyAudio', () => {
 
   const audio = { data: 'YmFzZTY0LWF1ZGlv', mimeType: 'audio/mp4' };
 
-  it('invokes property-intake with the audio payload and returns the transcript', async () => {
+  it('invokes property-intake with the audio payload and a bounded timeout, and returns the transcript', async () => {
     const mockResponse = {
       data: { operation_type: 'sale', property_type: 'Apartment' },
       missing_fields: ['price'],
@@ -267,17 +293,48 @@ describe('chatApi - intakePropertyAudio', () => {
 
     expect(supabase.functions.invoke).toHaveBeenCalledWith('property-intake', {
       body: { audio, known: {} },
+      timeout: 20000,
     });
     expect(result).toEqual(mockResponse);
   });
 
-  it('throws (no local fallback) when the Edge Function fails', async () => {
+  it('throws immediately, with no retry, on a non-transient Edge Function error', async () => {
     (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({
       data: null,
       error: new Error('Gemini unreachable'),
     });
 
     await expect(intakePropertyAudio(audio, {})).rejects.toThrow('Gemini unreachable');
+    expect(supabase.functions.invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries once after a transient network failure and succeeds', async () => {
+    (supabase.functions.invoke as jest.Mock)
+      .mockRejectedValueOnce(new FunctionsFetchError(new Error('network drop')))
+      .mockResolvedValueOnce({
+        data: {
+          data: { operation_type: 'sale' },
+          missing_fields: ['price'],
+          assistant_message: 'Me falta: precio.',
+          ready_to_confirm: false,
+          transcript: 'vendo mi piso',
+        },
+        error: null,
+      });
+
+    const result = await intakePropertyAudio(audio, {});
+
+    expect(supabase.functions.invoke).toHaveBeenCalledTimes(2);
+    expect(result.transcript).toBe('vendo mi piso');
+  });
+
+  it('gives a clear connectivity message when both attempts fail transiently', async () => {
+    (supabase.functions.invoke as jest.Mock).mockRejectedValue(new FunctionsFetchError(new Error('network drop')));
+
+    await expect(intakePropertyAudio(audio, {})).rejects.toThrow(
+      'No se pudo conectar para procesar la nota de voz. Verifica tu conexión e inténtalo de nuevo.'
+    );
+    expect(supabase.functions.invoke).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -406,6 +463,30 @@ describe('chatApi - parsePropertyDraft (heuristic extraction)', () => {
     const result = parsePropertyDraft('9872023 VH5797S 0001 WX', {});
     expect(result.data.catastro).toBe('9872023VH5797S0001WX');
     expect(result.missing_fields).not.toContain('catastro');
+  });
+
+  it('extracts cadastral references with hyphens and normalizes them', () => {
+    const result = parsePropertyDraft('9872023-VH5797S-0001-WX', {});
+    expect(result.data.catastro).toBe('9872023VH5797S0001WX');
+    expect(result.missing_fields).not.toContain('catastro');
+  });
+
+  it('accepts a short/non-standard reply as the cadastral reference while it is the field being asked for', () => {
+    const result = parsePropertyDraft('Try-23434', {});
+    expect(result.data.catastro).toBe('TRY-23434');
+    expect(result.missing_fields).not.toContain('catastro');
+  });
+
+  it('does not mistake a plain conversational reply for the cadastral reference', () => {
+    const result = parsePropertyDraft('gracias', { operation_type: 'sale', property_type: 'Apartment' });
+    expect(result.data.catastro).toBeUndefined();
+    expect(result.missing_fields).toContain('catastro');
+  });
+
+  it('does not let a later single-word answer overwrite an already-known cadastral reference', () => {
+    const known = { catastro: '1234567VH5797S0001WX' };
+    const result = parsePropertyDraft('90m2', known);
+    expect(result.data.catastro).toBe('1234567VH5797S0001WX');
   });
 
   it('extracts amenities mentioned in the message', () => {

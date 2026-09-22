@@ -14,17 +14,28 @@ export const getDraftPanelStyles = (theme: ThemeColors) =>
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
-    },
-    summary: {
-      flex: 1,
       minHeight: spacing.touchMin,
-      justifyContent: 'center',
-      paddingRight: 10,
+      paddingVertical: 4,
     },
-    summaryLine: {
-      flexDirection: 'row',
+    progressBadge: {
+      width: 36,
+      height: 36,
+      borderRadius: shapes.full,
       alignItems: 'center',
-      flexWrap: 'wrap',
+      justifyContent: 'center',
+      backgroundColor: theme.surfaceContainerHigh,
+      marginRight: 10,
+    },
+    progressBadgeReady: {
+      backgroundColor: theme.secondary,
+    },
+    progressBadgeText: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: theme.onSurfaceVariant,
+    },
+    headerText: {
+      flex: 1,
     },
     progress: {
       ...typography.labelLG,
@@ -32,40 +43,70 @@ export const getDraftPanelStyles = (theme: ThemeColors) =>
       fontWeight: '700',
       color: theme.text,
     },
-    summaryPart: {
-      fontSize: 13,
-      color: theme.textSecondary,
-      marginLeft: 8,
-    },
     hint: {
       fontSize: 13,
       fontWeight: '600',
       color: theme.secondary,
       marginTop: 2,
     },
-    topSuggestion: {
-      fontSize: 13,
-      color: theme.textSecondary,
-      marginTop: 2,
+    chipRow: {
+      flexDirection: 'row',
+      gap: 8,
+      marginTop: 4,
+      marginBottom: 10,
     },
-    chevron: {
-      marginLeft: 6,
+    chip: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: spacing.touchMin,
+      paddingHorizontal: 10,
+      borderRadius: shapes.md,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderColor: theme.outlineVariant,
+      backgroundColor: theme.surfaceContainerLow,
+      gap: 6,
+    },
+    chipDone: {
+      borderStyle: 'solid',
+      borderColor: theme.secondary,
+      backgroundColor: theme.surfaceContainerLowest,
+    },
+    chipText: {
+      flex: 1,
+    },
+    chipLabel: {
+      fontSize: 13,
+      fontWeight: '700',
+      color: theme.text,
+    },
+    chipHint: {
+      fontSize: 11,
+      color: theme.textSecondary,
+      marginTop: 1,
+    },
+    chipAction: {
+      minWidth: 32,
+      minHeight: 32,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      gap: 10,
     },
     publishButton: {
+      flex: 1,
       minHeight: spacing.touchMin,
-      minWidth: 108,
       paddingHorizontal: 20,
       borderRadius: shapes.full,
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.primary,
     },
-    previewRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 6,
-    },
     previewButton: {
+      flex: 1,
       minHeight: spacing.touchMin,
       paddingHorizontal: 18,
       borderRadius: shapes.full,

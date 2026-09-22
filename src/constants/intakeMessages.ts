@@ -9,3 +9,18 @@ export const CATASTRO_LAST_VARIANTS = [
   'Último dato: la referencia catastral de la propiedad (puede encontrarla en el recibo del IBI o en la Sede Electrónica del Catastro). La verifico enseguida.',
   'Para terminar necesito la referencia catastral (recibo del IBI o Sede Electrónica del Catastro). La compruebo antes de publicar.',
 ];
+
+export const READY_TO_CONFIRM_VARIANTS = [
+  '¡Perfecto! Ya tengo todos los datos necesarios. Aquí tiene el resumen para confirmar.',
+  '¡Listo! Con esto ya completé todos los datos. Revise el resumen y confírmelo cuando guste.',
+  'Excelente, ya reuní todo lo necesario. Eche un vistazo al resumen antes de publicar.',
+];
+
+// Shown instead of READY_TO_CONFIRM_VARIANTS when every text field is complete but the draft
+// still has neither a photo nor a map pin - avoids telling the user the listing is fully ready
+// when it has no photo and no location.
+export const READY_NEEDS_MEDIA_VARIANTS = [
+  'Ya tengo todos los datos del formulario. Antes de publicar, añada al menos una foto o marque la ubicación en el mapa para que el anuncio se vea completo.',
+  'Los datos ya están completos. Para terminar, agregue una foto o marque la ubicación en el mapa antes de publicar.',
+  'Con esto el formulario ya está completo. Solo falta una foto o la ubicación en el mapa para dejarlo listo.',
+];

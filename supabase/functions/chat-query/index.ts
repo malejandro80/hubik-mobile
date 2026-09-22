@@ -203,6 +203,8 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const requestStart = Date.now();
+
   try {
     const body = await req.json().catch(() => ({}));
     const message = body?.message;
@@ -251,11 +253,22 @@ Deno.serve(async (req: Request) => {
           { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      // Logged before transcription starts, not after: this line alone proves the request body
+      // (base64 audio) made it all the way to the Edge Function. When a voice note fails on the
+      // client with "Failed to send a request to the Edge Function" (a transport-level failure,
+      // not an HTTP error response), checking for this line at the reported time tells us whether
+      // the request ever arrived here at all, or died in transit before reaching Supabase.
+      console.log(`[chat-query] audio request received, base64 length: ${audio.data.length}`);
+      const transcribeStart = Date.now();
       try {
         transcript = await transcribeAudio(audio, groqKey);
         effectiveMessage = transcript;
+        console.log(`[chat-query] transcription completed in ${Date.now() - transcribeStart}ms`);
       } catch (transcribeErr: any) {
-        console.error('[chat-query] Groq audio transcription error:', transcribeErr);
+        console.error(
+          `[chat-query] Groq audio transcription error after ${Date.now() - transcribeStart}ms:`,
+          transcribeErr
+        );
         return new Response(
           JSON.stringify({ error: transcribeErr?.message || 'No se pudo procesar la nota de voz' }),
           { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -419,6 +432,10 @@ Deno.serve(async (req: Request) => {
       suggestions.push(`Propiedades en ${items[0].city}`);
     }
 
+    console.log(
+      `[chat-query] request completed in ${Date.now() - requestStart}ms (${isAudioRequest ? 'audio' : 'text'})`
+    );
+
     return new Response(
       JSON.stringify({
         answer,
@@ -433,7 +450,7 @@ Deno.serve(async (req: Request) => {
       }
     );
   } catch (error: any) {
-    console.error('❌ [chat-query] Edge Function error:', error);
+    console.error(`❌ [chat-query] Edge Function error after ${Date.now() - requestStart}ms:`, error);
     return new Response(
       JSON.stringify({
         error: error?.message || 'Internal error in chat-query Edge Function',

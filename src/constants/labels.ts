@@ -212,11 +212,9 @@ export const labels = {
     publishConfirmAction: 'Publicar',
     publishConfirmCancel: 'Revisar',
     photosFull: (max: number) => `Ya tiene el máximo de ${max} fotos.`,
-    attachPhotos: 'Fotos',
     attachPhotosA11y: (count: number) => (count > 0 ? `Añadir fotos, ${count} añadidas` : 'Añadir fotos'),
     orderPhotos: 'Ordenar',
     orderPhotosA11y: 'Ordenar las fotos',
-    pickLocation: 'Ubicación',
     pickLocationA11y: (hasPin: boolean) =>
       hasPin ? 'Cambiar ubicación en el mapa, ya marcada' : 'Marcar ubicación en el mapa',
     statusWords: {
@@ -230,9 +228,16 @@ export const labels = {
     editSave: 'Guardar',
     editCancel: 'Cancelar',
     panelProgress: (filled: number, total: number) => `${filled} de ${total} datos`,
-    photosSummary: (count: number) => (count === 0 ? 'Sin fotos' : count === 1 ? '1 foto' : `${count} fotos`),
-    pinSummary: (hasPin: boolean) => (hasPin ? 'Ubicación marcada' : 'Sin ubicación'),
-    readyToPublish: 'Todo listo para publicar',
+    mediaStatus: (hasPhotos: boolean, hasPin: boolean) => {
+      if (hasPhotos && hasPin) return 'Fotos y ubicación listas';
+      if (hasPhotos) return 'Falta marcar la ubicación';
+      if (hasPin) return 'Faltan fotos';
+      return 'Faltan fotos y ubicación';
+    },
+    photoChipLabel: (count: number) => (count === 0 ? 'Añadir fotos' : count === 1 ? '1 foto' : `${count} fotos`),
+    photoChipHint: (count: number) => (count === 0 ? 'Recomendado: 3 o más' : 'Toque para gestionar'),
+    locationChipLabel: (hasPin: boolean) => (hasPin ? 'Ubicación marcada' : 'Marcar ubicación'),
+    locationChipHint: (hasPin: boolean) => (hasPin ? 'Toque para cambiar' : 'Sin definir'),
     missingHint: (count: number) => (count === 1 ? 'Falta 1 dato' : `Faltan ${count} datos`),
     expandPanelA11y: 'Ver la ficha completa',
     collapsePanelA11y: 'Ocultar la ficha',
@@ -408,6 +413,9 @@ export const labels = {
     micAlertTitle: 'Micrófono Hubik',
     micAlertMessage: 'Hable con tranquilidad para consultar sobre esta vivienda.',
     errorGeneratingDescription: 'No se pudo generar la descripción en este momento.',
+    featuresSectionTitle: 'Comodidades',
+    operationSale: 'En venta',
+    operationRent: 'En alquiler',
     photosCount: (current: number, total: number) => `1 de ${total} foto${total === 1 ? '' : 's'}`,
     noPhotos: 'Sin fotos',
     mockPhotosCount: '1 de 8 fotos',

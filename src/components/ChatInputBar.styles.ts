@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing, typography } from '../theme/colors';
+import { ThemeColors, typography } from '../theme/colors';
 
 export const getChatInputBarStyles = (theme: ThemeColors) => ({
   styles: StyleSheet.create({
@@ -11,49 +11,6 @@ export const getChatInputBarStyles = (theme: ThemeColors) => ({
       alignItems: 'center',
       paddingHorizontal: 16,
       paddingVertical: 12,
-    },
-    attachmentsRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      rowGap: 8,
-      paddingHorizontal: 16,
-      paddingTop: 10,
-    },
-    attachmentButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      minHeight: spacing.touchMin,
-      paddingHorizontal: 16,
-      marginRight: 10,
-      borderRadius: shapes.full,
-      borderWidth: 1.5,
-      borderColor: theme.outlineVariant,
-      backgroundColor: theme.surfaceContainerLow,
-    },
-    attachmentButtonActive: {
-      borderColor: theme.secondary,
-    },
-    attachmentText: {
-      ...typography.labelLG,
-      fontSize: 15,
-      fontWeight: '600',
-      color: theme.text,
-      marginLeft: 8,
-    },
-    attachmentBadge: {
-      minWidth: 22,
-      height: 22,
-      borderRadius: 11,
-      marginLeft: 8,
-      paddingHorizontal: 6,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.secondary,
-    },
-    attachmentBadgeText: {
-      color: theme.onSecondary,
-      fontSize: 12,
-      fontWeight: '700',
     },
     containerTopBorder: {
       borderTopWidth: 1,
@@ -111,5 +68,4 @@ export const getChatInputBarStyles = (theme: ThemeColors) => ({
   }),
   placeholderTextColor: theme.textSecondary,
   iconColor: theme.onPrimary,
-  attachmentIconColor: theme.secondary,
 });

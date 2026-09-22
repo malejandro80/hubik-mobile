@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { usePropertyRegistrationChat } from '../usePropertyRegistrationChat';
 import * as chatApi from '../../services/chatApi';
 import * as propertyImages from '../../services/propertyImages';
+import { READY_NEEDS_MEDIA_VARIANTS, READY_TO_CONFIRM_VARIANTS } from '../../constants/intakeMessages';
 import { PropertyDraft } from '../../types/property';
 
 jest.mock('../../services/chatApi', () => ({
@@ -223,6 +224,64 @@ describe('usePropertyRegistrationChat', () => {
         latitude: 40.4,
         longitude: -3.7,
       });
+    });
+
+    it('replaces the "ready to confirm" message with a media prompt when there are no photos and no pin', async () => {
+      intake.mockResolvedValueOnce(intakeResponse(COMPLETE, { assistant_message: READY_TO_CONFIRM_VARIANTS[0] }));
+      const { result } = startComposer();
+
+      let outcome: any;
+      await act(async () => {
+        outcome = await result.current.processMessage('todos los datos');
+      });
+
+      expect(outcome.readyToConfirm).toBe(true);
+      expect(outcome.assistantMessage).not.toBe(READY_TO_CONFIRM_VARIANTS[0]);
+      expect(READY_NEEDS_MEDIA_VARIANTS).toContain(outcome.assistantMessage);
+    });
+
+    it('preserves a message prefix (e.g. the catastro-verified note) when swapping in the media prompt', async () => {
+      const prefix = '✅ Referencia catastral verificada: no está duplicada.\n\n';
+      intake.mockResolvedValueOnce(
+        intakeResponse(COMPLETE, { assistant_message: `${prefix}${READY_TO_CONFIRM_VARIANTS[2]}` })
+      );
+      const { result } = startComposer();
+
+      let outcome: any;
+      await act(async () => {
+        outcome = await result.current.processMessage('todos los datos');
+      });
+
+      expect(outcome.assistantMessage.startsWith(prefix)).toBe(true);
+      expect(READY_NEEDS_MEDIA_VARIANTS).toContain(outcome.assistantMessage.slice(prefix.length));
+    });
+
+    it('keeps the "ready to confirm" message unchanged once a photo has already been added', async () => {
+      const { result } = startComposer();
+      act(() => {
+        result.current.addPhotos(['file://a.jpg']);
+      });
+      intake.mockResolvedValueOnce(intakeResponse(COMPLETE, { assistant_message: READY_TO_CONFIRM_VARIANTS[1] }));
+
+      let outcome: any;
+      await act(async () => {
+        outcome = await result.current.processMessage('todos los datos');
+      });
+
+      expect(outcome.assistantMessage).toBe(READY_TO_CONFIRM_VARIANTS[1]);
+    });
+
+    it('keeps the "ready to confirm" message unchanged once a pin has already been set', async () => {
+      const { result } = startComposer();
+      act(() => result.current.setLocation(40.4, -3.7));
+      intake.mockResolvedValueOnce(intakeResponse(COMPLETE, { assistant_message: READY_TO_CONFIRM_VARIANTS[1] }));
+
+      let outcome: any;
+      await act(async () => {
+        outcome = await result.current.processMessage('todos los datos');
+      });
+
+      expect(outcome.assistantMessage).toBe(READY_TO_CONFIRM_VARIANTS[1]);
     });
   });
 

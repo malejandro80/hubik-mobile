@@ -30,10 +30,12 @@ import {
   DescriptionState,
   formatPrice,
   getNearbyAmenities,
+  parsePropertyAmenities,
   parsePropertyImages,
   resolveDescriptionState,
   resolvePhotoCountLabel,
 } from '../../lib/propertyDetail';
+import { PROPERTY_TYPE_LABEL_ES, PropertyType } from '../../types/property';
 
 export default function PropertyDetailScreen() {
   const router = useRouter();
@@ -41,11 +43,15 @@ export default function PropertyDetailScreen() {
     id: string;
     title?: string;
     price?: string;
+    currency?: string;
     city?: string;
     address?: string;
     bedrooms?: string;
     bathrooms?: string;
     square_meters?: string;
+    property_type?: string;
+    operation_type?: string;
+    amenities?: string;
     image_url?: string;
     description?: string;
     images?: string;
@@ -73,12 +79,22 @@ export default function PropertyDetailScreen() {
 
   const city = params.city || 'Madrid';
   const title = params.title || `Barrio de Salamanca, ${city}`;
-  const price = useMemo(() => formatPrice(params.price), [params.price]);
+  const price = useMemo(() => formatPrice(params.price, params.currency), [params.price, params.currency]);
   const address = params.address || 'Calle Claudio Coello';
   const bedrooms = params.bedrooms || '3';
   const bathrooms = params.bathrooms || '2';
   const squareMeters = params.square_meters || '120';
   const realImages = useMemo(() => parsePropertyImages(params.images), [params.images]);
+  const realAmenities = useMemo(() => parsePropertyAmenities(params.amenities), [params.amenities]);
+  const propertyTypeLabel = params.property_type
+    ? PROPERTY_TYPE_LABEL_ES[params.property_type as PropertyType]
+    : undefined;
+  const operationLabel =
+    params.operation_type === 'rent'
+      ? labels.propertyDetail.operationRent
+      : params.operation_type === 'sale'
+        ? labels.propertyDetail.operationSale
+        : undefined;
   const isPreview = params.preview === PREVIEW_PARAM_VALUE;
   const isRealDraft = isPreview || Boolean(params.description);
   const imageUrl =
@@ -246,8 +262,17 @@ export default function PropertyDetailScreen() {
             {price}
           </Text>
 
-          <View style={styles.agencyBadge}>
-            <Text style={styles.agencyBadgeText}>{labels.propertyDetail.noAgencyFees}</Text>
+          <View style={styles.badgeRow}>
+            {propertyTypeLabel && (
+              <View style={styles.typeBadge}>
+                <Text style={styles.typeBadgeText}>{propertyTypeLabel}</Text>
+              </View>
+            )}
+            {operationLabel && (
+              <View style={styles.typeBadge}>
+                <Text style={styles.typeBadgeText}>{operationLabel}</Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.locationRow}>
@@ -338,6 +363,22 @@ export default function PropertyDetailScreen() {
             })()}
           </View>
         </View>
+
+        {realAmenities.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>
+              {labels.propertyDetail.featuresSectionTitle}
+            </Text>
+
+            <View style={styles.featuresChipsRow}>
+              {realAmenities.map((amenity) => (
+                <View key={amenity} style={styles.featureChip}>
+                  <Text style={styles.featureChipText}>{amenity}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {!isRealDraft && (
           <View style={styles.sectionContainer}>

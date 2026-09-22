@@ -148,29 +148,48 @@ function extractPrice(text: string): number | undefined {
   return undefined;
 }
 
-function extractCatastro(text: string): string | undefined {
+function extractCatastro(text: string, alreadyProvided: boolean): string | undefined {
   // 1. Match legacy/seeded references generated during migrations (e.g. LEGACY-E1F2A3B479302)
   const legacyMatch = text.match(/\bLEGACY-[A-Za-z0-9]{5,13}\b/i);
   if (legacyMatch) return legacyMatch[0].toUpperCase();
 
-  // 2. Match standard Spanish cadastral references (14-20 alphanumeric characters, possibly with hyphens)
+  // 2. Match the official grouping (7-7-4-2 or 14-4-2), space-separated (e.g. "9872023 VH5797S
+  // 0001 WX"). Checked before the loose continuous pattern below: that pattern's character
+  // class includes hyphens, so on a full 4-group hyphenated reference it would otherwise grab
+  // an incomplete 14-20 char slice instead of the whole code.
+  const spacedMatch = text.match(
+    /\b([A-Za-z0-9]{7}\s+[A-Za-z0-9]{7}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2}|[A-Za-z0-9]{14}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2})\b/
+  );
+  if (spacedMatch) return spacedMatch[0].replace(/\s+/g, '').toUpperCase();
+
+  // 3. Same grouping with hyphens instead of spaces (e.g. "9872023-VH5797S-0001-WX") - a
+  // natural way to type a long code.
+  const hyphenGroupMatch = text.match(
+    /\b([A-Za-z0-9]{7}-[A-Za-z0-9]{7}-[A-Za-z0-9]{4}-[A-Za-z0-9]{2}|[A-Za-z0-9]{14}-[A-Za-z0-9]{4}-[A-Za-z0-9]{2})\b/
+  );
+  if (hyphenGroupMatch) return hyphenGroupMatch[0].replace(/-/g, '').toUpperCase();
+
+  // 4. Match standard Spanish cadastral references (14-20 alphanumeric characters, possibly with hyphens)
   const match = text.match(
     /\b(?=[A-Za-z0-9-]{14,20}\b)(?=[A-Za-z0-9-]*[0-9])(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9-]{14,20}\b/
   );
   if (match) return match[0].toUpperCase();
 
-  // 3. Match user pasting the reference directly (with optional surrounding whitespace)
+  // 5. Match user pasting the reference directly (with optional surrounding whitespace)
   const trimmed = text.trim();
   if (/^[A-Za-z0-9-]{14,20}$/.test(trimmed) && /[0-9]/.test(trimmed) && /[A-Za-z]/.test(trimmed)) {
     return trimmed.toUpperCase();
   }
 
-  // 4. Match cadastral reference formatted with spaces (e.g. "9872023 VH5797S 0001 WX" or "9872023VH5797S 0001 WX")
-  const spacedMatch = text.match(
-    /\b([A-Za-z0-9]{7}\s+[A-Za-z0-9]{7}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2}|[A-Za-z0-9]{14}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2})\b/
-  );
-  if (spacedMatch) {
-    return spacedMatch[0].replace(/\s+/g, '').toUpperCase();
+  // 6. RFC 006 only requires a non-empty string for catastro (format/checksum validation
+  // against the real cadastre is explicitly out of scope). While it's still the field being
+  // collected, a single whitespace-free reply with a digit in it is almost certainly the user
+  // answering directly, even when it doesn't match the shapes above (test/dummy values,
+  // shorter internal references, etc). Gated to before catastro is already known so it can't
+  // misfire on a later single-word answer (bedroom count, m2, ...), and requires a digit so
+  // plain replies like "gracias" or "hola" aren't mistaken for a reference.
+  if (!alreadyProvided && /^\S+$/.test(trimmed) && trimmed.length >= 4 && /[0-9]/.test(trimmed)) {
+    return trimmed.toUpperCase();
   }
 
   return undefined;
@@ -180,7 +199,7 @@ function heuristicExtract(message: string, known: PropertyDraft, knownCities: st
   const lower = message.toLowerCase();
   const extracted: PropertyDraft = {};
 
-  const catastro = extractCatastro(message);
+  const catastro = extractCatastro(message, known.catastro !== undefined);
   if (catastro) extracted.catastro = catastro;
 
   const propertyType = extractPropertyType(lower);
@@ -238,6 +257,8 @@ Deno.serve(async (req: Request) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const requestStart = Date.now();
+
   try {
     const identity = await requireAgent(req, corsHeaders);
     if (identity instanceof Response) return identity;
@@ -274,11 +295,22 @@ Deno.serve(async (req: Request) => {
           { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      // Logged before transcription starts, not after: this line alone proves the request body
+      // (base64 audio) made it all the way to the Edge Function. When a voice note fails on the
+      // client with "Failed to send a request to the Edge Function" (a transport-level failure,
+      // not an HTTP error response), checking for this line at the reported time tells us whether
+      // the request ever arrived here at all, or died in transit before reaching Supabase.
+      console.log(`[property-intake] audio request received, base64 length: ${audio.data.length}`);
+      const transcribeStart = Date.now();
       try {
         transcript = await transcribeAudio(audio, groqKey);
         effectiveMessage = transcript;
+        console.log(`[property-intake] transcription completed in ${Date.now() - transcribeStart}ms`);
       } catch (transcribeErr: any) {
-        console.error('[property-intake] Groq audio transcription error:', transcribeErr);
+        console.error(
+          `[property-intake] Groq audio transcription error after ${Date.now() - transcribeStart}ms:`,
+          transcribeErr
+        );
         return new Response(
           JSON.stringify({ error: transcribeErr?.message || 'No se pudo procesar la nota de voz' }),
           { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -302,6 +334,7 @@ Deno.serve(async (req: Request) => {
     const amenitySignal = !requiredMissing && hasAmenitySignal(effectiveMessage);
 
     if (requiredMissing || amenitySignal) {
+      const llmStart = Date.now();
       let llmExtracted: Partial<PropertyDraft> | undefined;
       const instruction = requiredMissing
         ? propertyIntakeTextInstruction(known)
@@ -386,6 +419,9 @@ Deno.serve(async (req: Request) => {
           data.amenities = normalizeAmenities([...(data.amenities ?? []), ...llmAmenities]);
         }
       }
+      console.log(
+        `[property-intake] LLM escalation completed in ${Date.now() - llmStart}ms (${llmExtracted ? 'hit' : 'miss'})`
+      );
     }
 
     // First-step guard: if a catastro was just supplied (differs from what was already
@@ -408,6 +444,7 @@ Deno.serve(async (req: Request) => {
           if (existing) {
             data = { ...data, catastro: undefined };
             const missing_fields = REQUIRED_FIELDS.filter((field) => data[field] === undefined);
+            console.log(`[property-intake] request completed in ${Date.now() - requestStart}ms (duplicate catastro)`);
             return new Response(
               JSON.stringify({
                 data,
@@ -433,6 +470,10 @@ Deno.serve(async (req: Request) => {
     const missing_fields = REQUIRED_FIELDS.filter((field) => data[field] === undefined);
     const ready_to_confirm = missing_fields.length === 0;
 
+    console.log(
+      `[property-intake] request completed in ${Date.now() - requestStart}ms (${isAudioRequest ? 'audio' : 'text'})`
+    );
+
     return new Response(
       JSON.stringify({
         data,
@@ -444,7 +485,7 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: any) {
-    console.error('❌ [property-intake] Edge Function error:', error);
+    console.error(`❌ [property-intake] Edge Function error after ${Date.now() - requestStart}ms:`, error);
     return new Response(
       JSON.stringify({ error: error?.message || 'Internal error in property-intake Edge Function' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

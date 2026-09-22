@@ -172,9 +172,14 @@ export function buildPropertyRouteParams(property: Property) {
     bathrooms: property.bathrooms.toString(),
     square_meters: property.square_meters.toString(),
     image_url: property.image_url,
+    property_type: property.property_type,
+    ...(property.operation_type ? { operation_type: property.operation_type } : {}),
     ...(property.description ? { description: property.description } : {}),
     ...(property.images && property.images.length > 0
       ? { images: JSON.stringify(property.images) }
+      : {}),
+    ...(property.amenities && property.amenities.length > 0
+      ? { amenities: JSON.stringify(property.amenities) }
       : {}),
     ...(typeof property.latitude === 'number' ? { lat: property.latitude.toString() } : {}),
     ...(typeof property.longitude === 'number' ? { lng: property.longitude.toString() } : {}),

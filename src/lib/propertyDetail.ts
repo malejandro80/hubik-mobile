@@ -1,5 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Labels } from '../hooks/useLabels';
+import { CURRENCY_SYMBOLS } from './chatRegistration';
 
 export interface AccessibilityCardItem {
   icon: keyof typeof Ionicons.glyphMap;
@@ -40,10 +41,10 @@ export function getNearbyAmenities(labels: Labels): AmenityItem[] {
 
 export type PhotoCountType = 'real_with_photos' | 'real_empty' | 'mock';
 
-export function parsePropertyImages(imagesParam?: string): string[] {
-  if (!imagesParam) return [];
+function parseStringArrayParam(param?: string): string[] {
+  if (!param) return [];
   try {
-    const parsed = JSON.parse(imagesParam);
+    const parsed = JSON.parse(param);
     return Array.isArray(parsed)
       ? parsed.filter((item): item is string => typeof item === 'string')
       : [];
@@ -52,8 +53,19 @@ export function parsePropertyImages(imagesParam?: string): string[] {
   }
 }
 
-export function formatPrice(rawPrice?: string): string {
-  return rawPrice ? `$${Number(rawPrice).toLocaleString('en-US')}` : '485.000 €';
+export function parsePropertyImages(imagesParam?: string): string[] {
+  return parseStringArrayParam(imagesParam);
+}
+
+export function parsePropertyAmenities(amenitiesParam?: string): string[] {
+  return parseStringArrayParam(amenitiesParam);
+}
+
+export function formatPrice(rawPrice?: string, currency?: string): string {
+  if (!rawPrice) return '—';
+  const amount = Number(rawPrice);
+  const symbol = currency && currency !== 'USD' ? CURRENCY_SYMBOLS[currency] : undefined;
+  return symbol ? `${amount.toLocaleString('es-ES')} ${symbol}` : `$${amount.toLocaleString('en-US')}`;
 }
 
 export function resolvePhotoCountLabel(

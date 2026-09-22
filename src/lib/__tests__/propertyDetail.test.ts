@@ -2,6 +2,7 @@ import { labels } from '../../constants/labels';
 import {
   formatPrice,
   getNearbyAmenities,
+  parsePropertyAmenities,
   parsePropertyImages,
   resolveDescriptionState,
   resolvePhotoCountLabel,
@@ -33,13 +34,35 @@ describe('propertyDetail library', () => {
     });
   });
 
+  describe('parsePropertyAmenities', () => {
+    it('returns empty array when amenitiesParam is undefined or empty', () => {
+      expect(parsePropertyAmenities(undefined)).toEqual([]);
+      expect(parsePropertyAmenities('')).toEqual([]);
+    });
+
+    it('parses valid JSON array of amenity strings', () => {
+      const json = JSON.stringify(['piscina', 'garaje']);
+      expect(parsePropertyAmenities(json)).toEqual(['piscina', 'garaje']);
+    });
+
+    it('gracefully handles malformed JSON by returning empty array', () => {
+      expect(parsePropertyAmenities('not-json')).toEqual([]);
+    });
+  });
+
   describe('formatPrice', () => {
-    it('formats valid price string as US formatted currency', () => {
+    it('formats a price with no currency as US-style dollars (default when currency is unknown)', () => {
       expect(formatPrice('350000')).toBe('$350,000');
     });
 
-    it('falls back to default price string when empty or undefined', () => {
-      expect(formatPrice(undefined)).toBe('485.000 €');
+    it('formats a price with an explicit currency using the matching symbol and locale', () => {
+      expect(formatPrice('350000', 'EUR')).toBe('350.000 €');
+      expect(formatPrice('350000', 'VES')).toBe('350.000 Bs.');
+      expect(formatPrice('350000', 'USD')).toBe('$350,000');
+    });
+
+    it('returns a neutral placeholder instead of a fabricated price when the price is missing', () => {
+      expect(formatPrice(undefined)).toBe('—');
     });
   });
 

@@ -43,12 +43,12 @@ const expand = (utils: ReturnType<typeof renderPanel>) =>
   fireEvent.press(utils.getByLabelText('Ver la ficha completa'));
 
 describe('DraftPanel collapsed', () => {
-  it('shows progress, photo and pin summaries for an empty draft', () => {
+  it('shows progress and the photo/location chips for an empty draft', () => {
     const { getByText } = renderPanel();
 
     expect(getByText('0 de 9 datos')).toBeTruthy();
-    expect(getByText('Sin fotos')).toBeTruthy();
-    expect(getByText('Sin ubicación')).toBeTruthy();
+    expect(getByText('Añadir fotos')).toBeTruthy();
+    expect(getByText('Marcar ubicación')).toBeTruthy();
   });
 
   it('counts filled fields, photos and the pin', () => {
@@ -61,20 +61,60 @@ describe('DraftPanel collapsed', () => {
     expect(getByText('Ubicación marcada')).toBeTruthy();
   });
 
-  it('shows only the top suggestion and hides the full card', () => {
-    const { getByText, queryByText } = renderPanel();
+  it('hides the full card until expanded', () => {
+    const { queryByText } = renderPanel();
 
-    expect(getByText('Añada al menos 3 fotos para que el anuncio destaque.')).toBeTruthy();
-    expect(queryByText('Marque la ubicación en el mapa para mostrar dónde está.')).toBeNull();
     expect(queryByText('Ficha en progreso')).toBeNull();
   });
 
-  it('says what is left to publish, or that everything is ready', () => {
+  it('says what is left to publish, or names what still needs a photo or a pin', () => {
     const blocked = renderPanel({ draft: { city: 'Valencia' } });
     expect(blocked.getByText('Faltan 8 datos')).toBeTruthy();
 
-    const ready = renderPanel({ draft: COMPLETE });
-    expect(ready.getByText('Todo listo para publicar')).toBeTruthy();
+    const readyNoMedia = renderPanel({ draft: COMPLETE });
+    expect(readyNoMedia.getByText('Faltan fotos y ubicación')).toBeTruthy();
+
+    const readyWithMedia = renderPanel({ draft: { ...COMPLETE, images: ['a'], latitude: 1, longitude: 2 } });
+    expect(readyWithMedia.getByText('Fotos y ubicación listas')).toBeTruthy();
+  });
+});
+
+describe('DraftPanel photo and location chips', () => {
+  it('opens the photo picker and the map picker from the chips, without expanding', () => {
+    const { getByLabelText, props } = renderPanel();
+
+    fireEvent.press(getByLabelText('Añadir fotos'));
+    fireEvent.press(getByLabelText('Marcar ubicación en el mapa'));
+
+    expect(props.onAddPhotos).toHaveBeenCalledTimes(1);
+    expect(props.onPickLocation).toHaveBeenCalledTimes(1);
+  });
+
+  it('switches to a done state once a photo and a pin exist', () => {
+    const { getByText, getByLabelText } = renderPanel({
+      draft: { images: ['a', 'b'], latitude: 1, longitude: 2 },
+    });
+
+    expect(getByText('2 fotos')).toBeTruthy();
+    expect(getByText('Toque para gestionar')).toBeTruthy();
+    expect(getByText('Ubicación marcada')).toBeTruthy();
+    expect(getByText('Toque para cambiar')).toBeTruthy();
+    expect(getByLabelText('Cambiar ubicación en el mapa, ya marcada')).toBeTruthy();
+  });
+
+  it('offers to reorder photos from the chip once there are at least two, without expanding', () => {
+    const onOrderPhotos = jest.fn();
+    const single = renderPanel({ draft: { images: ['a'] }, onOrderPhotos });
+    expect(single.queryByLabelText('Ordenar las fotos')).toBeNull();
+
+    const multiple = renderPanel({ draft: { images: ['a', 'b'] }, onOrderPhotos });
+    fireEvent.press(multiple.getByLabelText('Ordenar las fotos'));
+    expect(onOrderPhotos).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not offer to reorder photos when no handler is given', () => {
+    const { queryByLabelText } = renderPanel({ draft: { images: ['a', 'b'] } });
+    expect(queryByLabelText('Ordenar las fotos')).toBeNull();
   });
 });
 

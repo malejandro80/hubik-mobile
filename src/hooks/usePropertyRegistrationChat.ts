@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LOCAL_ONLY_FIELDS } from '../constants/draftFields';
+import { READY_NEEDS_MEDIA_VARIANTS, READY_TO_CONFIRM_VARIANTS } from '../constants/intakeMessages';
 import { getChangedFields, getDescriptionKey, isReadyToPublish } from '../lib/draftStatus';
 import { isSamePhotoSet } from '../lib/photoOrder';
 import { DraftEditableField, FieldEditResult, validateDraftField } from '../lib/draftValidation';
@@ -47,8 +48,24 @@ const INITIAL_STATE: ComposerState = {
 
 const generateSessionId = (): string => `d${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
 
-const toOutcome = (response: PropertyIntakeResponse): IntakeOutcome => ({
-  assistantMessage: response.assistant_message,
+const pickVariant = (variants: readonly string[]): string => variants[Math.floor(Math.random() * variants.length)];
+
+// The "ready to confirm" chat message claims the listing is fully set up, but a draft with no
+// photo and no map pin isn't really - swap in a message that asks for one of those instead of
+// letting the assistant call an empty-media draft "done" (the panel below still allows
+// publishing without them; this only affects the chat's wording).
+const withMediaGate = (message: string, readyToConfirm: boolean, localDraft: PropertyDraft): string => {
+  if (!readyToConfirm) return message;
+  const hasPhotos = (localDraft.images?.length ?? 0) > 0;
+  const hasLocation = localDraft.latitude !== undefined && localDraft.longitude !== undefined;
+  if (hasPhotos || hasLocation) return message;
+  const variant = READY_TO_CONFIRM_VARIANTS.find((candidate) => message.endsWith(candidate));
+  if (!variant) return message;
+  return `${message.slice(0, message.length - variant.length)}${pickVariant(READY_NEEDS_MEDIA_VARIANTS)}`;
+};
+
+const toOutcome = (response: PropertyIntakeResponse, localDraft: PropertyDraft): IntakeOutcome => ({
+  assistantMessage: withMediaGate(response.assistant_message, response.ready_to_confirm, localDraft),
   readyToConfirm: response.ready_to_confirm,
   draft: response.data,
 });
@@ -134,9 +151,10 @@ export function usePropertyRegistrationChat() {
   const processMessage = useCallback(
     async (text: string): Promise<IntakeOutcome> => {
       const sessionId = sessionRef.current;
-      const response = await intakeProperty(text, stateRef.current.draft);
+      const priorDraft = stateRef.current.draft;
+      const response = await intakeProperty(text, priorDraft);
       applyIntake(response, sessionId);
-      return toOutcome(response);
+      return toOutcome(response, priorDraft);
     },
     [applyIntake]
   );
@@ -144,9 +162,10 @@ export function usePropertyRegistrationChat() {
   const processAudioMessage = useCallback(
     async (audio: AudioPayload): Promise<IntakeOutcome & { transcript: string }> => {
       const sessionId = sessionRef.current;
-      const response = await intakePropertyAudio(audio, stateRef.current.draft);
+      const priorDraft = stateRef.current.draft;
+      const response = await intakePropertyAudio(audio, priorDraft);
       applyIntake(response, sessionId);
-      return { ...toOutcome(response), transcript: response.transcript };
+      return { ...toOutcome(response, priorDraft), transcript: response.transcript };
     },
     [applyIntake]
   );

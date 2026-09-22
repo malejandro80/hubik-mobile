@@ -1,3 +1,4 @@
+import { FunctionsFetchError } from '@supabase/supabase-js';
 import {
   OperationType,
   Property,
@@ -9,7 +10,43 @@ import {
 } from '../types/property';
 import { extractAmenityKeywords, normalizeAmenities } from '../lib/amenities';
 import { supabase } from '../lib/supabase';
-import { CATASTRO_LAST_VARIANTS, DESCRIBE_INVITE_VARIANTS } from '../constants/intakeMessages';
+import { CATASTRO_LAST_VARIANTS, DESCRIBE_INVITE_VARIANTS, READY_TO_CONFIRM_VARIANTS } from '../constants/intakeMessages';
+
+// Voice notes have no local fallback (transcription can't happen on-device), and their server-side
+// path is a long, fully-sequential chain (Whisper transcription, then possibly Gemini and a Groq
+// fallback) with no response sent until it's all done - long enough for mobile networks/NAT/simulator
+// connections to silently drop the still-open request. supabase-js wraps that as a `FunctionsFetchError`
+// ("Failed to send a request to the Edge Function") regardless of whether the cause was a dropped
+// connection or our own timeout below - both are network-layer failures, not an error response from
+// the function. Unlike every other Edge Function call in this file, that left `intakePropertyAudio`/
+// `sendChatQueryAudio` with an unbounded wait and no retry, so a single transient drop surfaced
+// immediately as that raw message. A bounded timeout plus one retry turns that class of failure into a
+// usually-invisible blip.
+const AUDIO_REQUEST_TIMEOUT_MS = 20_000;
+
+async function invokeAudioFunction<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
+  const attempt = (): Promise<T> =>
+    supabase.functions.invoke<T>(functionName, { body, timeout: AUDIO_REQUEST_TIMEOUT_MS }).then(({ data, error }) => {
+      if (error) throw error;
+      if (data) return data;
+      throw new Error(`Invalid response received from ${functionName} function (audio)`);
+    });
+
+  try {
+    return await attempt();
+  } catch (err: any) {
+    if (!(err instanceof FunctionsFetchError)) throw err;
+    console.warn(`[chatApi] ${functionName} audio request failed (${err?.context?.message || err.message}), retrying once...`);
+    try {
+      return await attempt();
+    } catch (retryErr: any) {
+      if (retryErr instanceof FunctionsFetchError) {
+        throw new Error('No se pudo conectar para procesar la nota de voz. Verifica tu conexión e inténtalo de nuevo.');
+      }
+      throw retryErr;
+    }
+  }
+}
 
 export interface ChatResponse {
   answer: string;
@@ -434,9 +471,23 @@ function extractPrice(text: string): number | undefined {
   return undefined;
 }
 
-function extractCatastro(text: string): string | undefined {
+function extractCatastro(text: string, alreadyProvided: boolean): string | undefined {
   const legacyMatch = text.match(/\bLEGACY-[A-Za-z0-9]{5,13}\b/i);
   if (legacyMatch) return legacyMatch[0].toUpperCase();
+
+  // Official grouping (7-7-4-2 or 14-4-2), space- or hyphen-separated. Checked before the
+  // loose continuous pattern below: that pattern's character class includes hyphens, so on a
+  // full 4-group hyphenated reference it would otherwise grab an incomplete 14-20 char slice
+  // instead of the whole code.
+  const spacedMatch = text.match(
+    /\b([A-Za-z0-9]{7}\s+[A-Za-z0-9]{7}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2}|[A-Za-z0-9]{14}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2})\b/
+  );
+  if (spacedMatch) return spacedMatch[0].replace(/\s+/g, '').toUpperCase();
+
+  const hyphenGroupMatch = text.match(
+    /\b([A-Za-z0-9]{7}-[A-Za-z0-9]{7}-[A-Za-z0-9]{4}-[A-Za-z0-9]{2}|[A-Za-z0-9]{14}-[A-Za-z0-9]{4}-[A-Za-z0-9]{2})\b/
+  );
+  if (hyphenGroupMatch) return hyphenGroupMatch[0].replace(/-/g, '').toUpperCase();
 
   const match = text.match(
     /\b(?=[A-Za-z0-9-]{14,20}\b)(?=[A-Za-z0-9-]*[0-9])(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9-]{14,20}\b/
@@ -448,21 +499,19 @@ function extractCatastro(text: string): string | undefined {
     return trimmed.toUpperCase();
   }
 
-  const spacedMatch = text.match(
-    /\b([A-Za-z0-9]{7}\s+[A-Za-z0-9]{7}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2}|[A-Za-z0-9]{14}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2})\b/
-  );
-  if (spacedMatch) {
-    return spacedMatch[0].replace(/\s+/g, '').toUpperCase();
+  // RFC 006 only requires a non-empty string for catastro (format/checksum validation against
+  // the real cadastre is explicitly out of scope). While it's still the field being collected,
+  // a single whitespace-free reply with a digit in it is almost certainly the user answering
+  // directly, even when it doesn't match the shapes above (test/dummy values, shorter internal
+  // references, etc). Gated to before catastro is already known so it can't misfire on a later
+  // single-word answer (bedroom count, m2, ...), and requires a digit so plain replies like
+  // "gracias" or "hola" aren't mistaken for a reference.
+  if (!alreadyProvided && /^\S+$/.test(trimmed) && trimmed.length >= 4 && /[0-9]/.test(trimmed)) {
+    return trimmed.toUpperCase();
   }
 
   return undefined;
 }
-
-const READY_TO_CONFIRM_VARIANTS = [
-  '¡Perfecto! Ya tengo todos los datos necesarios. Aquí tiene el resumen para confirmar.',
-  '¡Listo! Con esto ya completé todos los datos. Revise el resumen y confírmelo cuando guste.',
-  'Excelente, ya reuní todo lo necesario. Eche un vistazo al resumen antes de publicar.',
-];
 
 const MISSING_FIELDS_PREFIX_VARIANTS = ['Me falta: ', 'Aún necesito: ', 'Todavía me falta: '];
 const MISSING_FIELDS_SUFFIX_VARIANTS = [
@@ -502,7 +551,7 @@ export function parsePropertyDraft(message: string, known: PropertyDraft): Prope
   const lower = message.toLowerCase();
   const extracted: PropertyDraft = {};
 
-  const catastro = extractCatastro(message);
+  const catastro = extractCatastro(message, known.catastro !== undefined);
   if (catastro) extracted.catastro = catastro;
 
   const propertyType = extractPropertyType(lower);
@@ -576,15 +625,7 @@ export async function intakePropertyAudio(
   audio: AudioPayload,
   known: PropertyDraft
 ): Promise<PropertyIntakeResponse & { transcript: string }> {
-  const { data, error } = await supabase.functions.invoke<PropertyIntakeResponse & { transcript: string }>(
-    'property-intake',
-    { body: { audio, known } }
-  );
-
-  if (error) throw error;
-  if (data) return data;
-
-  throw new Error('Invalid response received from property-intake function (audio)');
+  return invokeAudioFunction<PropertyIntakeResponse & { transcript: string }>('property-intake', { audio, known });
 }
 
 async function publishPropertyDirect(draft: PropertyDraft): Promise<Property> {
@@ -677,12 +718,5 @@ export async function generatePropertyDescription(known: PropertyDraft): Promise
 }
 
 export async function sendChatQueryAudio(audio: AudioPayload): Promise<ChatResponse & { transcript: string }> {
-  const { data, error } = await supabase.functions.invoke<ChatResponse & { transcript: string }>('chat-query', {
-    body: { audio },
-  });
-
-  if (error) throw error;
-  if (data && data.answer) return data;
-
-  throw new Error('Invalid response received from chat-query function (audio)');
+  return invokeAudioFunction<ChatResponse & { transcript: string }>('chat-query', { audio });
 }

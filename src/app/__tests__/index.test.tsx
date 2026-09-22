@@ -385,13 +385,13 @@ describe('HomeScreen (AI listing composer)', () => {
       expect(utils.getByText(/permiso para acceder a sus fotos/)).toBeTruthy();
     });
     expect(ImagePicker.launchImageLibraryAsync).not.toHaveBeenCalled();
-    expect(utils.getByText('Sin fotos')).toBeTruthy();
+    expect(utils.getByText('Añadir fotos')).toBeTruthy();
   });
 
   it('marks the location from the composer button and shows it in the draft', async () => {
     const utils = render(<HomeScreen />);
     await startComposer(utils);
-    expect(utils.getByText('Sin ubicación')).toBeTruthy();
+    expect(utils.getByText('Marcar ubicación')).toBeTruthy();
 
     fireEvent.press(utils.getByLabelText('Marcar ubicación en el mapa'));
     await waitFor(() => utils.getByText(/Confirmar ubicación/));
@@ -530,7 +530,7 @@ describe('HomeScreen (AI listing composer)', () => {
     await waitFor(() => {
       expect(utils.getByText(/Quiero registrar un piso en Madrid calle Mayor 12/)).toBeTruthy();
       expect(utils.getByText('9 de 9 datos')).toBeTruthy();
-      expect(utils.getByText('Todo listo para publicar')).toBeTruthy();
+      expect(utils.getByText('Faltan fotos y ubicación')).toBeTruthy();
     });
   });
 

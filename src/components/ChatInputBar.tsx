@@ -9,7 +9,6 @@ import {
   ViewStyle,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { MIN_PHOTOS_TO_ORDER } from '../constants/photoOrder';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { colors, hitSlop } from '../theme/colors';
@@ -20,14 +19,6 @@ type ActionOptionKey = 'recording' | 'send' | 'mic';
 interface ActionOption {
   accessibilityLabel: string;
   icon: React.ReactNode;
-}
-
-export interface ChatInputAttachments {
-  onAddPhotos: () => void;
-  onPickLocation: () => void;
-  onOrderPhotos?: () => void;
-  photoCount: number;
-  hasPin: boolean;
 }
 
 export interface ChatInputBarProps {
@@ -41,7 +32,6 @@ export interface ChatInputBarProps {
   accessibilityLabel?: string;
   containerStyle?: StyleProp<ViewStyle>;
   hasTopBorder?: boolean;
-  attachments?: ChatInputAttachments;
 }
 
 export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
@@ -55,7 +45,6 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
   accessibilityLabel,
   containerStyle,
   hasTopBorder = false,
-  attachments,
 }) => {
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
@@ -65,14 +54,12 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
   const resolvedPlaceholder = placeholder ?? labels.chat.inputPlaceholder;
   const resolvedAccessibilityLabel = accessibilityLabel ?? labels.chat.accessibilityInput;
 
-  const { styles, placeholderTextColor, iconColor, attachmentIconColor } = useMemo(
+  const { styles, placeholderTextColor, iconColor } = useMemo(
     () => getChatInputBarStyles(theme),
     [theme]
   );
 
   const isSendActive = Boolean(value.trim());
-  const attachmentsDisabled = loading || isRecording;
-  const canOrderPhotos = Boolean(attachments?.onOrderPhotos) && (attachments?.photoCount ?? 0) >= MIN_PHOTOS_TO_ORDER;
 
   const getActionType = (): ActionOptionKey => {
     if (isRecording) return 'recording';
@@ -119,54 +106,6 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
         containerStyle,
       ]}
     >
-      {attachments && (
-        <View style={styles.attachmentsRow}>
-          <TouchableOpacity
-            style={[styles.attachmentButton, attachments.photoCount > 0 && styles.attachmentButtonActive]}
-            onPress={attachments.onAddPhotos}
-            disabled={attachmentsDisabled}
-            accessibilityRole="button"
-            accessibilityLabel={labels.composer.attachPhotosA11y(attachments.photoCount)}
-            accessibilityState={{ disabled: attachmentsDisabled }}
-            hitSlop={hitSlop.compact}
-          >
-            <Ionicons name="images-outline" size={20} color={attachmentIconColor} />
-            <Text style={styles.attachmentText}>{labels.composer.attachPhotos}</Text>
-            {attachments.photoCount > 0 && (
-              <View style={styles.attachmentBadge}>
-                <Text style={styles.attachmentBadgeText}>{attachments.photoCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          {canOrderPhotos && (
-            <TouchableOpacity
-              style={styles.attachmentButton}
-              onPress={attachments.onOrderPhotos}
-              disabled={attachmentsDisabled}
-              accessibilityRole="button"
-              accessibilityLabel={labels.composer.orderPhotosA11y}
-              accessibilityState={{ disabled: attachmentsDisabled }}
-              hitSlop={hitSlop.compact}
-            >
-              <Ionicons name="swap-vertical" size={20} color={attachmentIconColor} />
-              <Text style={styles.attachmentText}>{labels.composer.orderPhotos}</Text>
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity
-            style={[styles.attachmentButton, attachments.hasPin && styles.attachmentButtonActive]}
-            onPress={attachments.onPickLocation}
-            disabled={attachmentsDisabled}
-            accessibilityRole="button"
-            accessibilityLabel={labels.composer.pickLocationA11y(attachments.hasPin)}
-            accessibilityState={{ disabled: attachmentsDisabled }}
-            hitSlop={hitSlop.compact}
-          >
-            <Ionicons name={attachments.hasPin ? 'location' : 'location-outline'} size={20} color={attachmentIconColor} />
-            <Text style={styles.attachmentText}>{labels.composer.pickLocation}</Text>
-            {attachments.hasPin && <Ionicons name="checkmark-circle" size={16} color={attachmentIconColor} />}
-          </TouchableOpacity>
-        </View>
-      )}
       <View style={styles.container}>
         <View
           style={[
