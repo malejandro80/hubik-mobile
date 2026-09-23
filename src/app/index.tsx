@@ -20,18 +20,21 @@ import { Header } from '../components/Header';
 import { PhotoOrderModal } from '../components/PhotoOrderModal';
 import { SlashCommandMenu } from '../components/SlashCommandMenu';
 import { StartScreen } from '../components/StartScreen';
+import { TypingIndicator } from '../components/TypingIndicator';
 import { useAppMenu } from '../hooks/useAppMenu';
 import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useConversation } from '../hooks/useConversation';
 import { useDraftReview } from '../hooks/useDraftReview';
 import { useLabels } from '../hooks/useLabels';
+import { useNewReply } from '../hooks/useNewReply';
 import { usePropertyRegistrationChat } from '../hooks/usePropertyRegistrationChat';
 import { useRegistrationConversation } from '../hooks/useRegistrationConversation';
 import { useStartScreen } from '../hooks/useStartScreen';
 import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { DraftEditableField, FieldEditResult, validateDraftField } from '../lib/draftValidation';
 import { resolveSlashMenu } from '../lib/slashCommands';
+import { CLEAR_COMMAND } from '../constants/slashCommands';
 import {
   AudioPayload,
   sendChatQuery,
@@ -57,6 +60,7 @@ export default function HomeScreen() {
   const styles = useMemo(() => getIndexStyles(theme), [theme]);
 
   const { messages, setMessages, reset } = useConversation();
+  const { writingId, finishWriting } = useNewReply(messages);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [mapPickerVisible, setMapPickerVisible] = useState(false);
@@ -80,7 +84,7 @@ export default function HomeScreen() {
   );
 
   const appendAssistantMessage = useCallback(
-    (base: ChatMessage[], text: string, properties?: Property[]) => {
+    (base: ChatMessage[], text: string, properties?: Property[], suggestions?: string[]) => {
       setMessages([
         ...base,
         {
@@ -88,6 +92,7 @@ export default function HomeScreen() {
           sender: 'assistant',
           text,
           properties,
+          suggestions,
           timestamp: labels.chat.justNow,
         },
       ]);
@@ -116,12 +121,23 @@ export default function HomeScreen() {
     if (messages.length > 0) scrollToEndSoon();
   }, [messages.length, scrollToEndSoon]);
 
+  const clearChat = useCallback(() => {
+    registration.cancel();
+    reset();
+    setInputText('');
+  }, [registration, reset]);
+
   const handleSend = useCallback(
     async (queryText?: string) => {
       const textToSend = (queryText || inputText).trim();
       if (!textToSend || loading) return;
 
       const lower = textToSend.toLowerCase();
+      if (lower === CLEAR_COMMAND) {
+        clearChat();
+        return;
+      }
+
       const newMessages: ChatMessage[] = [
         ...messages,
         {
@@ -163,7 +179,7 @@ export default function HomeScreen() {
       setLoading(true);
       try {
         const response = await sendChatQuery(textToSend);
-        appendAssistantMessage(newMessages, response.answer, response.data);
+        appendAssistantMessage(newMessages, response.answer, response.data, response.suggestions);
       } catch (err: any) {
         appendAssistantMessage(
           newMessages,
@@ -187,6 +203,7 @@ export default function HomeScreen() {
       setMessages,
       capabilities.canRegisterProperty,
       authStatus,
+      clearChat,
     ]
   );
 
@@ -211,7 +228,7 @@ export default function HomeScreen() {
           ...messages,
           { id: generateMessageId('user'), sender: 'user', text: response.transcript, timestamp: labels.chat.justNow },
         ];
-        appendAssistantMessage(newMessages, response.answer, response.data);
+        appendAssistantMessage(newMessages, response.answer, response.data, response.suggestions);
       } catch (err: any) {
         const newMessages: ChatMessage[] = [
           ...messages,
@@ -285,21 +302,26 @@ export default function HomeScreen() {
   const menu = useAppMenu({
     search: () => undefined,
     register: () => void handleSend(REGISTER_COMMAND),
-    new_chat: () => {
-      registration.cancel();
-      reset();
-      setInputText('');
-    },
+    new_chat: clearChat,
   });
 
+  const handleSuggestionPress = useCallback((suggestion: string) => void handleSend(suggestion), [handleSend]);
+
+  const scrollToEndNow = useCallback(() => flatListRef.current?.scrollToEnd({ animated: false }), []);
+
   const renderMessageItem: ListRenderItem<ChatMessage> = useCallback(
-    ({ item }) => (
+    ({ item, index }) => (
       <ChatMessageItem
         message={item}
         onPropertyPress={handlePropertyPress}
+        onSuggestionPress={index === messages.length - 1 ? handleSuggestionPress : undefined}
+        suggestionsDisabled={loading}
+        animate={item.id === writingId}
+        onWritten={() => finishWriting(item.id)}
+        onWriteProgress={scrollToEndNow}
       />
     ),
-    [handlePropertyPress]
+    [handlePropertyPress, handleSuggestionPress, messages.length, loading, writingId, finishWriting, scrollToEndNow]
   );
 
   const renderListHeader = useCallback(
@@ -337,6 +359,7 @@ export default function HomeScreen() {
           renderItem={renderMessageItem}
           ListHeaderComponent={messages.length > 0 ? renderListHeader : null}
           ListEmptyComponent={<StartScreen {...startScreen} />}
+          ListFooterComponent={loading ? <TypingIndicator /> : null}
           contentContainerStyle={styles.feedContent}
           keyboardShouldPersistTaps="handled"
           initialNumToRender={50}

@@ -1,5 +1,6 @@
 import { resolveSlashMenu } from '../slashCommands';
 import { REGISTER_COMMAND } from '../chatRegistration';
+import { CLEAR_COMMAND } from '../../constants/slashCommands';
 import { AuthStatus, RoleCapabilities } from '../../types/auth';
 
 const caps = (overrides: Partial<RoleCapabilities> = {}): RoleCapabilities => ({
@@ -21,8 +22,12 @@ describe('resolveSlashMenu', () => {
     expect(resolveSlashMenu(' /agregar', agent, 'signedIn')).toEqual({ kind: 'hidden' });
   });
 
-  it('offers the register command to an agent as soon as they type a slash', () => {
-    expect(commandsOf(resolveSlashMenu('/', agent, 'signedIn'))).toEqual([REGISTER_COMMAND]);
+  it('offers the register and clear commands to an agent as soon as they type a slash', () => {
+    expect(commandsOf(resolveSlashMenu('/', agent, 'signedIn'))).toStrictEqual([REGISTER_COMMAND, CLEAR_COMMAND]);
+  });
+
+  it('narrows to the clear command by prefix', () => {
+    expect(commandsOf(resolveSlashMenu('/lim', agent, 'signedIn'))).toStrictEqual([CLEAR_COMMAND]);
   });
 
   it('narrows by prefix, ignoring case', () => {

@@ -17,8 +17,10 @@ export function resolveSlashMenu(
 ): SlashMenuState {
   if (!text.startsWith(SLASH_PREFIX) || status === 'loading') return HIDDEN;
 
-  const available = SLASH_COMMANDS.filter((item) => capabilities[item.capability]);
-  if (available.length === 0) return { kind: 'note' };
+  const hasGatedCommand = SLASH_COMMANDS.some((item) => item.capability && capabilities[item.capability]);
+  if (!hasGatedCommand) return { kind: 'note' };
+
+  const available = SLASH_COMMANDS.filter((item) => !item.capability || capabilities[item.capability]);
 
   const typed = text.toLowerCase();
   const matching = available.filter((item) => item.command.startsWith(typed));

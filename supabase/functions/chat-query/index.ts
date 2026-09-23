@@ -3,6 +3,7 @@ import { isAudioPayload } from '../_shared/audioPayload.ts';
 import { extractAmenityKeywords } from '../_shared/amenities.ts';
 import { fetchKnownCities, matchCityInText } from '../_shared/cities.ts';
 import { embedText } from '../_shared/geminiEmbedding.ts';
+import { composeSearchAnswer } from '../_shared/searchAnswer.ts';
 import { chatQueryTextInstruction, GEMINI_EXTRACTION_MODEL } from '../_shared/prompts.ts';
 import { transcribeAudio } from '../_shared/groqAudio.ts';
 
@@ -415,30 +416,13 @@ Deno.serve(async (req: Request) => {
       items = properties || [];
     }
 
-    // 3. Synthesize conversational answer in Spanish
-    let answer: string;
-    if (items.length === 0) {
-      answer = `No encontré propiedades que coincidan con "${effectiveMessage}". ¡Intenta buscar en Austin, Miami, Denver, Seattle o New York!`;
-    } else {
-      const cityText = filters.city ? ` en ${filters.city}` : '';
-      let typeText = ' propiedades';
-      if (filters.property_type === 'Apartment') typeText = ' apartamentos';
-      else if (filters.property_type === 'Single Family') typeText = ' casas familiares';
-      else if (filters.property_type === 'Townhouse') typeText = ' casas adosadas';
-      else if (filters.property_type === 'Condo') typeText = ' condominios';
-      else if (filters.property_type === 'Studio') typeText = ' estudios';
-
-      answer = `Encontré ${items.length}${typeText}${cityText} que coinciden con tu búsqueda:`;
-    }
-
-    // 4. Generate dynamic contextual suggestions in Spanish
-    const suggestions: string[] = [];
-    if (filters.city) {
-      suggestions.push(`Propiedades más baratas en ${filters.city}`);
-      suggestions.push(`Casas de lujo en ${filters.city}`);
-    } else if (items.length > 0 && items[0].city) {
-      suggestions.push(`Propiedades en ${items[0].city}`);
-    }
+    const { answer, suggestions } = await composeSearchAnswer({
+      message: effectiveMessage,
+      items,
+      filters: filters as Record<string, unknown>,
+      knownCities,
+      geminiKey: hasGeminiKey ? geminiKey : undefined,
+    });
 
     console.log(
       `[chat-query] request completed in ${Date.now() - requestStart}ms (${isAudioRequest ? 'audio' : 'text'})`

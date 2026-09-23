@@ -202,5 +202,20 @@ graph TD
   OpenApp["appLink + useOpenApp + InstallSheet open button<br/>SharedListingRoute -> SharedListingRedirect on native"]
   RFC022 --> OpenApp
   OpenApp -. "hubikmobile://p/slug on native replaces to property/[id] with fetched listing params" .-> ShareMeta
+
+  RFC025["RFC 025: LLM-grounded search answers<br/>(answer + suggestions written from the real rows)"]
+  RFC008 --> RFC025
+  SearchAnswer["_shared/searchAnswer.ts + searchAnswerConstants.ts<br/>(allowlisted facts, gemini-3.5-flash-lite, template fallback)"]
+  RFC025 --> SearchAnswer
+  RFC025 --> ChatQuery
+  ChatQuery -. "composeSearchAnswer(items, filters, knownCities)" .-> SearchAnswer
+  Chips["ChatMessageItem + SuggestionChips<br/>(chips under the latest reply in index.tsx)"]
+  RFC025 --> Chips
+
+  RFC026["RFC 026: Typewriter replies<br/>(client only; typing indicator + word-by-word reveal, Reduce Motion)"]
+  RFC025 --> RFC026
+  Typewriter["useTypewriter + lib/typewriter + useNewReply + useReduceMotion<br/>TypingIndicator (list footer while loading)"]
+  RFC026 --> Typewriter
+  Typewriter -. "animate only the reply that arrived after mount; cards and chips wait for the last word" .-> Chips
 ```
 

@@ -147,4 +147,45 @@ describe('HomeScreen slash command menu', () => {
     expect(getByText(NOTE)).toBeTruthy();
     expect(queryByLabelText(ROW)).toBeNull();
   });
+
+  it.each([
+    ['an agent', buildAuth('agent')],
+    ['a signed-out visitor', buildAuth(null)],
+  ])('clears the chat history when %s sends /limpiar', async (_label, auth) => {
+    mockAuth = auth;
+    (chatApi.sendChatQuery as jest.Mock).mockResolvedValue({ answer: 'Respuesta de prueba', data: [] });
+    const { getByPlaceholderText, getByText, findByText, queryByText } = renderHome();
+    const input = getByPlaceholderText(PLACEHOLDER);
+
+    fireEvent.changeText(input, 'pisos en Madrid');
+    fireEvent.press(getByText('Enviar'));
+    expect(await findByText('Respuesta de prueba')).toBeTruthy();
+
+    fireEvent.changeText(input, '/limpiar');
+    fireEvent.press(getByText('Enviar'));
+
+    expect(queryByText('pisos en Madrid')).toBeNull();
+    expect(queryByText('Respuesta de prueba')).toBeNull();
+    expect(queryByText('/limpiar')).toBeNull();
+    expect(input.props.value).toBe('');
+    expect(chatApi.sendChatQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels an in-progress property draft when the chat is cleared', async () => {
+    const { getByPlaceholderText, getByText, findByText, queryByText } = renderHome();
+    const input = getByPlaceholderText(PLACEHOLDER);
+
+    fireEvent.changeText(input, '/agregar-propiedad');
+    fireEvent.press(getByText('Enviar'));
+    expect(await findByText(/Cuénteme la propiedad con sus propias palabras/)).toBeTruthy();
+
+    fireEvent.changeText(input, '/limpiar');
+    fireEvent.press(getByText('Enviar'));
+
+    expect(queryByText(/Cuénteme la propiedad con sus propias palabras/)).toBeNull();
+
+    fireEvent.changeText(input, '/agregar-propiedad');
+    fireEvent.press(getByText('Enviar'));
+    expect(await findByText(/Cuénteme la propiedad con sus propias palabras/)).toBeTruthy();
+  });
 });

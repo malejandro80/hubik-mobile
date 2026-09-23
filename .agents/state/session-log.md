@@ -382,7 +382,7 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Changes Made**:
   - Rebuilt the `PropertyCard` component following the high-contrast Serene Hearth architectural mockup:
     - **Top Overlaid Badges**:
-      - Deep forest status pill (`● Disponible · 3%`) with mint circle indicator (`#52D1A8`).
+      - Deep forest status pill (`● Disponible`) with mint circle indicator (`#52D1A8`).
       - Frosted glass key badge (`🔑 Llaves en oficina · Apartamento`).
       - Frosted camera badge on bottom right of the image (`📷 14 fotos`).
     - **Title & Bookmark Action**:
@@ -1771,3 +1771,27 @@ This file records the chronological record of agent sessions to ensure continuit
 - Seed reemplazado: `scripts/seed-properties.ts` (`npm run seed`, requiere `SUPABASE_SERVICE_ROLE_KEY`) + `scripts/seed/{valenciaAgencies,valenciaListings,valenciaPhotos}.ts`. Eliminado `scripts/mockProperties.ts` (Austin, incompatible con el esquema actual). Idempotente: agencias por id, usuarios por email, propiedades por `catastro` (`VAL-2026-0001…0022`).
 - Producción: 21 propiedades anteriores respaldadas en `backup.properties_20260922` (esquema no expuesto) y borradas. Creadas 3 inmobiliarias y 7 usuarios `@example.com` (contraseñas aleatorias no guardadas); 22 propiedades en Valencia con embeddings reales. Inmobiliarias y usuarios existentes intactos.
 - Pendiente: `agents_public` solo incluye `role = 'agent'`, así que las propiedades publicadas por un owner muestran agent_name null.
+
+---
+
+### [2026-09-23] `/limpiar` slash command + RFC 025 LLM-grounded search answers
+- **`/limpiar`**: new entry in `SLASH_COMMANDS` (`CLEAR_COMMAND`, no capability). Works for every user when typed; the `/` menu lists it only to users who already have a gated command (clients/visitors keep the agents-only note, existing tests unchanged). `index.tsx` intercepts it before it becomes a message and calls `clearChat` (shared with the burger menu's "Nuevo chat": cancels the draft, resets the conversation, clears the input). Changed assertion: an agent's `/` menu is now `[/agregar-propiedad, /limpiar]`.
+- **RFC 025** (`specs/025-llm-grounded-search-answers.md`, status Under Review): scope brief approved in two rounds (slice: grounded answers; first user: agents; LLM on every answer with template fallback; no memory; answers for everyone; short comparison + follow-up suggestions; real alternatives on no results; voice included; show suggestion chips).
+  - Edge: `_shared/searchAnswer.ts` (`answerFacts` allowlist, `parseSearchAnswer`, `fallbackSearchAnswer`, `composeSearchAnswer` with 4 s timeout) + `searchAnswerConstants.ts` + `searchAnswerInstruction()` in `prompts.ts`. `chat-query` replaces its template/hardcoded suggestions with one `composeSearchAnswer` call (`gemini-2.5-flash-lite`); the no-results fallback lists real cities from `fetchKnownCities` instead of Austin/Miami.
+  - App: `ChatMessage.suggestions`; `ChatMessageItem` renders the existing (previously unused) `SuggestionChips` when given `onSuggestionPress`; `index.tsx` passes it only for the last message, disabled while loading.
+  - **Deployed**: `chat-query` v19 (`verify_jwt: true`, same `source/` + `_shared/` layout as v17) via MCP. v18 with `gemini-2.5-flash-lite` got 404 (Google limits 2.5 models to keys that already used them); switched to `gemini-3.5-flash-lite`. Live smoke passed (grounded answer, real alternatives for Bilbao, injection ignored, voice note); 1 of 5 calls hit the 4 s timeout and fell back. Advisors: no new findings.
+- **Verification**: typecheck clean; lint 0 errors (4 pre-existing warnings); new suites `searchAnswer.test.ts` (24), `ChatMessageItem.suggestions.test.tsx` (4), `index.suggestions.test.tsx` (3), slash tests pass. Full run 1084/1087: the 3 failures come from working-tree edits not made in this session (removed "🤖 Asistente Hubik" badge; removed StartScreen `micHint` breaks `StartScreen.test` and `index.test`). Edge shared module type-checked with standalone strict `tsc` (no local `deno`).
+- **Flagged**: `GEMINI_EXTRACTION_MODEL` is `'gemini-2.5-flash'` although its comment says flash-lite, and that model shuts down 2026-10-16 (RFC 008); `index.tsx` is 411 lines (> 300 guideline, was already over); `SuggestionChips` a11y label is English ("Search for …"); RFC 024's planned follow-up "025 motion & transitions" needs renumbering.
+- **Correction**: `gemini-2.5-flash` has no shutdown date per Google's deprecations page (the 2026-10-16 date from RFC 008 is outdated).
+- **Next Actions**: human approves RFC 025; decide on the 4 s answer timeout; on-device check of the chips; commit.
+
+---
+
+### [2026-09-23] RFC 026 typewriter replies
+- **Scope**: approved brief (typewriter replies, new replies only, Reduce Motion respected; no tap-to-finish, no duration cap, no server streaming). RFC `specs/026-typewriter-replies.md` (Under Review). Numbering: RFC 024's planned 025/026 motion/icon follow-ups move to 027+.
+- **App**: `TypingIndicator` (list footer while `loading`, pulsing dots, static under Reduce Motion, `accessibilityLiveRegion`); `useTypewriter` (setInterval, `TYPEWRITER_WORD_INTERVAL_MS` = 35) reveals words across parsed segments via `lib/typewriter.ts` (bold never shows raw `**`); `useNewReply` animates only an assistant reply that arrived after mount and hasn't finished; `useReduceMotion`; `ChatMessageItem` gains `animate/onWritten/onWriteProgress`, keeps the full text as the bubble's accessibility label, and shows cards/chips only when done; `index.tsx` scrolls to end on progress. Label `chat.typing`.
+- **Changed assertion (requirement change)**: `index.test.tsx` › "starts the composer … invites a free description" now awaits the welcome text (`findByText`) since replies write in; same text asserted.
+- **Verification**: typecheck clean; lint 4 pre-existing warnings; 1110/1113 (the 3 known working-tree failures). On the iOS simulator (user's Metro): indicator shown during the search, text caught mid-write with cards hidden, then cards + chips; `/limpiar` returned to the start screen.
+- **Observed, not in scope**: "Pisos en venta en Valencia" returns rentals too — `operation_type` is not a search filter.
+- **Next Actions**: approve RFCs 025/026; commit.
+
