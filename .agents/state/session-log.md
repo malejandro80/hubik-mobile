@@ -1824,3 +1824,11 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Found**: "La casa más barata con parrillera" returns a house without a parrillera first — the similarity window lets a near match through and the price sort promotes it (RFC 027 follow-up). Example swapped to "…con jardín".
 - **Verification**: typecheck clean; lint 4 pre-existing warnings; 1152/1156 (the 4 failures come from uncommitted working-tree edits: badge, mic hint, agency badge). Simulator: agent account sees agent subtitle, Publicar first, inventory examples.
 
+---
+
+### [2026-09-23] RFC 027 amendment: sorted requests keep only lexical hits
+- **Bug**: "La casa más barata con parrillera" returned Los Colorados (550, no barbacoa) first. It passed the semantic window, then the price sort put it first. Only La Viña and the Guataparo quinta match "parrillera" lexically.
+- **Fix**: `search_properties_hybrid` keeps only lexical hits when `p_sort` is set and any lexical hit exists; otherwise the unchanged floor + window apply. Migration `20260923_precise_hybrid_search_sorted_lexical.sql` applied via MCP; anon test query returns La Viña, Guataparo. RFC 027 §8 documents it (amendment, not a new RFC).
+- **Eval**: new case → 15/16 before, 16/16 after. Advisors: no new findings.
+- **Known trade-off**: a sorted request whose term matches some listings lexically drops listings that only match a synonym ("la más barata con pileta" would still use the semantic window, since "pileta" has no lexical hits).
+- **Next Actions**: approve RFC 027 with the amendment; commit.
