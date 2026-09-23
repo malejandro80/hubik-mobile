@@ -1,37 +1,34 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing } from '../theme/colors';
+import { ThemeColors, elevation, radii, spacing, typography } from '../theme';
 
 export const getSlashCommandMenuStyles = (theme: ThemeColors) =>
   StyleSheet.create({
     container: {
-      marginHorizontal: spacing.gutter,
-      marginBottom: 8,
-      borderRadius: shapes.lg,
-      borderWidth: 1.5,
-      borderColor: theme.outlineVariant,
-      backgroundColor: theme.card,
+      ...elevation('overlay', theme),
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.sm,
+      borderRadius: radii.lg,
+      backgroundColor: theme.surface,
       overflow: 'hidden',
     },
     row: {
-      minHeight: 56,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
+      minHeight: spacing.touchDefault,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
       justifyContent: 'center',
     },
     command: {
-      fontSize: 17,
-      fontWeight: '700',
+      ...typography.bodyStrong,
       color: theme.text,
     },
     hint: {
-      fontSize: 15,
+      ...typography.caption,
       color: theme.textSecondary,
-      marginTop: 2,
     },
     note: {
-      fontSize: 15,
+      ...typography.body,
       color: theme.textSecondary,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
     },
   });

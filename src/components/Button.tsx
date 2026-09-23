@@ -7,7 +7,7 @@ import {
   TextStyle,
   StyleProp,
 } from 'react-native';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { getButtonStyles, ButtonVariant } from './Button.styles';
 

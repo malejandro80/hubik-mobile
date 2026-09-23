@@ -7,11 +7,6 @@
     "icon": "./assets/icon.png",
     "scheme": "hubikmobile",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.hubik.mobile"
@@ -64,7 +59,20 @@
         }
       ],
       "expo-font",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#1A3A34",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#0F1312"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

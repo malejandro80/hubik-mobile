@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing, typography } from '../theme/colors';
+import { ThemeColors, radii, spacing, typography } from '../theme';
 
 export type ButtonVariant = 'primary' | 'secondary';
 
@@ -18,15 +18,15 @@ export const getButtonStyles = (
   const variantConfigs: Record<ButtonVariant, ButtonVariantConfig> = {
     primary: {
       backgroundColor: disabled ? theme.disabled : theme.primary,
-      textColor: theme.primaryText,
+      textColor: disabled ? theme.textTertiary : theme.primaryText,
       borderColor: undefined,
       borderWidth: 0,
     },
     secondary: {
-      backgroundColor: theme.surfaceContainer,
-      textColor: disabled ? theme.disabled : theme.primary,
-      borderColor: theme.primary,
-      borderWidth: 2,
+      backgroundColor: theme.surface,
+      textColor: disabled ? theme.textTertiary : theme.primary,
+      borderColor: disabled ? theme.border : theme.primary,
+      borderWidth: 1,
     },
   };
 
@@ -38,9 +38,9 @@ export const getButtonStyles = (
       container: {
         minHeight: spacing.touchDefault,
         minWidth: 120,
-        paddingHorizontal: 22,
-        paddingVertical: 14,
-        borderRadius: shapes.lg,
+        paddingHorizontal: spacing.xl,
+        paddingVertical: spacing.md,
+        borderRadius: radii.full,
         alignItems: 'center',
         justifyContent: 'center',
         flexDirection: 'row',
@@ -49,13 +49,11 @@ export const getButtonStyles = (
         borderWidth,
       },
       pressed: {
-        opacity: 0.88,
-        transform: [{ scale: 0.98 }],
+        opacity: 0.85,
       },
       text: {
-        ...typography.labelLG,
+        ...typography.label,
         textAlign: 'center',
-        letterSpacing: 0.2,
         color: textColor,
       },
     }),

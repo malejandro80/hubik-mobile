@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { getInitials } from '../lib/userDisplay';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { AVATAR_SIZE, getDrawerProfileCardStyles } from './DrawerProfileCard.styles';
 
 export interface DrawerProfileCardProps {

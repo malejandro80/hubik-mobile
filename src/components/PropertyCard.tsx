@@ -10,8 +10,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { PROPERTY_TYPE_LABEL_ES, Property } from '../types/property';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
+import { formatPrice } from '../lib/propertyDetail';
 import { buildShareUrl } from '../lib/shareLink';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { getPropertyCardStyles } from './PropertyCard.styles';
 
 interface PropertyCardProps {
@@ -42,7 +43,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
 
   const statusLabel = statusLabels[property.status] ?? property.status;
 
-  const formattedPrice = `$${Number(property.price).toLocaleString('en-US')}`;
+  const formattedPrice = formatPrice(String(property.price), property.currency);
   const formattedArea = Number(property.square_meters).toLocaleString('en-US');
 
   const handleShare = async () => {
@@ -103,7 +104,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
           style={styles.address}
           numberOfLines={1}
         >
-          {property.address} · {property.city}{labels.propertyCard.exteriorElevator}
+          {[property.address, property.city].filter(Boolean).join(' · ')}{labels.propertyCard.exteriorElevator}
         </Text>
 
         {property.agency_name && (

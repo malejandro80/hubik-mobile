@@ -1,38 +1,31 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing, typography } from '../theme/colors';
+import { ThemeColors, radii, spacing, typography } from '../theme';
 
 export const getSuggestionChipsStyles = (theme: ThemeColors) =>
   StyleSheet.create({
     container: {
-      paddingVertical: 10,
+      paddingVertical: spacing.sm,
     },
     scrollContent: {
-      paddingHorizontal: spacing.marginMobile,
+      paddingHorizontal: spacing.lg,
     },
     chip: {
-      borderWidth: 1.5,
-      borderRadius: shapes.full,
-      paddingHorizontal: 18,
-      paddingVertical: 12,
-      marginRight: 10,
+      borderWidth: 1,
+      borderRadius: radii.full,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      marginRight: spacing.sm,
       minHeight: spacing.touchMin,
       justifyContent: 'center',
       alignItems: 'center',
-      shadowColor: '#1A3A34',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.04,
-      shadowRadius: 4,
-      elevation: 1,
-      backgroundColor: theme.card,
+      backgroundColor: theme.surface,
       borderColor: theme.border,
     },
     chipDisabled: {
-      opacity: 0.6,
+      opacity: 0.5,
     },
     chipText: {
-      ...typography.labelMD,
-      fontSize: 15,
-      letterSpacing: 0.2,
+      ...typography.label,
       color: theme.text,
     },
     chipIconText: {

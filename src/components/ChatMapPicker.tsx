@@ -6,7 +6,7 @@ import * as Location from 'expo-location';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { buildMapHtml, DEFAULT_CENTER } from '../lib/mapPicker';
 import { getChatMapPickerStyles } from './ChatMapPicker.styles';
 

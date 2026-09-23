@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing, typography } from '../theme/colors';
+import { ThemeColors, shapes, spacing, typography } from '../theme';
 
 export const getIndexStyles = (theme: ThemeColors) =>
   StyleSheet.create({
@@ -26,7 +26,7 @@ export const getIndexStyles = (theme: ThemeColors) =>
       backgroundColor: theme.surfaceContainerHigh,
     },
     dateCapsuleText: {
-      ...typography.labelMD,
+      ...typography.label,
       fontSize: 13,
       fontWeight: '500',
       letterSpacing: 0.1,

@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 import { SHARED_HERO_HEIGHT, SHARED_PAGE_MAX_WIDTH } from '../constants/share';
-import { ThemeColors, shapes, spacing, typography } from '../theme/colors';
+import { ThemeColors, shapes, spacing, typography } from '../theme';
 
 export const getSharedPropertyViewStyles = (theme: ThemeColors) =>
   StyleSheet.create({
@@ -46,13 +46,13 @@ export const getSharedPropertyViewStyles = (theme: ThemeColors) =>
       color: theme.text,
     },
     price: {
-      ...typography.labelLG,
+      ...typography.label,
       fontSize: 32,
       fontWeight: '800',
       color: theme.primary,
     },
     title: {
-      ...typography.labelLG,
+      ...typography.label,
       fontSize: 22,
       fontWeight: '700',
       color: theme.text,
@@ -81,7 +81,7 @@ export const getSharedPropertyViewStyles = (theme: ThemeColors) =>
       color: theme.text,
     },
     sectionTitle: {
-      ...typography.labelLG,
+      ...typography.label,
       fontSize: 19,
       fontWeight: '700',
       color: theme.text,
@@ -89,7 +89,7 @@ export const getSharedPropertyViewStyles = (theme: ThemeColors) =>
       marginBottom: 8,
     },
     description: {
-      ...typography.bodyLG,
+      ...typography.body,
       fontSize: 16,
       lineHeight: 24,
       color: theme.text,

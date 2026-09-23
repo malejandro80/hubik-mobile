@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { ChatMessage, Property } from '../types/property';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { PropertyCard } from './PropertyCard';
 import { getChatMessageItemStyles } from './ChatMessageItem.styles';
 
@@ -86,11 +86,7 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = React.memo(
                 </Text>
               )}
 
-              {!message.title && (
-                <Text style={styles.assistantBadge}>
-                  {labels.chat.assistantBadge}
-                </Text>
-              )}
+  
 
               {renderBodyContent()}
 

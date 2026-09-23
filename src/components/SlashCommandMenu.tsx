@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { SlashMenuState } from '../lib/slashCommands';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { getSlashCommandMenuStyles } from './SlashCommandMenu.styles';
 
 export interface SlashCommandMenuProps {

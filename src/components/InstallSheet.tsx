@@ -4,7 +4,7 @@ import { INSTALL_SHEET_SLIDE_MS } from '../constants/share';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { OpenAppStatus } from '../hooks/useOpenApp';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { getInstallSheetStyles } from './InstallSheet.styles';
 
 export interface InstallSheetProps {

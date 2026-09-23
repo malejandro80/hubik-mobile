@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing, typography } from '../theme/colors';
+import { ThemeColors, shapes, spacing, typography } from '../theme';
 
 export const getAgentsSectionStyles = (theme: ThemeColors) =>
   StyleSheet.create({
@@ -8,18 +8,18 @@ export const getAgentsSectionStyles = (theme: ThemeColors) =>
       gap: spacing.spaceSM,
     },
     title: {
-      ...typography.labelLG,
+      ...typography.label,
       fontSize: 20,
       fontWeight: '700',
       color: theme.text,
     },
     subtitle: {
-      ...typography.bodyLG,
+      ...typography.body,
       fontSize: 15,
       color: theme.textSecondary,
     },
     fieldLabel: {
-      ...typography.labelLG,
+      ...typography.label,
       fontSize: 15,
       fontWeight: '600',
       color: theme.text,
@@ -87,7 +87,7 @@ export const getAgentsSectionStyles = (theme: ThemeColors) =>
       color: theme.error,
     },
     listTitle: {
-      ...typography.labelLG,
+      ...typography.label,
       fontSize: 17,
       fontWeight: '700',
       color: theme.text,

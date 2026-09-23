@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { normalizeAmenities } from '../lib/amenities';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { getAmenitiesConfirmationStyles } from './AmenitiesConfirmation.styles';
 
 export interface AmenitiesConfirmationProps {

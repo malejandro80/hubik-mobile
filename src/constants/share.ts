@@ -8,7 +8,6 @@ export const INSTALL_SHEET_MAX_WIDTH = 560;
 
 export const INSTALL_SHEET_SLIDE_MS = 280;
 
-export const INSTALL_SHEET_BACKDROP_COLOR = 'rgba(0, 0, 0, 0.45)';
 
 export const SHARED_PAGE_MAX_WIDTH = 720;
 

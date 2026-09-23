@@ -7,12 +7,14 @@ import {
   createAgency,
   fetchAgencyAgents,
   fetchAgencyListings,
+  fetchAgencyName,
   fetchAgentInvites,
   fetchProfile,
   searchAgentCandidates,
   signInWithProvider,
   signOut,
 } from '../authApi';
+import { LISTING_COLUMNS } from '../../constants/propertyColumns';
 
 jest.mock('expo-web-browser', () => ({
   openAuthSessionAsync: jest.fn(),
@@ -190,6 +192,27 @@ describe('authApi.createAgency', () => {
   });
 });
 
+describe('authApi.fetchAgencyName', () => {
+  it('reads the agency name by id', async () => {
+    const maybeSingle = jest.fn().mockResolvedValue({ data: { name: 'Casa Norte' }, error: null });
+    const eq = jest.fn(() => ({ maybeSingle }));
+    const select = jest.fn(() => ({ eq }));
+    (supabase.from as jest.Mock).mockReturnValue({ select });
+
+    await expect(fetchAgencyName('a1')).resolves.toBe('Casa Norte');
+    expect(supabase.from).toHaveBeenCalledWith('agencies');
+    expect(select).toHaveBeenCalledWith('name');
+    expect(eq).toHaveBeenCalledWith('id', 'a1');
+  });
+
+  it('returns null when the agency is missing or the lookup fails', async () => {
+    const maybeSingle = jest.fn().mockResolvedValue({ data: null, error: new Error('boom') });
+    (supabase.from as jest.Mock).mockReturnValue({ select: () => ({ eq: () => ({ maybeSingle }) }) });
+
+    await expect(fetchAgencyName('a1')).resolves.toBeNull();
+  });
+});
+
 describe('authApi.fetchAgencyListings', () => {
   it('reads the agency listings newest first from the listings view', async () => {
     const order = jest.fn().mockResolvedValue({ data: [{ id: 'p1' }], error: null });
@@ -201,6 +224,7 @@ describe('authApi.fetchAgencyListings', () => {
 
     expect(supabase.from).toHaveBeenCalledWith('property_listings');
     expect(eq).toHaveBeenCalledWith('agency_id', 'a1');
+    expect(select).toHaveBeenCalledWith(LISTING_COLUMNS);
     expect(order).toHaveBeenCalledWith('created_at', { ascending: false });
     expect(listings).toEqual([{ id: 'p1' }]);
   });

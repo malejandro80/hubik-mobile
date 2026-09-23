@@ -73,13 +73,9 @@ export function resolvePhotoCountLabel(
     mock: labels.propertyDetail.mockPhotosCount,
   };
 
-  const type: PhotoCountType = !isRealDraft
-    ? 'mock'
-    : realImagesCount > 0
-      ? 'real_with_photos'
-      : 'real_empty';
-
-  return options[type];
+  if (realImagesCount > 0) return options.real_with_photos;
+  if (isRealDraft) return options.real_empty;
+  return options.mock;
 }
 
 export type DescriptionState = 'real_draft' | 'loading' | 'ready' | 'error' | 'empty';

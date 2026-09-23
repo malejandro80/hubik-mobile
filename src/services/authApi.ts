@@ -3,6 +3,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { labels } from '../constants/labels';
 import { AUTH_CALLBACK_PATH, extractAuthCode } from '../lib/authCallback';
 import { supabase } from '../lib/supabase';
+import { LISTING_COLUMNS } from '../constants/propertyColumns';
 import { isAddAgentOutcome, isValidInviteEmail, normalizeInviteEmail } from '../lib/agentInvites';
 import {
   isRateLimitedError,
@@ -24,9 +25,6 @@ import {
 import { Property } from '../types/property';
 
 const MIN_AGENCY_NAME_LENGTH = 2;
-
-const LISTING_COLUMNS =
-  'id, title, property_type, price, bedrooms, bathrooms, square_meters, city, address, status, image_url, images, amenities, created_at, agency_id, agency_name, agent_name';
 
 interface ProfileRow {
   user_id: string;
@@ -88,6 +86,12 @@ export async function createAgency(name: string): Promise<string> {
   const { data, error } = await supabase.rpc('create_agency', { p_name: trimmedName });
   if (error) throw error;
   return data as string;
+}
+
+export async function fetchAgencyName(agencyId: string): Promise<string | null> {
+  const { data, error } = await supabase.from('agencies').select('name').eq('id', agencyId).maybeSingle();
+  if (error || !data) return null;
+  return data.name;
 }
 
 export async function fetchAgencyListings(agencyId: string): Promise<Property[]> {

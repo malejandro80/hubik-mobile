@@ -5,5 +5,49 @@
     "react-hooks/exhaustive-deps": "warn",
     "react-hooks/refs": "warn",
     "react-hooks/set-state-in-effect": "warn"
-  }
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/components/Button.styles.ts",
+        "src/components/Header.styles.ts",
+        "src/components/ChatMessageItem.styles.ts",
+        "src/components/ChatInputBar.styles.ts",
+        "src/components/ScreenChatBar.styles.ts",
+        "src/components/SuggestionChips.styles.ts",
+        "src/components/PropertyCard.styles.ts",
+        "src/components/BurgerMenu.styles.ts",
+        "src/components/DrawerProfileCard.styles.ts",
+        "src/components/SlashCommandMenu.styles.ts",
+        "src/components/InstallSheet.styles.ts",
+        "src/components/InstallBar.styles.ts",
+        "src/components/PropertyStatsBar.styles.ts",
+        "src/components/PropertyAgentCard.styles.ts",
+        "src/components/PropertyDescriptionSection.styles.ts",
+        "src/components/PropertyMapPreview.styles.ts",
+        "src/components/StartScreen.styles.ts"
+      ],
+      "rules": {
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "Property[key.name=/^(fontSize|fontWeight|lineHeight|borderRadius|border(Top|Bottom)(Left|Right)Radius|padding[A-Za-z]*|margin[A-Za-z]*|gap|rowGap|columnGap)$/] > Literal[raw=/^['\"]?[1-9]/]",
+            "message": "Use a design token (typography, spacing, radii) instead of a literal value."
+          },
+          {
+            "selector": "Property[key.name=/^(padding[A-Za-z]*|margin[A-Za-z]*)$/] > UnaryExpression[argument.type='Literal']",
+            "message": "Use a design token (spacing) instead of a literal value."
+          },
+          {
+            "selector": "Literal[value=/^(#[0-9A-Fa-f]{3,8}|rgba?\\()/]",
+            "message": "Use a ThemeColors role instead of a hardcoded color."
+          },
+          {
+            "selector": "Property[key.name=/^(shadowColor|shadowOpacity|shadowRadius|shadowOffset|elevation|boxShadow)$/]",
+            "message": "Use elevation(level, theme) instead of ad-hoc shadows."
+          }
+        ]
+      }
+    }
+  ]
 }

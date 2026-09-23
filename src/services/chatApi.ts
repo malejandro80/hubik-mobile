@@ -10,7 +10,7 @@ import {
 } from '../types/property';
 import { extractAmenityKeywords, normalizeAmenities } from '../lib/amenities';
 import { supabase } from '../lib/supabase';
-import { PUBLIC_PROPERTY_COLUMNS } from '../constants/propertyColumns';
+import { LISTING_COLUMNS, PUBLIC_PROPERTY_COLUMNS } from '../constants/propertyColumns';
 import { CATASTRO_LAST_VARIANTS, DESCRIBE_INVITE_VARIANTS, READY_TO_CONFIRM_VARIANTS } from '../constants/intakeMessages';
 
 // Voice notes have no local fallback (transcription can't happen on-device), and their server-side
@@ -295,9 +295,7 @@ export async function querySupabaseDirectly(message: string): Promise<ChatRespon
 
   let query = supabase
     .from('property_listings')
-    .select(
-      'id, title, property_type, operation_type, price, bedrooms, bathrooms, square_meters, city, address, latitude, longitude, status, image_url, images, amenities, created_at, agency_name, agent_name'
-    );
+    .select(LISTING_COLUMNS);
 
   if (filters.city) {
     query = query.ilike('city', `%${filters.city}%`);

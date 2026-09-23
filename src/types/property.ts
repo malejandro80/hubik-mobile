@@ -16,11 +16,12 @@ export interface Property {
   property_type: PropertyType;
   operation_type?: OperationType;
   price: number;
+  currency?: string;
   bedrooms: number;
   bathrooms: number;
   square_meters: number;
   city: string;
-  address: string;
+  address: string | null;
   latitude?: number;
   longitude?: number;
   description?: string;

@@ -4,7 +4,7 @@ import { useColorScheme } from '../hooks/useColorScheme';
 import { usePhotoGallery } from '../hooks/usePhotoGallery';
 import { useLabels } from '../hooks/useLabels';
 import { formatPrice } from '../lib/propertyDetail';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { Property } from '../types/property';
 import { PhotoGallery } from './PhotoGallery';
 import { getSharedPropertyViewStyles } from './SharedPropertyView.styles';

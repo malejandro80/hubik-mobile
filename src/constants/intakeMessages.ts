@@ -5,9 +5,9 @@ export const DESCRIBE_INVITE_VARIANTS = [
 ];
 
 export const CATASTRO_LAST_VARIANTS = [
-  'Ya casi está. Solo me falta la referencia catastral (está en el recibo del IBI o en la Sede Electrónica del Catastro). La verificaré antes de publicar.',
-  'Último dato: la referencia catastral de la propiedad (puede encontrarla en el recibo del IBI o en la Sede Electrónica del Catastro). La verifico enseguida.',
-  'Para terminar necesito la referencia catastral (recibo del IBI o Sede Electrónica del Catastro). La compruebo antes de publicar.',
+  'Ya casi está. Solo me falta la referencia catastral de la propiedad, también llamada número catastral (aparece en la escritura o en el recibo del impuesto sobre la propiedad). La verificaré antes de publicar.',
+  'Último dato: la referencia catastral de la propiedad. Suele figurar en la escritura, en el recibo del impuesto sobre la propiedad o en la oficina de catastro de su municipio. La verifico enseguida.',
+  'Para terminar necesito la referencia catastral, el código que identifica el inmueble en la escritura o en el recibo del impuesto sobre la propiedad. La compruebo antes de publicar.',
 ];
 
 export const READY_TO_CONFIRM_VARIANTS = [

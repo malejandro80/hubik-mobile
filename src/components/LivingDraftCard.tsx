@@ -17,7 +17,7 @@ import {
   PropertyDraft,
   REQUIRED_PROPERTY_DRAFT_FIELDS,
 } from '../types/property';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { DraftFieldRow } from './DraftFieldRow';
 import { getLivingDraftCardStyles } from './LivingDraftCard.styles';
 

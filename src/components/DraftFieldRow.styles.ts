@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing, typography } from '../theme/colors';
+import { ThemeColors, shapes, spacing, typography } from '../theme';
 
 export const getDraftFieldRowStyles = (theme: ThemeColors) =>
   StyleSheet.create({
@@ -17,7 +17,7 @@ export const getDraftFieldRowStyles = (theme: ThemeColors) =>
       marginRight: 10,
     },
     label: {
-      ...typography.labelLG,
+      ...typography.label,
       fontSize: 15,
       fontWeight: '600',
       color: theme.text,

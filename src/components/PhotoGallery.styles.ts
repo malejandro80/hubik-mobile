@@ -5,7 +5,7 @@ import {
   GALLERY_THUMB_GAP,
   GALLERY_THUMB_SIZE,
 } from '../constants/gallery';
-import { shapes, spacing } from '../theme/colors';
+import { shapes, spacing } from '../theme';
 
 export const galleryStyles = StyleSheet.create({
   container: {

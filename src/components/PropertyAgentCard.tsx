@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { getPropertyAgentCardStyles } from './PropertyAgentCard.styles';
 
 export interface PropertyAgentCardProps {

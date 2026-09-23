@@ -2,6 +2,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { normalizeAmenities } from '../_shared/amenities.ts';
 import { embedText } from '../_shared/geminiEmbedding.ts';
 import { requireAgent } from '../_shared/auth.ts';
+import { normalizeCurrency } from '../_shared/currencies.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,6 +21,7 @@ interface PropertyDraft {
   property_type?: PropertyType;
   operation_type?: OperationType;
   price?: number;
+  currency?: string;
   bedrooms?: number;
   bathrooms?: number;
   square_meters?: number;
@@ -184,6 +186,7 @@ Deno.serve(async (req: Request) => {
         property_type: property.property_type,
         operation_type: property.operation_type,
         price: property.price,
+        currency: normalizeCurrency(property.currency),
         bedrooms: property.bedrooms,
         bathrooms: property.bathrooms,
         square_meters: property.square_meters,

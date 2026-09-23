@@ -113,7 +113,18 @@ describe('chatRegistration library', () => {
     });
   });
 
+  describe('buildDraftPreviewProperty currency', () => {
+    it('carries the draft currency so the preview prices like the published listing', () => {
+      expect(buildDraftPreviewProperty({ price: 1000, currency: 'EUR' }).currency).toBe('EUR');
+    });
+  });
+
   describe('buildPropertyRouteParams', () => {
+    it('passes the currency through as a route param', () => {
+      const params = buildPropertyRouteParams({ ...buildDraftPreviewProperty({ price: 1 }), currency: 'VES' });
+      expect(params.currency).toBe('VES');
+    });
+
     it('builds string params for router navigation', () => {
       const property: Property = {
         id: 'prop-1',

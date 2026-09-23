@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing } from '../theme/colors';
+import { ThemeColors, shapes, spacing } from '../theme';
 
 export const getClientSearchResultsStyles = (theme: ThemeColors) =>
   StyleSheet.create({

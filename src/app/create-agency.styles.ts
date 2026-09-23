@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing, typography } from '../theme/colors';
+import { ThemeColors, shapes, spacing, typography } from '../theme';
 
 export const getCreateAgencyStyles = (theme: ThemeColors) =>
   StyleSheet.create({
@@ -14,19 +14,19 @@ export const getCreateAgencyStyles = (theme: ThemeColors) =>
       gap: spacing.spaceMD,
     },
     title: {
-      ...typography.headlineLG,
+      ...typography.title,
       color: theme.text,
     },
     subtitle: {
-      ...typography.bodyLG,
+      ...typography.body,
       color: theme.textSecondary,
     },
     fieldLabel: {
-      ...typography.labelLG,
+      ...typography.label,
       color: theme.text,
     },
     input: {
-      ...typography.bodyLG,
+      ...typography.body,
       minHeight: spacing.touchDefault,
       paddingHorizontal: spacing.spaceMD,
       borderRadius: shapes.lg,
@@ -36,7 +36,7 @@ export const getCreateAgencyStyles = (theme: ThemeColors) =>
       color: theme.text,
     },
     error: {
-      ...typography.bodyMD,
+      ...typography.body,
       color: theme.error,
     },
   });

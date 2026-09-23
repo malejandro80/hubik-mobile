@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing, typography } from '../theme/colors';
+import { ThemeColors, shapes, spacing, typography } from '../theme';
 
 export const getSharedPageStyles = (theme: ThemeColors) =>
   StyleSheet.create({
@@ -22,7 +22,7 @@ export const getSharedPageStyles = (theme: ThemeColors) =>
       borderRadius: shapes.md,
     },
     brand: {
-      ...typography.labelLG,
+      ...typography.label,
       fontSize: 22,
       fontWeight: '700',
       color: theme.text,
@@ -41,7 +41,7 @@ export const getSharedPageStyles = (theme: ThemeColors) =>
       gap: 10,
     },
     messageTitle: {
-      ...typography.labelLG,
+      ...typography.label,
       fontSize: 22,
       fontWeight: '700',
       color: theme.text,

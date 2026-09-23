@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, spacing, typography } from '../theme/colors';
+import { ThemeColors, spacing, typography } from '../theme';
 
 export const getAgencyStyles = (theme: ThemeColors) =>
   StyleSheet.create({
@@ -28,7 +28,7 @@ export const getAgencyStyles = (theme: ThemeColors) =>
       gap: spacing.spaceMD,
     },
     message: {
-      ...typography.bodyLG,
+      ...typography.body,
       color: theme.textSecondary,
       textAlign: 'center',
     },

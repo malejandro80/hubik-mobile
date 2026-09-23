@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, spacing, typography } from '../theme/colors';
+import { ThemeColors, spacing, typography } from '../theme';
 
 export const getSignInStyles = (theme: ThemeColors) =>
   StyleSheet.create({
@@ -14,15 +14,15 @@ export const getSignInStyles = (theme: ThemeColors) =>
       gap: spacing.spaceMD,
     },
     title: {
-      ...typography.headlineLG,
+      ...typography.title,
       color: theme.text,
     },
     subtitle: {
-      ...typography.bodyLG,
+      ...typography.body,
       color: theme.textSecondary,
     },
     error: {
-      ...typography.bodyMD,
+      ...typography.body,
       color: theme.error,
     },
   });

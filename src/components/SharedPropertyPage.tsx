@@ -12,7 +12,7 @@ import { useLabels } from '../hooks/useLabels';
 import { useSharedProperty } from '../hooks/useSharedProperty';
 import { buildAppLink } from '../lib/appLink';
 import { resolveStoreUrl } from '../lib/storeLinks';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { getSharedPageStyles } from './SharedPropertyPage.styles';
 
 const APP_ICON = require('../../assets/icon.png');

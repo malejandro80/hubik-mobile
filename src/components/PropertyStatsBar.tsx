@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { getStatsForType } from '../lib/propertyStats';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { PropertyType } from '../types/property';
 import { getPropertyStatsBarStyles } from './PropertyStatsBar.styles';
 

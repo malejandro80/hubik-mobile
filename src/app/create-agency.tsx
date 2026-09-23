@@ -8,7 +8,7 @@ import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { describeAuthError } from '../lib/authProviders';
 import { createAgency } from '../services/authApi';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { getCreateAgencyStyles } from './create-agency.styles';
 
 export default function CreateAgencyScreen() {

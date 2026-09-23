@@ -3,7 +3,7 @@ import { Link, Stack } from 'expo-router';
 import { Text, View } from 'react-native';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { getNotFoundStyles } from './+not-found.styles';
 
 export default function NotFoundScreen() {

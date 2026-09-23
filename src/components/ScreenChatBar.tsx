@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { useScreenChat } from '../hooks/useScreenChat';
-import { colors, hitSlop } from '../theme/colors';
+import { colors, hitSlop } from '../theme';
 import { ChatInputBar } from './ChatInputBar';
 import { getScreenChatBarStyles } from './ScreenChatBar.styles';
 

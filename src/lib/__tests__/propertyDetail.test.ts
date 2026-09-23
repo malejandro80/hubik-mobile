@@ -70,6 +70,10 @@ describe('propertyDetail library', () => {
   });
 
   describe('resolvePhotoCountLabel', () => {
+    it('counts the real photos of a published listing even without a stored description', () => {
+      expect(resolvePhotoCountLabel(false, 4, labels)).toBe(labels.propertyDetail.photosCount(1, 4));
+    });
+
     it('returns mock photos count when not a real draft', () => {
       expect(resolvePhotoCountLabel(false, 0, labels)).toBe(
         labels.propertyDetail.mockPhotosCount

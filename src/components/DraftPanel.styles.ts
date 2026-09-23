@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing, typography } from '../theme/colors';
+import { ThemeColors, shapes, spacing, typography } from '../theme';
 
 export const getDraftPanelStyles = (theme: ThemeColors) =>
   StyleSheet.create({
@@ -38,7 +38,7 @@ export const getDraftPanelStyles = (theme: ThemeColors) =>
       flex: 1,
     },
     progress: {
-      ...typography.labelLG,
+      ...typography.label,
       fontSize: 15,
       fontWeight: '700',
       color: theme.text,
@@ -135,7 +135,7 @@ export const getDraftPanelStyles = (theme: ThemeColors) =>
       paddingVertical: 10,
     },
     sectionTitle: {
-      ...typography.labelLG,
+      ...typography.label,
       fontSize: 15,
       fontWeight: '700',
       color: theme.text,

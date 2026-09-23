@@ -3,7 +3,7 @@ import { FlatList, Image, Text, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
-import { colors, hitSlop } from '../theme/colors';
+import { colors, hitSlop } from '../theme';
 import { buildPhotoGridData, GridItem } from '../lib/photoGrid';
 import { getPropertyPhotoGridStyles } from './PropertyPhotoGrid.styles';
 

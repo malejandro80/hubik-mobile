@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing, typography } from '../theme/colors';
+import { ThemeColors, radii, spacing, typography } from '../theme';
 
-export const AVATAR_SIZE = 42;
+export const AVATAR_SIZE = 44;
 
 export const getDrawerProfileCardStyles = (theme: ThemeColors) =>
   StyleSheet.create({
@@ -9,21 +9,19 @@ export const getDrawerProfileCardStyles = (theme: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       minHeight: spacing.touchMin,
-      padding: 14,
-      borderRadius: shapes.lg,
-      borderWidth: 1.5,
-      borderColor: theme.border,
-      backgroundColor: theme.card,
-      marginVertical: 18,
+      padding: spacing.md,
+      borderRadius: radii.lg,
+      backgroundColor: theme.surfaceMuted,
+      marginVertical: spacing.lg,
     },
     avatarCircle: {
       width: AVATAR_SIZE,
       height: AVATAR_SIZE,
-      borderRadius: shapes.full,
+      borderRadius: radii.full,
       backgroundColor: theme.primary,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 12,
+      marginRight: spacing.md,
       overflow: 'hidden',
     },
     avatarImage: {
@@ -31,29 +29,22 @@ export const getDrawerProfileCardStyles = (theme: ThemeColors) =>
       height: AVATAR_SIZE,
     },
     avatarText: {
+      ...typography.label,
       color: theme.onPrimary,
-      fontSize: 15,
-      fontWeight: '700',
-      letterSpacing: 0.5,
     },
     profileInfo: {
       flex: 1,
     },
     profileName: {
-      ...typography.labelLG,
-      fontSize: 17,
-      fontWeight: '700',
+      ...typography.bodyStrong,
       color: theme.text,
     },
     profileRole: {
-      fontSize: 13,
-      marginTop: 2,
+      ...typography.caption,
       color: theme.textSecondary,
     },
     guestCta: {
-      fontSize: 14,
-      marginTop: 2,
-      fontWeight: '700',
+      ...typography.label,
       color: theme.secondary,
     },
   });

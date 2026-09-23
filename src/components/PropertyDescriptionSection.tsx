@@ -3,7 +3,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { DescriptionState, resolveDescriptionState } from '../lib/propertyDetail';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { getPropertyDescriptionSectionStyles } from './PropertyDescriptionSection.styles';
 
 export interface PropertyDescriptionSectionProps {

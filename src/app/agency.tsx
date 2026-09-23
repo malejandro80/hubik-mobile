@@ -16,7 +16,7 @@ import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { buildPropertyRouteParams } from '../lib/chatRegistration';
 import { fetchAgencyListings } from '../services/authApi';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { Property } from '../types/property';
 import { getAgencyStyles } from './agency.styles';
 

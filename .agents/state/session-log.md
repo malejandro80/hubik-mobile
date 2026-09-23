@@ -1727,3 +1727,41 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Verified live**: as anon and as an unrelated authenticated user, `property_listings` returns `address = NULL` and a stable offset pin; the listing's own agency agent gets exact values; `select address from properties` as anon → 42501; non-sensitive columns still readable; hybrid RPC returns masked lat/lng + operation_type. Advisors: only expected SECURITY DEFINER warnings for the four masking functions.
 - **Local gate**: typecheck clean, lint 0 errors, 1558/1558 tests.
 - **Next Actions**: simulator check of the detail screen (map preview, "/mes", agent card); still uncommitted.
+
+---
+
+### [2026-09-22] RFC 024: Design System v2 ("Serene Hearth, refined") + branded splash
+- **Scope**: `scope` skill, two rounds + clarifications, approved brief → RFC 024 approved. Split from a broader "look and feel" request; follow-ups: 025 motion & transitions (Reduce Motion respected), 026 icon audit, 027+ per-screen polish (removes legacy token aliases).
+- **Tokens** (`src/theme/`): `palette.ts`, `colors.ts` (semantic light/dark; new `textTertiary`, `borderStrong`, `surfaceMuted`, `scrim`; legacy Material keys kept as aliases), `typography.ts` (7 roles, 6 sizes, body 16pt, serif only for display/title), `spacing.ts` (4pt scale + legacy aliases, touchMin 48 / touchDefault 52, hitSlop moved here), `radii.ts` (+ `shapes` alias), `elevation.ts` (none/raised/overlay, per-platform), `contrast.ts`, `index.ts` barrel. All 72 importers now import from `../theme`; legacy type-role names mapped onto the new ramp.
+- **AA contrast**: `src/theme/__tests__/contrast.test.ts` checks every text role on every base surface plus container/on-container pairs and input borders (3:1), light + dark. Fixed previous failures (tertiary text 4.14:1, borders 1.4–2.0:1).
+- **Shared components migrated (17)**: Button, Header, ChatMessageItem (assistant replies now un-bubbled editorial text), ChatInputBar, ScreenChatBar, SuggestionChips, PropertyCard, BurgerMenu, DrawerProfileCard, SlashCommandMenu, InstallSheet, InstallBar, PropertyStatsBar, PropertyAgentCard, PropertyDescriptionSection, PropertyMapPreview, StartScreen. `.eslintrc.json` override (`no-restricted-syntax`) keeps these 17 token-only: literal font sizes/weights/spacing/radii, hex/rgba colors and ad-hoc shadows are errors (flagged 250 before migration, 0 after). Removed now-unused `INSTALL_SHEET_BACKDROP_COLOR`.
+- **Splash & icon**: `expo-splash-screen` ~57.0.9 via config plugin (legacy `splash` key and `assets/splash.png` removed); `SplashGate` + `useSplashHandoff` hide on auth-ready or after 3s, 250ms fade (`src/constants/splash.ts`). Refined "H" (crossbar rises into a roof) + Georgia "Hubik" wordmark on splash; icon/adaptive-icon/favicon mark only. `scripts/brand/render-brand.py` (Pillow) writes `assets/brand/*.svg` and the PNGs from one geometry.
+- **Found and fixed in passing**:
+  - RFC 023 regression: masked listings rendered "· Valencia" on PropertyCard and would share "Dirección: null". `Property.address` is now `string | null`; card joins non-empty parts; share message omits the address line. Tests added (verified red without the fix).
+  - BurgerMenu drawer rendered under the status bar (Modal had no safe-area provider); wrapped in existing `ModalSafeArea`.
+- **Flagged, not changed**: `labels.propertyCard.exteriorElevator` appends a fabricated " · Exterior con ascensor" to every PropertyCard (same category as the fabricated detail sections removed earlier) — needs a copy decision.
+- **Verification**: typecheck clean; lint 0 errors (4 pre-existing warnings); 1638/1638 tests (167 suites). Simulator (iPhone 16e, fresh `expo prebuild --clean` + `pod install` with `LANG=en_US.UTF-8` to dodge a CocoaPods encoding crash): cold-start splash confirmed; start screen, chat results/PropertyCard, burger menu checked in light and dark. Reused the user's already-running Metro on :8081.
+- **Next Actions**: human walkthrough (done signal); decide on `exteriorElevator`; RFC 025. Still uncommitted.
+
+---
+
+### [2026-09-22] Catastro request made country-neutral
+- **Report**: the message asking for the catastro pointed to Spain-only sources (recibo del IBI, Sede Electrónica del Catastro).
+- **Change**: the three `CATASTRO_LAST_VARIANTS` in `src/constants/intakeMessages.ts` (app fallback) and `supabase/functions/_shared/intakeMessageConstants.ts` (Edge Function) now point to documents that exist everywhere: the deed (escritura), the property-tax receipt, the municipal cadastre office. Kept the phrase "referencia catastral" (existing test asserts it).
+- **Test**: `src/constants/__tests__/catastroPrompt.test.ts` rejects IBI / Sede Electrónica / "Catastro" as a proper noun in both copies and asserts both copies stay identical.
+- **Deployed**: `property-intake` v22 (`verify_jwt: true`) via MCP.
+- **Not changed (flagged)**: the DraftPanel validation `CATASTRO_PATTERN` (14–20 letters/digits) and its error copy follow the Spanish format; other countries' cadastral codes may be rejected there.
+- **Verification**: 1645/1645 tests, typecheck clean, lint 0 errors.
+
+---
+
+### [2026-09-22] Preview ⇄ published detail parity (+ currency persisted, description privacy)
+- **Request**: the add-property preview and the published property view must show exactly the same information, amenities included, with identical maps.
+- **Root causes found**: both use `src/app/property/[id].tsx`, but the published path got less data — `chat-query`, the hybrid RPC and the app fallbacks never selected `description` (so a fresh AI text was generated each view and the photo badge fell back to the fake "1 de 8 fotos"), `currency` wasn't persisted at all (always "$"), the preview had no agent card, and the preview showed the exact pin/address while clients get the approximate one (RFC 023).
+- **Decisions (human)**: preview = client view (approximate map + "Ubicación aproximada", no street address); persist currency.
+- **DB** (`20260922_property_currency.sql`, applied as `property_currency`): `properties.currency varchar(3) NOT NULL DEFAULT 'USD' CHECK IN (USD,VES,EUR)` + column grant; `property_listings` appends `currency`; `match_properties_hybrid` now also returns `currency` and `description`.
+- **Edge**: `chat-query` v17 selects `currency, description`; `property-publish` v8 stores `normalizeCurrency(property.currency)` (`_shared/currencies.ts`, tested); `property-describe` v6 strips address/coordinates/catastro/images before prompting (`_shared/describeFacts.ts`, tested) — live smoke test confirmed no address in the output and amenities included.
+- **App**: `LISTING_COLUMNS` (`src/constants/propertyColumns.ts`) shared by `querySupabaseDirectly` and `fetchAgencyListings`; `Property.currency`; route params carry currency; `useDraftReview` no longer special-cases it; `PropertyCard` prices via `formatPrice` with the listing currency; `resolvePhotoCountLabel` counts real photos whenever there are any (nested ternary removed); preview masks address/map and shows the signed-in agent + agency via `useListingAttribution` + `fetchAgencyName`. New `propertyDetail.parity.test.tsx` renders preview and published params and asserts identical price, description, photo count and amenities.
+- **Verified live**: chat-query returns description/currency with masked address; simulator detail shows stored description, "1 de 3 fotos", approximate map, agent card. Advisors unchanged.
+- **Open data decisions**: 5 of 6 stored descriptions contain the street address (leak to clients); all existing rows defaulted to USD though at least the Valencia listing was entered in EUR.
+- **Not mine**: working-tree removal of the "🤖 Asistente Hubik" badge in `ChatMessageItem.tsx` (user edit) makes `ChatMessageItem.test.tsx › renders assistant message with badge and properties` fail; left untouched.

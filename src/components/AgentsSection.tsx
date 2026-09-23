@@ -4,7 +4,7 @@ import { AgentsFeedback, useAgencyAgents } from '../hooks/useAgencyAgents';
 import { useClientSearch } from '../hooks/useClientSearch';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
-import { colors, hitSlop } from '../theme/colors';
+import { colors, hitSlop } from '../theme';
 import { AddAgentOutcome, AgencyAgent, AgentInvite, ClientCandidate } from '../types/auth';
 import { getAgentsSectionStyles } from './AgentsSection.styles';
 import { Button } from './Button';

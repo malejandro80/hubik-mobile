@@ -7,7 +7,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { moveItem } from '../lib/photoOrder';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { ModalSafeArea } from './ModalSafeArea';
 import { getPhotoOrderModalStyles, gestureRootStyle } from './PhotoOrderModal.styles';
 

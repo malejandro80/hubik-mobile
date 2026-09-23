@@ -14,7 +14,6 @@ export const labels = {
     sendQueryA11y: 'Enviar consulta',
     micA11y: 'Hablar por micrófono',
     sendSrOnly: 'Enviar',
-    assistantBadge: '🤖 Asistente Hubik',
     propertiesFound: (count: number) => `Propiedades Encontradas (${count}):`,
     justNow: 'Ahora',
     voiceNote: '🎤 Nota de voz',
@@ -78,8 +77,8 @@ export const labels = {
     share: 'Compartir',
     viewDetailsA11y: (title: string) => `Ver detalle de ${title}`,
     shareA11y: (title: string) => `Compartir ${title}`,
-    shareMessage: (title: string, price: string, city: string, address: string) =>
-      `Mira esta propiedad en Hubik: ${title} por ${price} en ${city}.\nDirección: ${address}`,
+    shareMessage: (title: string, price: string, city: string, address: string | null) =>
+      `Mira esta propiedad en Hubik: ${title} por ${price} en ${city}.${address ? `\nDirección: ${address}` : ''}`,
   },
   photoGrid: {
     add: 'Añadir',

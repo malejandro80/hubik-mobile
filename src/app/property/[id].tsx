@@ -25,6 +25,7 @@ import { useAppMenu } from '../../hooks/useAppMenu';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { useLabels } from '../../hooks/useLabels';
 import { useLegacyDescription } from '../../hooks/useLegacyDescription';
+import { useListingAttribution } from '../../hooks/useListingAttribution';
 import { usePhotoGallery } from '../../hooks/usePhotoGallery';
 import {
   formatPrice,
@@ -33,7 +34,7 @@ import {
   PropertyDetailRouteParams,
   resolvePhotoCountLabel,
 } from '../../lib/propertyDetail';
-import { colors } from '../../theme/colors';
+import { colors } from '../../theme';
 import { PROPERTY_TYPE_LABEL_ES, PropertyType } from '../../types/property';
 import { getPropertyDetailStyles } from './[id].styles';
 
@@ -58,8 +59,6 @@ export default function PropertyDetailScreen() {
     () => formatPrice(params.price, params.currency, params.operation_type),
     [params.price, params.currency, params.operation_type]
   );
-  const isAddressMasked = !params.address;
-  const address = params.address || labels.propertyDetail.approximateLocation;
   const bedrooms = params.bedrooms || '3';
   const bathrooms = params.bathrooms || '2';
   const squareMeters = params.square_meters || '120';
@@ -75,6 +74,9 @@ export default function PropertyDetailScreen() {
         ? labels.propertyDetail.operationSale
         : undefined;
   const isPreview = params.preview === PREVIEW_PARAM_VALUE;
+  const isAddressMasked = isPreview || !params.address;
+  const address = isAddressMasked ? labels.propertyDetail.approximateLocation : params.address;
+  const attribution = useListingAttribution(isPreview, params.agency_name, params.agent_name);
   const isRealDraft = isPreview || Boolean(params.description);
   const imageUrl =
     realImages[0] ||
@@ -96,7 +98,7 @@ export default function PropertyDetailScreen() {
       bathrooms,
       squareMeters,
       city,
-      address: params.address,
+      address: isAddressMasked ? undefined : params.address,
       amenities: realAmenities,
       isRealDraft,
     });
@@ -239,8 +241,8 @@ export default function PropertyDetailScreen() {
           )}
 
           <PropertyAgentCard
-            agencyName={params.agency_name}
-            agentName={params.agent_name}
+            agencyName={attribution.agencyName}
+            agentName={attribution.agentName}
           />
 
           <View style={{ height: 140 }} />

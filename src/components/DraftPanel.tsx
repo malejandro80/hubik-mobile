@@ -9,7 +9,7 @@ import { useLabels } from '../hooks/useLabels';
 import { getFieldStatuses, getMissingCount, getMissingFields, getSuggestions } from '../lib/draftStatus';
 import { DraftEditableField, FieldEditResult } from '../lib/draftValidation';
 import { MAX_PROPERTY_IMAGES } from '../services/propertyImages';
-import { colors, hitSlop } from '../theme/colors';
+import { colors, hitSlop } from '../theme';
 import { PropertyDraft } from '../types/property';
 import { AmenitiesConfirmation } from './AmenitiesConfirmation';
 import { DraftDescriptionBlock } from './DraftDescriptionBlock';

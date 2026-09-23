@@ -1,5 +1,5 @@
 import { Platform, StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing, typography } from '../../theme/colors';
+import { ThemeColors, shapes, spacing, typography } from '../../theme';
 
 export const getPropertyDetailStyles = (theme: ThemeColors) => ({
   styles: StyleSheet.create({
@@ -155,14 +155,14 @@ export const getPropertyDetailStyles = (theme: ThemeColors) => ({
       paddingVertical: 4,
     },
     descriptionParagraph: {
-      ...typography.bodyLG,
+      ...typography.body,
       fontSize: 16,
       lineHeight: 24,
       marginBottom: 14,
       color: theme.text,
     },
     descriptionParagraphSecondary: {
-      ...typography.bodyLG,
+      ...typography.body,
       fontSize: 16,
       lineHeight: 24,
       marginBottom: 14,

@@ -1,5 +1,5 @@
-import { Platform, StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing } from '../theme/colors';
+import { StyleSheet } from 'react-native';
+import { ThemeColors, radii, spacing, typography } from '../theme';
 
 export const getHeaderStyles = (theme: ThemeColors) => ({
   styles: StyleSheet.create({
@@ -7,42 +7,34 @@ export const getHeaderStyles = (theme: ThemeColors) => ({
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: spacing.marginMobile,
-      paddingVertical: 12,
-      borderBottomWidth: 1,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderBottomWidth: StyleSheet.hairlineWidth,
       backgroundColor: theme.background,
-      borderBottomColor: theme.outlineVariant,
+      borderBottomColor: theme.border,
     },
     circleButton: {
-      width: 48,
-      height: 48,
-      borderRadius: shapes.full,
+      width: spacing.touchMin,
+      height: spacing.touchMin,
+      borderRadius: radii.full,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: theme.surfaceContainerHigh,
     },
     brandContainer: {
       flexDirection: 'row',
       alignItems: 'center',
     },
     logoBadge: {
-      width: 38,
-      height: 38,
-      borderRadius: shapes.md,
+      width: spacing.xxl,
+      height: spacing.xxl,
+      borderRadius: radii.sm,
       alignItems: 'center',
       justifyContent: 'center',
-      marginRight: 10,
-      backgroundColor: theme.secondary,
+      marginRight: spacing.sm,
+      backgroundColor: theme.primary,
     },
     brandTitle: {
-      fontFamily: Platform.select({
-        ios: 'Georgia',
-        android: 'serif',
-        default: 'serif',
-      }),
-      fontSize: 24,
-      fontWeight: '700',
-      letterSpacing: -0.4,
+      ...typography.title,
       color: theme.primary,
     },
     srOnly: {
@@ -53,5 +45,5 @@ export const getHeaderStyles = (theme: ThemeColors) => ({
     },
   }),
   iconColor: theme.text,
-  homeIconColor: theme.onSecondary,
+  homeIconColor: theme.onPrimary,
 });

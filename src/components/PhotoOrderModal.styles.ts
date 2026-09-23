@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing, typography } from '../theme/colors';
+import { ThemeColors, shapes, spacing, typography } from '../theme';
 
 export const PHOTO_ROW_HEIGHT = 96;
 export const THUMB_SIZE = 72;
@@ -22,7 +22,7 @@ export const getPhotoOrderModalStyles = (theme: ThemeColors) =>
       borderBottomColor: theme.outlineVariant,
     },
     title: {
-      ...typography.labelLG,
+      ...typography.label,
       fontSize: 19,
       fontWeight: '700',
       color: theme.text,
@@ -49,7 +49,7 @@ export const getPhotoOrderModalStyles = (theme: ThemeColors) =>
       color: theme.onPrimary,
     },
     hint: {
-      ...typography.bodyLG,
+      ...typography.body,
       fontSize: 15,
       color: theme.textSecondary,
       paddingHorizontal: spacing.gutter,

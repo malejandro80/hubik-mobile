@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, typography } from '../theme/colors';
+import { ThemeColors, radii, spacing, typography } from '../theme';
 
 export const getChatInputBarStyles = (theme: ThemeColors) => ({
   styles: StyleSheet.create({
@@ -9,52 +9,46 @@ export const getChatInputBarStyles = (theme: ThemeColors) => ({
     container: {
       flexDirection: 'row',
       alignItems: 'center',
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
     },
     containerTopBorder: {
-      borderTopWidth: 1,
-      borderTopColor: theme.outlineVariant,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.border,
     },
     inputCapsule: {
       flex: 1,
       flexDirection: 'row',
       alignItems: 'center',
-      height: 56,
-      borderRadius: 28,
-      borderWidth: 1.5,
-      paddingHorizontal: 20,
-      backgroundColor: theme.surfaceContainerLow,
-      borderColor: theme.outlineVariant,
+      height: spacing.touchDefault,
+      borderRadius: radii.full,
+      borderWidth: 1,
+      paddingHorizontal: spacing.lg,
+      backgroundColor: theme.surface,
+      borderColor: theme.borderStrong,
     },
     inputCapsuleFocused: {
-      borderColor: theme.secondary,
+      borderColor: theme.primary,
     },
     input: {
       flex: 1,
       paddingHorizontal: 0,
       paddingVertical: 0,
-      ...typography.bodyLG,
-      fontSize: 16,
+      ...typography.body,
       height: '100%',
       color: theme.text,
     },
     actionButton: {
-      width: 56,
-      height: 56,
-      borderRadius: 28,
-      marginLeft: 10,
+      width: spacing.touchDefault,
+      height: spacing.touchDefault,
+      borderRadius: radii.full,
+      marginLeft: spacing.sm,
       alignItems: 'center',
       justifyContent: 'center',
-      shadowColor: '#02241F',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.15,
-      shadowRadius: 4,
-      elevation: 3,
       backgroundColor: theme.primary,
     },
     actionButtonDisabled: {
-      opacity: 0.45,
+      opacity: 0.4,
     },
     actionButtonRecording: {
       backgroundColor: theme.error,
@@ -66,6 +60,6 @@ export const getChatInputBarStyles = (theme: ThemeColors) => ({
       opacity: 0,
     },
   }),
-  placeholderTextColor: theme.textSecondary,
+  placeholderTextColor: theme.textTertiary,
   iconColor: theme.onPrimary,
 });

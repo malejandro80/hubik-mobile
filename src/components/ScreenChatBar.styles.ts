@@ -1,35 +1,31 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing } from '../theme/colors';
+import { ThemeColors, radii, spacing, typography } from '../theme';
 
 export const getScreenChatBarStyles = (theme: ThemeColors) =>
   StyleSheet.create({
     replyStrip: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginHorizontal: 16,
-      marginTop: 8,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
-      borderRadius: shapes.lg,
-      borderWidth: 1.5,
-      borderColor: theme.outlineVariant,
-      backgroundColor: theme.card,
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.sm,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      borderRadius: radii.md,
+      backgroundColor: theme.surfaceMuted,
     },
     replyText: {
+      ...typography.body,
       flex: 1,
-      fontSize: 15,
-      lineHeight: 21,
       color: theme.text,
     },
     openButton: {
       minHeight: spacing.touchMin,
-      paddingHorizontal: 12,
-      marginLeft: 8,
+      paddingHorizontal: spacing.md,
+      marginLeft: spacing.sm,
       justifyContent: 'center',
     },
     openText: {
-      fontSize: 14,
-      fontWeight: '700',
+      ...typography.label,
       color: theme.secondary,
     },
   });

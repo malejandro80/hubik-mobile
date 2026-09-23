@@ -20,7 +20,7 @@ export interface BurgerMenuItem {
 
 export const MENU_ITEMS: BurgerMenuItem[] = [
   { key: 'search', title: labels.burgerMenu.menuItems.search, icon: 'search-outline' },
-  { key: 'register', title: labels.burgerMenu.menuItems.register, icon: 'add-circle-outline', badge: labels.burgerMenu.menuItems.badgeNew },
+  { key: 'register', title: labels.burgerMenu.menuItems.register, icon: 'add-circle-outline'},
   { key: 'new_chat', title: labels.burgerMenu.menuItems.newChat, icon: 'refresh-outline' },
 ];
 

@@ -5,7 +5,7 @@ import { START_ACTION_ICONS } from '../constants/startScreen';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { StartActionKey } from '../lib/startActions';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { getStartScreenStyles } from './StartScreen.styles';
 
 export interface StartScreenProps {

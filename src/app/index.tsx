@@ -38,7 +38,7 @@ import {
   sendChatQueryAudio,
   VOICE_NOTE_MIME_TYPE,
 } from '../services/chatApi';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { ChatMessage, Property } from '../types/property';
 import { getIndexStyles } from './index.styles';
 import {

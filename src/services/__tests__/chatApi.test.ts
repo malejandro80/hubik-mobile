@@ -11,6 +11,7 @@ import {
   generatePropertyDescription,
 } from '../chatApi';
 import { supabase } from '../../lib/supabase';
+import { LISTING_COLUMNS } from '../../constants/propertyColumns';
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
@@ -110,6 +111,7 @@ describe('chatApi - sendChatQuery (Supabase Edge Function)', () => {
     // on the raw table for anon/authenticated, so this fallback must never query it directly.
     expect(supabase.from).toHaveBeenCalledWith('property_listings');
     expect(result).toBeDefined();
+    expect(mockSelect).toHaveBeenCalledWith(LISTING_COLUMNS);
     expect(result.data).toHaveLength(1);
     expect(result.data[0].title).toBe('Austin Condo');
     expect(result.answer).toContain('base de datos');

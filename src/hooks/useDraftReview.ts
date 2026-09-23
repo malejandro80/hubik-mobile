@@ -18,7 +18,6 @@ export function useDraftReview({ draft, setPhotos }: UseDraftReviewOptions) {
       pathname: '/property/[id]',
       params: {
         ...buildPropertyRouteParams(buildDraftPreviewProperty(draft)),
-        ...(draft.currency ? { currency: draft.currency } : {}),
         [PREVIEW_PARAM]: PREVIEW_PARAM_VALUE,
       },
     });

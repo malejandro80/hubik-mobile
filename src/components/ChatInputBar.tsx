@@ -11,7 +11,7 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
-import { colors, hitSlop } from '../theme/colors';
+import { colors, hitSlop } from '../theme';
 import { getChatInputBarStyles } from './ChatInputBar.styles';
 
 type ActionOptionKey = 'recording' | 'send' | 'mic';

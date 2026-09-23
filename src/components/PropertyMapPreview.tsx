@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { buildReadOnlyMapHtml } from '../lib/mapPicker';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { getPropertyMapPreviewStyles } from './PropertyMapPreview.styles';
 
 export interface PropertyMapPreviewProps {

@@ -8,10 +8,11 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ModalSafeArea } from './ModalSafeArea';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
-import { colors, hitSlop } from '../theme/colors';
+import { colors, hitSlop } from '../theme';
 import { useDrawerAnimation } from '../hooks/useDrawerAnimation';
 
 import { MENU_ITEMS, type BurgerMenuItem, type BurgerMenuItemKey } from './BurgerMenu.items';
@@ -63,64 +64,66 @@ export const BurgerMenu: React.FC<BurgerMenuProps> = ({
       onRequestClose={handleClose}
       statusBarTranslucent
     >
-      <View style={styles.modalOverlay}>
-        <TouchableWithoutFeedback onPress={handleClose} accessibilityLabel={labels.burgerMenu.backdropA11y}>
-          <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} />
-        </TouchableWithoutFeedback>
+      <ModalSafeArea>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={handleClose} accessibilityLabel={labels.burgerMenu.backdropA11y}>
+            <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]} />
+          </TouchableWithoutFeedback>
 
-        <Animated.View style={[styles.drawerWrapper, { transform: [{ translateX: slideAnim }] }]}>
-          <SafeAreaView style={styles.drawerPanel}>
-            <View style={styles.drawerHeader}>
-              <View style={styles.brandRow}>
-                <View style={styles.logoBadge}>
-                  <Ionicons name="home" size={18} color={theme.onSecondary} />
+          <Animated.View style={[styles.drawerWrapper, { transform: [{ translateX: slideAnim }] }]}>
+            <SafeAreaView style={styles.drawerPanel}>
+              <View style={styles.drawerHeader}>
+                <View style={styles.brandRow}>
+                  <View style={styles.logoBadge}>
+                    <Ionicons name="home" size={18} color={theme.onSecondary} />
+                  </View>
+                  <Text style={styles.brandTitle}>{labels.burgerMenu.brandTitle}</Text>
                 </View>
-                <Text style={styles.brandTitle}>{labels.burgerMenu.brandTitle}</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={handleClose}
-                accessibilityRole="button"
-                accessibilityLabel={labels.burgerMenu.closeA11y}
-                hitSlop={hitSlop.default}
-              >
-                <Ionicons name="close" size={22} color={theme.text} />
-              </TouchableOpacity>
-            </View>
-
-            <DrawerProfileCard onSignInPress={() => handleItemPress('sign_in')} />
-
-            <View style={styles.menuItemsContainer}>
-              {items.map((item) => (
                 <TouchableOpacity
-                  key={item.key}
-                  style={styles.menuItemRow}
-                  onPress={() => handleItemPress(item.key)}
+                  style={styles.closeButton}
+                  onPress={handleClose}
                   accessibilityRole="button"
-                  accessibilityLabel={item.title}
+                  accessibilityLabel={labels.burgerMenu.closeA11y}
+                  hitSlop={hitSlop.default}
                 >
-                  <View style={styles.menuItemLeft}>
-                    <Ionicons name={item.icon} size={22} color={theme.secondary} style={styles.itemIcon} />
-                    <Text style={styles.menuItemText}>{item.title}</Text>
-                  </View>
-                  <View style={styles.menuItemRight}>
-                    {item.badge && (
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{item.badge}</Text>
-                      </View>
-                    )}
-                    <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
-                  </View>
+                  <Ionicons name="close" size={22} color={theme.text} />
                 </TouchableOpacity>
-              ))}
-            </View>
+              </View>
 
-            <View style={styles.drawerFooter}>
-              <Text style={styles.versionText}>{labels.burgerMenu.version}</Text>
-            </View>
-          </SafeAreaView>
-        </Animated.View>
-      </View>
+              <DrawerProfileCard onSignInPress={() => handleItemPress('sign_in')} />
+
+              <View style={styles.menuItemsContainer}>
+                {items.map((item) => (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={styles.menuItemRow}
+                    onPress={() => handleItemPress(item.key)}
+                    accessibilityRole="button"
+                    accessibilityLabel={item.title}
+                  >
+                    <View style={styles.menuItemLeft}>
+                      <Ionicons name={item.icon} size={22} color={theme.secondary} style={styles.itemIcon} />
+                      <Text style={styles.menuItemText}>{item.title}</Text>
+                    </View>
+                    <View style={styles.menuItemRight}>
+                      {item.badge && (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>{item.badge}</Text>
+                        </View>
+                      )}
+                      <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.drawerFooter}>
+                <Text style={styles.versionText}>{labels.burgerMenu.version}</Text>
+              </View>
+            </SafeAreaView>
+          </Animated.View>
+        </View>
+      </ModalSafeArea>
     </Modal>
   );
 };

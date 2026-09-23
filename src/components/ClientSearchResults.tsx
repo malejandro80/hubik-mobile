@@ -3,7 +3,7 @@ import { FlatList, Text, TouchableOpacity, View } from 'react-native';
 import { ClientSearchStatus } from '../hooks/useClientSearch';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { ClientCandidate } from '../types/auth';
 import { getClientSearchResultsStyles } from './ClientSearchResults.styles';
 

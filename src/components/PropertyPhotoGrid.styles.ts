@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes, spacing } from '../theme/colors';
+import { ThemeColors, shapes, spacing } from '../theme';
 
 const CELL_GAP = spacing.spaceXS;
 

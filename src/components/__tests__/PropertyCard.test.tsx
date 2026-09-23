@@ -39,6 +39,21 @@ describe('PropertyCard Component', () => {
     expect(getByText(/Austin/)).toBeTruthy();
   });
 
+  it('shows only the city, with no leading separator, when the address is masked', () => {
+    const { getByText, queryByText } = render(
+      <PropertyCard property={{ ...mockProperty, address: null }} />
+    );
+
+    expect(getByText(/^Austin/)).toBeTruthy();
+    expect(queryByText(/· Austin/)).toBeNull();
+  });
+
+  it('prices the listing in its own currency', () => {
+    const { getByText } = render(<PropertyCard property={{ ...mockProperty, currency: 'EUR' }} />);
+
+    expect(getByText('450.000 €')).toBeTruthy();
+  });
+
   it('renders specs for bedrooms, bathrooms, and square meters', () => {
     const { getByText, getByLabelText } = render(
       <PropertyCard property={mockProperty} />
@@ -112,6 +127,19 @@ describe('PropertyCard share', () => {
     fireEvent.press(getByLabelText('Compartir Luxury Downtown Loft'));
 
     expect(Share.share).toHaveBeenCalledWith({ title: 'Luxury Downtown Loft', message: baseText });
+  });
+
+  it('leaves out the address line when the address is masked', () => {
+    const { getByLabelText } = render(
+      <PropertyCard property={{ ...mockProperty, id: LISTING_ID, address: null }} />
+    );
+
+    fireEvent.press(getByLabelText('Compartir Luxury Downtown Loft'));
+
+    expect(Share.share).toHaveBeenCalledWith({
+      title: 'Luxury Downtown Loft',
+      message: 'Mira esta propiedad en Hubik: Luxury Downtown Loft por $450,000 en Austin.',
+    });
   });
 
   it('sends no link for an id that is not a real listing id', () => {

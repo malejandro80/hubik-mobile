@@ -1,3 +1,4 @@
+import { describableFacts } from '../_shared/describeFacts.ts';
 import { propertyDescribeInstruction } from '../_shared/prompts.ts';
 
 const corsHeaders = {
@@ -34,7 +35,7 @@ function generateFallbackDescription(known: PropertyDraft): string {
   };
   const typeLabel = (known.property_type && typeMap[known.property_type]) || 'propiedad';
   const opLabel = known.operation_type === 'rent' ? 'en alquiler' : 'en venta';
-  const location = [known.address, known.city].filter(Boolean).join(', ');
+  const location = known.city ?? '';
 
   const features: string[] = [];
   if (known.bedrooms) features.push(`${known.bedrooms} habitaciones`);
@@ -58,7 +59,9 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json().catch(() => ({}));
-    const known: PropertyDraft = body?.known && typeof body.known === 'object' ? body.known : {};
+    const known: PropertyDraft = describableFacts(
+      body?.known && typeof body.known === 'object' ? body.known : {}
+    );
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
     const hasGeminiKey = Boolean(geminiKey) && geminiKey !== 'your_gemini_api_key_here';

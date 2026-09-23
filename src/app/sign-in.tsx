@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { AUTH_PROVIDER_OPTIONS, describeAuthError } from '../lib/authProviders';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { AuthProviderName } from '../types/auth';
 import { getSignInStyles } from './sign-in.styles';
 

@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useSharedProperty } from '../hooks/useSharedProperty';
 import { buildPropertyRouteParams } from '../lib/chatRegistration';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 
 export interface SharedListingRedirectProps {
   value?: string;

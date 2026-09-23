@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { ThemeColors, shapes } from '../theme/colors';
+import { ThemeColors, shapes } from '../theme';
 
 export const getChatMapPickerStyles = (theme: ThemeColors) => ({
   styles: StyleSheet.create({

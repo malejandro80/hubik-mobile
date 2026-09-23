@@ -158,6 +158,7 @@ export function buildDraftPreviewProperty(draft: PropertyDraft): Property {
     image_url: draft.images?.[0] || '',
     images: draft.images || [],
     amenities: draft.amenities || [],
+    ...(draft.currency ? { currency: draft.currency } : {}),
   };
 }
 
@@ -166,6 +167,7 @@ export function buildPropertyRouteParams(property: Property) {
     id: property.id,
     title: property.title,
     price: property.price.toString(),
+    ...(property.currency ? { currency: property.currency } : {}),
     city: property.city,
     ...(property.address ? { address: property.address } : {}),
     bedrooms: property.bedrooms.toString(),

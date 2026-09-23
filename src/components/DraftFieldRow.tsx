@@ -12,7 +12,7 @@ import { useLabels } from '../hooks/useLabels';
 import { FieldStatus } from '../lib/draftStatus';
 import { DraftEditableField, FieldEditResult } from '../lib/draftValidation';
 import { capitalize, EnumField, formatKnownValue, getEnumOptions } from '../lib/livingDraft';
-import { colors } from '../theme/colors';
+import { colors } from '../theme';
 import { PROPERTY_DRAFT_FIELD_LABELS, PropertyDraft } from '../types/property';
 import { getDraftFieldRowStyles } from './DraftFieldRow.styles';
 
