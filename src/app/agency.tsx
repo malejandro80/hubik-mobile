@@ -8,8 +8,10 @@ import { Button } from '../components/Button';
 import { Header } from '../components/Header';
 import { PropertyCard } from '../components/PropertyCard';
 import { ScreenChatBar } from '../components/ScreenChatBar';
+import { WhatsAppField } from '../components/WhatsAppField';
 import { useAgencyAgents } from '../hooks/useAgencyAgents';
 import { useAgencyChat } from '../hooks/useAgencyChat';
+import { useAgencyWhatsApp } from '../hooks/useAgencyWhatsApp';
 import { useAppMenu } from '../hooks/useAppMenu';
 import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
@@ -39,6 +41,7 @@ export default function AgencyScreen() {
   const agencyId = profile?.agencyId ?? null;
   const canView = capabilities.canViewAgencyListings;
   const agents = useAgencyAgents(agencyId);
+  const agencyWhatsApp = useAgencyWhatsApp(agencyId);
   const chat = useAgencyChat(agents);
 
   const [reloadKey, setReloadKey] = useState(0);
@@ -116,7 +119,18 @@ export default function AgencyScreen() {
           data={state.phase === 'ready' ? state.listings : []}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          ListHeaderComponent={agencyId ? <AgentsSection agents={agents} /> : null}
+          ListHeaderComponent={
+            agencyId ? (
+              <>
+                <WhatsAppField
+                  title={labels.whatsapp.agencyTitle}
+                  value={agencyWhatsApp.value}
+                  onSave={agencyWhatsApp.save}
+                />
+                <AgentsSection agents={agents} />
+              </>
+            ) : null
+          }
           ListEmptyComponent={renderStatus}
           contentContainerStyle={styles.list}
           keyboardShouldPersistTaps="handled"

@@ -14,6 +14,7 @@ export interface Profile {
   agencyId: string | null;
   displayName: string | null;
   avatarUrl?: string | null;
+  whatsapp?: string | null;
 }
 
 export interface RoleCapabilities {

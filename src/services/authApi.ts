@@ -31,6 +31,7 @@ interface ProfileRow {
   role: Role;
   agency_id: string | null;
   display_name: string | null;
+  whatsapp: string | null;
 }
 
 export async function signInWithProvider(provider: AuthProviderName): Promise<SignInOutcome> {
@@ -63,7 +64,7 @@ export async function signOut(): Promise<void> {
 export async function fetchProfile(userId: string): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('user_id, role, agency_id, display_name')
+    .select('user_id, role, agency_id, display_name, whatsapp')
     .eq('user_id', userId)
     .single<ProfileRow>();
   if (error) throw error;
@@ -74,7 +75,28 @@ export async function fetchProfile(userId: string): Promise<Profile> {
     role: data.role,
     agencyId: data.agency_id,
     displayName: data.display_name,
+    whatsapp: data.whatsapp ?? null,
   };
+}
+
+async function updateWhatsApp(table: 'profiles' | 'agencies', key: 'user_id' | 'id', id: string, phone: string | null) {
+  const { data, error } = await supabase.from(table).update({ whatsapp: phone }).eq(key, id).select('whatsapp');
+  if (error) throw error;
+  if (!data || data.length === 0) throw new Error(labels.whatsapp.saveError);
+}
+
+export function updateMyWhatsApp(userId: string, phone: string | null): Promise<void> {
+  return updateWhatsApp('profiles', 'user_id', userId, phone);
+}
+
+export function updateAgencyWhatsApp(agencyId: string, phone: string | null): Promise<void> {
+  return updateWhatsApp('agencies', 'id', agencyId, phone);
+}
+
+export async function fetchAgencyWhatsApp(agencyId: string): Promise<string | null> {
+  const { data, error } = await supabase.from('agencies').select('whatsapp').eq('id', agencyId).maybeSingle();
+  if (error || !data) return null;
+  return data.whatsapp ?? null;
 }
 
 export async function createAgency(name: string): Promise<string> {

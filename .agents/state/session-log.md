@@ -1843,3 +1843,12 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Env note**: this worktree is nested in the main repo, so ESLint must run with `--no-eslintrc -c .eslintrc.json`, Jest with `--testPathIgnorePatterns='/\.kilo/'`, and eval needs the main `.env` exported.
 - **Verification**: typecheck clean; lint 4 pre-existing warnings; 1154/1158 (4 known design-edit failures); search eval 16/16; simulator agent search scoped to Casa Norte.
 
+---
+
+### [2026-09-23] RFC 031 WhatsApp contact (slice 2 of 2)
+- **DB** (`whatsapp_contact`): `profiles.whatsapp`, `agencies.whatsapp` with E.164 CHECK; `GRANT UPDATE (whatsapp)` only; RLS so an agent edits their own row and an owner their agency; `agents_public`/`property_listings` expose `agent_whatsapp`/`agency_whatsapp`; `search_properties_hybrid` returns `contact_whatsapp`. Verified by impersonation (incl. role-escalation attempt denied).
+- **App**: `lib/whatsapp` (normalize, `wa.me` URL, `canContactAgents` = visitor/client); `authApi` update/fetch; `WhatsAppField` in the drawer (agents) and "Mi inmobiliaria" (owners, `useAgencyWhatsApp`); detail shows "Contactar por WhatsApp" only with a valid number and for visitors/clients, replacing the fake "Contactar asesor" alert; route param `whatsapp` re-validated.
+- **Changed assertions (requirement change)**: the detail's fake "Contactar asesor" alert test replaced by WhatsApp tests; `fetchProfile` shape now includes `whatsapp`.
+- **Verification**: typecheck clean; lint 4 pre-existing warnings; 1185/1189 (4 known design-edit failures); live search returns `contact_whatsapp`; advisors unchanged.
+- **Next Actions**: agents add their numbers; approve RFCs 030/031; push branches; new EAS build for Play (versionCode 3).
+

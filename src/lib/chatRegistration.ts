@@ -187,5 +187,6 @@ export function buildPropertyRouteParams(property: Property) {
     ...(typeof property.longitude === 'number' ? { lng: property.longitude.toString() } : {}),
     ...(property.agency_name ? { agency_name: property.agency_name } : {}),
     ...(property.agent_name ? { agent_name: property.agent_name } : {}),
+    ...(property.contact_whatsapp ? { whatsapp: property.contact_whatsapp } : {}),
   };
 }

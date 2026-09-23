@@ -8,11 +8,14 @@ import {
   fetchAgencyAgents,
   fetchAgencyListings,
   fetchAgencyName,
+  fetchAgencyWhatsApp,
   fetchAgentInvites,
   fetchProfile,
   searchAgentCandidates,
   signInWithProvider,
   signOut,
+  updateAgencyWhatsApp,
+  updateMyWhatsApp,
 } from '../authApi';
 import { LISTING_COLUMNS } from '../../constants/propertyColumns';
 
@@ -138,7 +141,7 @@ describe('authApi.signOut', () => {
 describe('authApi.fetchProfile', () => {
   it('maps the profile row to the client shape', async () => {
     const single = jest.fn().mockResolvedValue({
-      data: { user_id: 'u1', role: 'agent', agency_id: 'a1', display_name: 'Ana' },
+      data: { user_id: 'u1', role: 'agent', agency_id: 'a1', display_name: 'Ana', whatsapp: '+584141234567' },
       error: null,
     });
     const eq = jest.fn(() => ({ single }));
@@ -148,12 +151,14 @@ describe('authApi.fetchProfile', () => {
     const profile = await fetchProfile('u1');
 
     expect(supabase.from).toHaveBeenCalledWith('profiles');
+    expect(select).toHaveBeenCalledWith('user_id, role, agency_id, display_name, whatsapp');
     expect(eq).toHaveBeenCalledWith('user_id', 'u1');
     expect(profile).toEqual({
       userId: 'u1',
       role: 'agent',
       agencyId: 'a1',
       displayName: 'Ana',
+      whatsapp: '+584141234567',
     });
   });
 
@@ -434,3 +439,59 @@ describe('authApi.fetchAgentInvites', () => {
     await expect(fetchAgentInvites('a1')).rejects.toThrow('boom');
   });
 });
+
+describe('authApi WhatsApp numbers', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  const updateChain = (result: { data: unknown; error: unknown }) => {
+    const select = jest.fn().mockResolvedValue(result);
+    const eq = jest.fn(() => ({ select }));
+    const update = jest.fn(() => ({ eq }));
+    (supabase.from as jest.Mock).mockReturnValue({ update });
+    return { update, eq, select };
+  };
+
+  it('saves the agent own number on their profile', async () => {
+    const { update, eq } = updateChain({ data: [{ whatsapp: '+584141234567' }], error: null });
+
+    await updateMyWhatsApp('u1', '+584141234567');
+
+    expect(supabase.from).toHaveBeenCalledWith('profiles');
+    expect(update).toHaveBeenCalledWith({ whatsapp: '+584141234567' });
+    expect(eq).toHaveBeenCalledWith('user_id', 'u1');
+  });
+
+  it('clears the number with null', async () => {
+    const { update } = updateChain({ data: [{ whatsapp: null }], error: null });
+
+    await updateMyWhatsApp('u1', null);
+
+    expect(update).toHaveBeenCalledWith({ whatsapp: null });
+  });
+
+  it('fails when nothing was updated (not allowed)', async () => {
+    updateChain({ data: [], error: null });
+
+    await expect(updateMyWhatsApp('u1', '+584141234567')).rejects.toThrow();
+  });
+
+  it('saves the agency number', async () => {
+    const { eq } = updateChain({ data: [{ whatsapp: '+584240000001' }], error: null });
+
+    await updateAgencyWhatsApp('a1', '+584240000001');
+
+    expect(supabase.from).toHaveBeenCalledWith('agencies');
+    expect(eq).toHaveBeenCalledWith('id', 'a1');
+  });
+
+  it('reads the agency number, or null', async () => {
+    const maybeSingle = jest.fn().mockResolvedValue({ data: { whatsapp: '+584240000001' }, error: null });
+    const eq = jest.fn(() => ({ maybeSingle }));
+    const select = jest.fn(() => ({ eq }));
+    (supabase.from as jest.Mock).mockReturnValue({ select });
+
+    await expect(fetchAgencyWhatsApp('a1')).resolves.toBe('+584240000001');
+    expect(select).toHaveBeenCalledWith('whatsapp');
+  });
+});
+
