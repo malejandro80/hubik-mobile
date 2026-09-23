@@ -202,5 +202,33 @@ graph TD
   OpenApp["appLink + useOpenApp + InstallSheet open button<br/>SharedListingRoute -> SharedListingRedirect on native"]
   RFC022 --> OpenApp
   OpenApp -. "hubikmobile://p/slug on native replaces to property/[id] with fetched listing params" .-> ShareMeta
+
+  RFC025["RFC 025: LLM-grounded search answers<br/>(answer + suggestions written from the real rows)"]
+  RFC008 --> RFC025
+  SearchAnswer["_shared/searchAnswer.ts + searchAnswerConstants.ts<br/>(allowlisted facts, gemini-3.5-flash-lite, template fallback)"]
+  RFC025 --> SearchAnswer
+  RFC025 --> ChatQuery
+  ChatQuery -. "composeSearchAnswer(items, filters, knownCities)" .-> SearchAnswer
+  Chips["ChatMessageItem + SuggestionChips<br/>(chips under the latest reply in index.tsx)"]
+  RFC025 --> Chips
+
+  RFC026["RFC 026: Typewriter replies<br/>(client only; typing indicator + word-by-word reveal, Reduce Motion)"]
+  RFC025 --> RFC026
+  Typewriter["useTypewriter + lib/typewriter + useNewReply + useReduceMotion<br/>TypingIndicator (list footer while loading)"]
+  RFC026 --> Typewriter
+  Typewriter -. "animate only the reply that arrived after mount; cards and chips wait for the last word" .-> Chips
+
+  RFC027["RFC 027: Precise hybrid search<br/>(full listing document, weighted full-text, RRF, relevance floor)"]
+  RFC008 --> RFC027
+  RFC010 --> RFC027
+  HybridSearch["_shared/hybridSearch.ts + listingDocument.ts<br/>(content terms, place vs city, params)"]
+  SearchRpc["search_properties_hybrid RPC<br/>(replaces match_properties_hybrid)"]
+  SearchTsv["properties.search_tsv<br/>(generated, GIN; title A, amenities B, description C)"]
+  RFC027 --> HybridSearch
+  RFC027 --> SearchRpc
+  RFC027 --> SearchTsv
+  ChatQuery -. "buildHybridSearch → search_properties_hybrid" .-> SearchRpc
+  SearchRpc -. "reads via property_listings (security_invoker)" .-> SearchTsv
+  Publish -. "embeds listingDocument (title+type+operation+city+description+amenities)" .-> Embedding
 ```
 

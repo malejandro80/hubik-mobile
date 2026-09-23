@@ -97,5 +97,6 @@ export interface ChatMessage {
   title?: string;
   text: string;
   properties?: Property[];
+  suggestions?: string[];
   timestamp: string;
 }

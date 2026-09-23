@@ -13,7 +13,9 @@
     "test": "jest",
     "build": "tsc --noEmit",
     "seed": "tsx scripts/seed-properties.ts",
-    "arch-team": "tsx scripts/architecture-team/index.ts"
+    "arch-team": "tsx scripts/architecture-team/index.ts",
+    "eval:search": "tsx scripts/eval-search.ts",
+    "reembed": "tsx scripts/reembed-properties.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",

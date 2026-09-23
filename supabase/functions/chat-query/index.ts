@@ -3,6 +3,8 @@ import { isAudioPayload } from '../_shared/audioPayload.ts';
 import { extractAmenityKeywords } from '../_shared/amenities.ts';
 import { fetchKnownCities, matchCityInText } from '../_shared/cities.ts';
 import { embedText } from '../_shared/geminiEmbedding.ts';
+import { buildHybridSearch } from '../_shared/hybridSearch.ts';
+import { composeSearchAnswer } from '../_shared/searchAnswer.ts';
 import { chatQueryTextInstruction, GEMINI_EXTRACTION_MODEL } from '../_shared/prompts.ts';
 import { transcribeAudio } from '../_shared/groqAudio.ts';
 
@@ -330,37 +332,26 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 2. Query properties: hybrid relational+semantic ranking is the default path (a Gemini key
-    // is available and the user didn't ask for an explicit price sort, which needs exact price
-    // ordering a similarity ranking can't give); the plain structured query - unchanged from
-    // before - covers explicit price sorts, no Gemini key, and hybrid RPC failures, so results
-    // never depend on Gemini being configured.
     let items: any[] = [];
     let usedHybridSearch = false;
-    const wantsExplicitPriceSort = filters.sort_by === 'price_asc' || filters.sort_by === 'price_desc';
+    const queryEmbedding = hasGeminiKey ? await embedText(effectiveMessage, geminiKey!, 'RETRIEVAL_QUERY') : null;
+    const hybrid = buildHybridSearch({
+      message: effectiveMessage,
+      filters: filters as Record<string, unknown>,
+      knownCities,
+      embedding: queryEmbedding,
+    });
 
-    if (!wantsExplicitPriceSort && hasGeminiKey) {
-      try {
-        const queryEmbedding = await embedText(effectiveMessage, geminiKey!, 'RETRIEVAL_QUERY');
-        if (queryEmbedding) {
-          const { data: hybridMatches, error: hybridError } = await callerSupabase.rpc('match_properties_hybrid', {
-            query_embedding: queryEmbedding,
-            p_city: filters.city ?? null,
-            p_property_type: filters.property_type ?? null,
-            p_min_price: filters.min_price ?? null,
-            p_max_price: filters.max_price ?? null,
-            p_min_bedrooms: filters.min_bedrooms ?? null,
-            p_max_bedrooms: filters.max_bedrooms ?? null,
-            p_amenities: filters.amenities ?? null,
-            match_count: filters.limit || 10,
-          });
-          if (hybridError) throw hybridError;
-          items = hybridMatches || [];
-          usedHybridSearch = true;
-        }
-      } catch (hybridErr) {
-        console.warn('[chat-query] hybrid search failed, falling back to structured query:', hybridErr);
-      }
+    try {
+      const { data: hybridMatches, error: hybridError } = await callerSupabase.rpc(
+        'search_properties_hybrid',
+        hybrid.params
+      );
+      if (hybridError) throw hybridError;
+      items = hybridMatches || [];
+      usedHybridSearch = true;
+    } catch (hybridErr) {
+      console.warn('[chat-query] hybrid search failed, falling back to structured query:', hybridErr);
     }
 
     if (!usedHybridSearch) {
@@ -415,30 +406,13 @@ Deno.serve(async (req: Request) => {
       items = properties || [];
     }
 
-    // 3. Synthesize conversational answer in Spanish
-    let answer: string;
-    if (items.length === 0) {
-      answer = `No encontré propiedades que coincidan con "${effectiveMessage}". ¡Intenta buscar en Austin, Miami, Denver, Seattle o New York!`;
-    } else {
-      const cityText = filters.city ? ` en ${filters.city}` : '';
-      let typeText = ' propiedades';
-      if (filters.property_type === 'Apartment') typeText = ' apartamentos';
-      else if (filters.property_type === 'Single Family') typeText = ' casas familiares';
-      else if (filters.property_type === 'Townhouse') typeText = ' casas adosadas';
-      else if (filters.property_type === 'Condo') typeText = ' condominios';
-      else if (filters.property_type === 'Studio') typeText = ' estudios';
-
-      answer = `Encontré ${items.length}${typeText}${cityText} que coinciden con tu búsqueda:`;
-    }
-
-    // 4. Generate dynamic contextual suggestions in Spanish
-    const suggestions: string[] = [];
-    if (filters.city) {
-      suggestions.push(`Propiedades más baratas en ${filters.city}`);
-      suggestions.push(`Casas de lujo en ${filters.city}`);
-    } else if (items.length > 0 && items[0].city) {
-      suggestions.push(`Propiedades en ${items[0].city}`);
-    }
+    const { answer, suggestions } = await composeSearchAnswer({
+      message: effectiveMessage,
+      items,
+      filters: hybrid.filters,
+      knownCities,
+      geminiKey: hasGeminiKey ? geminiKey : undefined,
+    });
 
     console.log(
       `[chat-query] request completed in ${Date.now() - requestStart}ms (${isAudioRequest ? 'audio' : 'text'})`
@@ -448,7 +422,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         answer,
         data: items,
-        applied_filters: filters,
+        applied_filters: hybrid.filters,
         suggestions,
         ...(transcript ? { transcript } : {}),
       }),

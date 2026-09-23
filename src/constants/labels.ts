@@ -16,6 +16,7 @@ export const labels = {
     sendSrOnly: 'Enviar',
     propertiesFound: (count: number) => `Propiedades Encontradas (${count}):`,
     justNow: 'Ahora',
+    typing: 'Hubik está escribiendo…',
     voiceNote: '🎤 Nota de voz',
     registerExample:
       '¡Hola! Cuénteme la propiedad con sus propias palabras: tipo, si es venta o alquiler, precio, habitaciones, baños, metros y ubicación. También puede adjuntar fotos y marcar el mapa con los botones de abajo, cuando quiera.',
@@ -64,7 +65,7 @@ export const labels = {
       pending: 'Pendiente',
       sold: 'Vendido',
     },
-    commission: ' · 3%',
+    commission: '',
     photosCount: (count: number) => `${count} fotos`,
     defaultPhotosCount: '14 fotos',
     exteriorElevator: ' · Exterior con ascensor',
@@ -172,6 +173,7 @@ export const labels = {
   slashMenu: {
     hints: {
       register: 'Publicar una propiedad',
+      clear: 'Limpiar el historial del chat',
     },
     noCommandsNote: 'Los comandos están disponibles para agentes de una inmobiliaria',
     commandA11y: (command: string, hint: string) => `${command}, ${hint}`,

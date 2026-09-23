@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { embedText } from '../supabase/functions/_shared/geminiEmbedding';
+import { listingDocument } from '../supabase/functions/_shared/listingDocument';
 import { EXISTING_AGENTS, SEED_AGENCIES, SEED_AGENTS } from './seed/valenciaAgencies';
 import { SEED_CITY, SEED_LISTINGS, SeedListing } from './seed/valenciaListings';
 import { seedPhotos } from './seed/valenciaPhotos';
@@ -60,7 +61,14 @@ async function seedAgents(supabase: SupabaseClient): Promise<Record<string, Agen
 async function toRow(listing: SeedListing, index: number, agent: AgentRef) {
   const photoSet = listing.type === 'Apartment' || listing.type === 'Studio' ? 'apartment' : 'house';
   const images = seedPhotos(photoSet, index);
-  const textToEmbed = `${listing.description}\n\nComodidades: ${listing.amenities.join(', ')}`;
+  const textToEmbed = listingDocument({
+    title: listing.title,
+    property_type: listing.type,
+    operation_type: listing.operation,
+    city: SEED_CITY,
+    description: listing.description,
+    amenities: listing.amenities,
+  });
   const embedding = geminiKey ? await embedText(textToEmbed, geminiKey, 'RETRIEVAL_DOCUMENT') : null;
 
   return {

@@ -304,7 +304,7 @@ describe('HomeScreen (AI listing composer)', () => {
 
     await startComposer(utils);
 
-    expect(utils.getByText(/Cuénteme la propiedad con sus propias palabras/)).toBeTruthy();
+    expect(await utils.findByText(/Cuénteme la propiedad con sus propias palabras/)).toBeTruthy();
     expect(utils.queryByText(/indíqueme la referencia catastral/)).toBeNull();
     expect(chatApi.sendChatQuery).not.toHaveBeenCalled();
   });
