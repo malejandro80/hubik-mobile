@@ -1765,3 +1765,9 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Verified live**: chat-query returns description/currency with masked address; simulator detail shows stored description, "1 de 3 fotos", approximate map, agent card. Advisors unchanged.
 - **Open data decisions**: 5 of 6 stored descriptions contain the street address (leak to clients); all existing rows defaulted to USD though at least the Valencia listing was entered in EUR.
 - **Not mine**: working-tree removal of the "🤖 Asistente Hubik" badge in `ChatMessageItem.tsx` (user edit) makes `ChatMessageItem.test.tsx › renders assistant message with badge and properties` fail; left untouched.
+
+## 2026-09-22 — Seed de Valencia, Venezuela + reintento de subida de fotos
+- `src/services/propertyImages.ts`: reintenta hasta `IMAGE_UPLOAD_ATTEMPTS` (3) cuando la subida falla con `StorageUnknownError` (conexión cortada antes de llegar al servidor); los errores del servidor no se reintentan. Tests nuevos en `propertyImages.test.ts`.
+- Seed reemplazado: `scripts/seed-properties.ts` (`npm run seed`, requiere `SUPABASE_SERVICE_ROLE_KEY`) + `scripts/seed/{valenciaAgencies,valenciaListings,valenciaPhotos}.ts`. Eliminado `scripts/mockProperties.ts` (Austin, incompatible con el esquema actual). Idempotente: agencias por id, usuarios por email, propiedades por `catastro` (`VAL-2026-0001…0022`).
+- Producción: 21 propiedades anteriores respaldadas en `backup.properties_20260922` (esquema no expuesto) y borradas. Creadas 3 inmobiliarias y 7 usuarios `@example.com` (contraseñas aleatorias no guardadas); 22 propiedades en Valencia con embeddings reales. Inmobiliarias y usuarios existentes intactos.
+- Pendiente: `agents_public` solo incluye `role = 'agent'`, así que las propiedades publicadas por un owner muestran agent_name null.

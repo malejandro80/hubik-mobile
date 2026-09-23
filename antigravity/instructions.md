@@ -46,7 +46,7 @@ scripts/
 ├── verify.sh                # Universal 4-target toolchain runner (check-all)
 ├── pre-commit-hook.sh       # Secret scanner & hygiene gate
 ├── seed-properties.ts       # Database property seeder
-└── mockProperties.ts        # Mock dataset for seeding
+└── seed/                    # Valencia, Venezuela seed data (agencies, agents, listings)
 ```
 
 ---
