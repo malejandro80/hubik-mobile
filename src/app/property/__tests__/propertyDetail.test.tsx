@@ -6,6 +6,21 @@ import * as chatApi from '../../../services/chatApi';
 
 jest.mock('../../../services/chatApi', () => ({
   generatePropertyDescription: jest.fn(),
+  transcribeVoiceNote: jest.fn(),
+  VOICE_NOTE_MIME_TYPE: 'audio/mp4',
+}));
+
+const mockNavigate = jest.fn();
+const mockStop = jest.fn();
+let mockRecorderStatus = 'idle';
+
+jest.mock('../../../hooks/useVoiceRecorder', () => ({
+  useVoiceRecorder: () => ({ state: { status: mockRecorderStatus }, start: jest.fn(), stop: mockStop, cancel: jest.fn() }),
+}));
+
+jest.mock('expo-file-system/legacy', () => ({
+  readAsStringAsync: jest.fn().mockResolvedValue('YmFzZTY0'),
+  EncodingType: { Base64: 'base64' },
 }));
 
 const mockBack = jest.fn();
@@ -46,6 +61,7 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({
     back: mockBack,
     push: jest.fn(),
+    navigate: mockNavigate,
   }),
   useLocalSearchParams: () => mockParams,
 }));
@@ -53,6 +69,7 @@ jest.mock('expo-router', () => ({
 describe('PropertyDetailScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRecorderStatus = 'idle';
     jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     (chatApi.generatePropertyDescription as jest.Mock).mockResolvedValue({
       description: 'Vivienda totalmente exterior y luminosa, con portero físico y ascensor accesible a cota cero.',
@@ -120,25 +137,38 @@ describe('PropertyDetailScreen', () => {
     );
   });
 
-  it('handles quick question and mic press from bottom dock', async () => {
-    const { getByPlaceholderText, getByLabelText } = render(<PropertyDetailScreen />);
+  it('sends a typed question to the main chat, about this property, without a fake confirmation', async () => {
+    const { getByPlaceholderText } = render(<PropertyDetailScreen />);
     await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
-
-    const micBtn = getByLabelText('Hablar por micrófono');
-    fireEvent.press(micBtn);
-
-    expect(Alert.alert).toHaveBeenCalledWith(
-      'Micrófono Hubik',
-      'Hable con tranquilidad para consultar sobre esta vivienda.'
-    );
 
     const input = getByPlaceholderText('Escriba su consulta aquí...');
     fireEvent.changeText(input, '¿Tiene plaza de garaje accesible?');
     fireEvent(input, 'submitEditing');
 
-    expect(Alert.alert).toHaveBeenCalledWith(
-      'Consulta enviada',
-      'Su pregunta: "¿Tiene plaza de garaje accesible?" ha sido enviada al asistente.'
+    expect(mockNavigate).toHaveBeenCalledWith({
+      pathname: '/',
+      params: {
+        ask: '¿Tiene plaza de garaje accesible? (sobre «Barrio de Salamanca, Madrid»)',
+        askAt: expect.any(String),
+      },
+    });
+    expect(Alert.alert).not.toHaveBeenCalled();
+  });
+
+  it('records a spoken question and sends its transcript to the main chat', async () => {
+    mockRecorderStatus = 'recording';
+    mockStop.mockResolvedValue({ uri: 'file:///nota.m4a', durationMs: 900 });
+    (chatApi.transcribeVoiceNote as jest.Mock).mockResolvedValue('¿Admite mascotas?');
+    const { getByLabelText } = render(<PropertyDetailScreen />);
+    await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
+
+    fireEvent.press(getByLabelText('Detener grabación de nota de voz'));
+
+    await waitFor(() =>
+      expect(mockNavigate).toHaveBeenCalledWith({
+        pathname: '/',
+        params: { ask: '¿Admite mascotas? (sobre «Barrio de Salamanca, Madrid»)', askAt: expect.any(String) },
+      })
     );
   });
 

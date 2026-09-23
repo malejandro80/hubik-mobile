@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -24,6 +24,7 @@ import { PREVIEW_PARAM_VALUE } from '../../constants/listingPreview';
 import { useAppMenu } from '../../hooks/useAppMenu';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { useLabels } from '../../hooks/useLabels';
+import { useVoiceNote } from '../../hooks/useVoiceNote';
 import { useLegacyDescription } from '../../hooks/useLegacyDescription';
 import { useListingAttribution } from '../../hooks/useListingAttribution';
 import { usePhotoGallery } from '../../hooks/usePhotoGallery';
@@ -121,17 +122,22 @@ export default function PropertyDetailScreen() {
     );
   };
 
-  const handleQuickQuestion = () => {
-    if (!quickQuestion.trim()) return;
-    Alert.alert(
-      labels.propertyDetail.quickQuestionSentTitle,
-      labels.propertyDetail.quickQuestionSentMessage(quickQuestion)
-    );
-    setQuickQuestion('');
-  };
+  const askInChat = useCallback(
+    (question: string) => {
+      router.navigate({
+        pathname: '/',
+        params: { ask: labels.propertyDetail.askAbout(question, title), askAt: String(Date.now()) },
+      });
+    },
+    [router, labels, title]
+  );
+  const voice = useVoiceNote(askInChat);
 
-  const handleMicPress = () => {
-    Alert.alert(labels.propertyDetail.micAlertTitle, labels.propertyDetail.micAlertMessage);
+  const handleQuickQuestion = (text?: string) => {
+    const question = (text ?? quickQuestion).trim();
+    if (!question) return;
+    setQuickQuestion('');
+    askInChat(question);
   };
 
   return (
@@ -174,9 +180,7 @@ export default function PropertyDetailScreen() {
             <Text style={styles.priceText}>{price}</Text>
 
             <View style={styles.badgeRow}>
-              <View style={styles.agencyBadge}>
-                <Text style={styles.agencyBadgeText}>{labels.propertyDetail.noAgencyFees}</Text>
-              </View>
+
               {propertyTypeLabel && (
                 <View style={styles.typeBadge}>
                   <Text style={styles.typeBadgeText}>{propertyTypeLabel}</Text>
@@ -269,10 +273,9 @@ export default function PropertyDetailScreen() {
               value={quickQuestion}
               onChangeText={setQuickQuestion}
               onSend={handleQuickQuestion}
-              onMicPress={handleMicPress}
-              placeholder={labels.chat.inputPlaceholder}
-              hasTopBorder={false}
-              containerStyle={styles.detailInputContainer}
+              onMicPress={() => void voice.onMicPress()}
+              isRecording={voice.isRecording}
+              loading={voice.busy}
             />
           )}
         </View>

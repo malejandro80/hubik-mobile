@@ -18,6 +18,10 @@ jest.mock('expo-router', () => {
   };
 });
 
+jest.mock('../../hooks/useVoiceRecorder', () => ({
+  useVoiceRecorder: () => ({ state: { status: 'idle' }, start: jest.fn(), stop: jest.fn(), cancel: jest.fn() }),
+}));
+
 jest.mock('../../hooks/useAuth', () => ({
   useAuth: () => mockAuth,
 }));
@@ -171,7 +175,7 @@ describe('AgencyScreen chat', () => {
   const invite = { id: 'i1', email: 'luis@correo.com', createdAt: '2026-09-21T10:00:00Z' };
 
   const send = (utils: ReturnType<typeof render>, text: string) => {
-    fireEvent.changeText(utils.getByPlaceholderText('Escriba aquí lo que necesita...'), text);
+    fireEvent.changeText(utils.getByPlaceholderText('Escriba su consulta aquí...'), text);
     fireEvent.press(utils.getByLabelText('Enviar consulta'));
   };
 
@@ -183,18 +187,18 @@ describe('AgencyScreen chat', () => {
     (authApi.fetchAgentInvites as jest.Mock).mockResolvedValue([]);
   });
 
-  it('shows a chat bar without a microphone', async () => {
+  it('shows the same chat bar as every screen, microphone included', async () => {
     const utils = render(<AgencyScreen />);
 
-    expect(await utils.findByPlaceholderText('Escriba aquí lo que necesita...')).toBeTruthy();
-    expect(utils.queryByLabelText('Hablar por micrófono')).toBeNull();
+    expect(await utils.findByPlaceholderText('Escriba su consulta aquí...')).toBeTruthy();
+    expect(utils.getByLabelText('Hablar por micrófono')).toBeTruthy();
   });
 
   it('adds an agent typed in the chat, replies and refreshes the list', async () => {
     (authApi.addAgent as jest.Mock).mockResolvedValue('agent_added');
     (authApi.fetchAgencyAgents as jest.Mock).mockResolvedValueOnce([]).mockResolvedValue([ana]);
     const utils = render(<AgencyScreen />);
-    await utils.findByPlaceholderText('Escriba aquí lo que necesita...');
+    await utils.findByPlaceholderText('Escriba su consulta aquí...');
 
     send(utils, 'agrega a ana@correo.com como agente');
 
@@ -228,7 +232,7 @@ describe('AgencyScreen chat', () => {
 
   it('opens the home chat on request', async () => {
     const utils = render(<AgencyScreen />);
-    await utils.findByPlaceholderText('Escriba aquí lo que necesita...');
+    await utils.findByPlaceholderText('Escriba su consulta aquí...');
 
     send(utils, 'vuelve al inicio');
 
@@ -237,7 +241,7 @@ describe('AgencyScreen chat', () => {
 
   it('explains what can be said and changes nothing when the message is not understood', async () => {
     const utils = render(<AgencyScreen />);
-    await utils.findByPlaceholderText('Escriba aquí lo que necesita...');
+    await utils.findByPlaceholderText('Escriba su consulta aquí...');
 
     send(utils, 'hola');
 
@@ -255,7 +259,7 @@ describe('AgencyScreen chat', () => {
         <Probe />
       </ConversationProvider>
     );
-    await utils.findByPlaceholderText('Escriba aquí lo que necesita...');
+    await utils.findByPlaceholderText('Escriba su consulta aquí...');
 
     send(utils, 'agrega a ana@correo.com como agente');
 

@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react-native';
 import { useStartScreen } from '../useStartScreen';
-import { START_EXAMPLES, START_SEARCH_QUERY } from '../../constants/startScreen';
+import { INVENTORY_EXAMPLES, SEARCH_EXAMPLES, START_SEARCH_QUERY } from '../../constants/startScreen';
 import { REGISTER_COMMAND } from '../../lib/chatRegistration';
 
 const mockPush = jest.fn();
@@ -37,12 +37,33 @@ describe('useStartScreen', () => {
     mockAuth = signedOut;
   });
 
-  it('exposes the fixed examples and the actions for the current role', () => {
+  it('gives an owner inventory examples, the owner audience and the agency first', () => {
     mockAuth = owner;
     const { result } = renderHook(() => useStartScreen(handleSend));
 
-    expect(result.current.examples).toEqual(START_EXAMPLES);
-    expect(result.current.actions).toEqual(['search', 'register', 'my_agency']);
+    expect(result.current.audience).toBe('owner');
+    expect(result.current.examples).toEqual(INVENTORY_EXAMPLES);
+    expect(result.current.actions).toEqual(['my_agency', 'register', 'search']);
+  });
+
+  it('gives a visitor search examples', () => {
+    const { result } = renderHook(() => useStartScreen(handleSend));
+
+    expect(result.current.audience).toBe('visitor');
+    expect(result.current.examples).toEqual(SEARCH_EXAMPLES);
+  });
+
+  it('gives a client search examples and the way to create an agency', () => {
+    mockAuth = {
+      status: 'signedIn',
+      profile: { userId: 'u2', role: 'client', agencyId: null, displayName: 'Ana' },
+      capabilities: capabilities({ canCreateAgency: true }),
+    };
+    const { result } = renderHook(() => useStartScreen(handleSend));
+
+    expect(result.current.audience).toBe('client');
+    expect(result.current.examples).toEqual(SEARCH_EXAMPLES);
+    expect(result.current.actions).toEqual(['search', 'create_agency']);
   });
 
   it('passes the trimmed display name, or null when there is none', () => {
@@ -81,9 +102,11 @@ describe('useStartScreen', () => {
 
     result.current.onAction('sign_in');
     result.current.onAction('my_agency');
+    result.current.onAction('create_agency');
 
     expect(mockPush).toHaveBeenNthCalledWith(1, '/sign-in');
     expect(mockPush).toHaveBeenNthCalledWith(2, '/agency');
+    expect(mockPush).toHaveBeenNthCalledWith(3, '/create-agency');
     expect(handleSend).not.toHaveBeenCalled();
   });
 

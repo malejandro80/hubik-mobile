@@ -55,6 +55,8 @@ export const labels = {
     descriptionGenError: (err: string) =>
       `⚠️ No pude generar la descripción (${err}). Diga o escriba "fijar ubicación" para intentar de nuevo.`,
     micNotAvailableTitle: 'Micrófono no disponible',
+    voiceNoteFailedTitle: 'No pudimos entender la nota de voz',
+    voiceNoteFailedMessage: 'Inténtelo de nuevo o escriba su consulta.',
     micNotAvailableMessage:
       'No pudimos acceder al micrófono. Revisa los permisos de la app o escribe tu mensaje.',
     attachMorePhotos: 'Adjuntar más fotos',
@@ -109,7 +111,6 @@ export const labels = {
   },
   screenChat: {
     error: 'No pude completar eso. Inténtelo de nuevo.',
-    inputPlaceholder: 'Escriba aquí lo que necesita...',
     viewConversation: 'Ver conversación',
     viewConversationA11y: 'Abrir la conversación completa',
     lastReplyA11y: (text: string) => `Última respuesta: ${text}`,
@@ -181,7 +182,12 @@ export const labels = {
   startScreen: {
     greeting: (name: string) => `Hola, ${name}`,
     greetingAnonymous: 'Bienvenido a Hubik',
-    subtitle: '¿Qué quiere hacer hoy?',
+    subtitles: {
+      visitor: 'Encuentre su próxima vivienda',
+      client: '¿Qué vivienda busca hoy?',
+      agent: '¿Qué va a publicar o buscar hoy?',
+      owner: 'Gestione su inmobiliaria y su equipo',
+    },
     actionsTitle: 'Empezar',
     examplesTitle: 'Pruebe a decir…',
     micHint: 'Toque el micrófono para hablar',
@@ -192,6 +198,7 @@ export const labels = {
       sign_in: { title: 'Iniciar sesión', subtitle: 'Con Google o Apple' },
       register: { title: 'Publicar una propiedad', subtitle: 'Descríbala y suba fotos' },
       my_agency: { title: 'Mi inmobiliaria', subtitle: 'Agentes y propiedades' },
+      create_agency: { title: 'Crear mi inmobiliaria', subtitle: 'Invite a sus agentes' },
     },
   },
   photoOrder: {
@@ -406,10 +413,7 @@ export const labels = {
     contactAdvisorAlertTitle: 'Contactar asesor',
     contactAdvisorAlertMessage:
       'Conectando con su asesor personal de Hubik para coordinar una visita accesible.',
-    quickQuestionSentTitle: 'Consulta enviada',
-    quickQuestionSentMessage: (q: string) => `Su pregunta: "${q}" ha sido enviada al asistente.`,
-    micAlertTitle: 'Micrófono Hubik',
-    micAlertMessage: 'Hable con tranquilidad para consultar sobre esta vivienda.',
+    askAbout: (question: string, title: string) => `${question} (sobre «${title}»)`,
     errorGeneratingDescription: 'No se pudo generar la descripción en este momento.',
     featuresSectionTitle: 'Comodidades',
     operationSale: 'En venta',

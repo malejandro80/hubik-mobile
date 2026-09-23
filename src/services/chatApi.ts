@@ -724,3 +724,10 @@ export async function generatePropertyDescription(known: PropertyDraft): Promise
 export async function sendChatQueryAudio(audio: AudioPayload): Promise<ChatResponse & { transcript: string }> {
   return invokeAudioFunction<ChatResponse & { transcript: string }>('chat-query', { audio });
 }
+
+export async function transcribeVoiceNote(audio: AudioPayload): Promise<string> {
+  const { transcript } = await invokeAudioFunction<{ transcript?: string }>('chat-query', { audio, transcribe_only: true });
+  const text = typeof transcript === 'string' ? transcript.trim() : '';
+  if (!text) throw new Error('Empty transcript');
+  return text;
+}

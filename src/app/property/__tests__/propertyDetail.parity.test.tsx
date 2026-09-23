@@ -4,6 +4,10 @@ import PropertyDetailScreen from '../[id]';
 import * as chatApi from '../../../services/chatApi';
 import * as authApi from '../../../services/authApi';
 
+jest.mock('../../../hooks/useVoiceRecorder', () => ({
+  useVoiceRecorder: () => ({ state: { status: 'idle' }, start: jest.fn(), stop: jest.fn(), cancel: jest.fn() }),
+}));
+
 jest.mock('../../../services/chatApi', () => ({
   generatePropertyDescription: jest.fn().mockResolvedValue({ description: 'Texto generado.' }),
 }));

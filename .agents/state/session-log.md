@@ -1806,3 +1806,21 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Verification**: typecheck clean; lint 4 pre-existing warnings; 1127/1130 (3 known working-tree failures); publish smoke 401 from `requireAgent`; advisors unchanged.
 - **Next Actions**: approve RFCs 025-027; drop `match_properties_hybrid`/`match_properties` in a cleanup; sale/rent filter RFC; commit.
 
+---
+
+### [2026-09-23] RFC 028 one input bar
+- **Request**: the input bar must be identical across the project. Found 3 variants of `ChatInputBar`: detail wrapped in a padded dock (narrower, inset), agency with top border + own placeholder + no mic, detail mic/send were fake alerts. User chose: same look + real voice everywhere; detail question goes to the main chat.
+- **Code**: `ChatInputBar` drops `placeholder`/`accessibilityLabel`/`containerStyle`/`hasTopBorder`, `onMicPress` required (no disabled-send state anymore); `useVoiceNote` (record → `transcribeVoiceNote` → callback, alerts on mic/transcription failure); `useChatRouteParams` replaces the inline `startRegistration` effect and sends `ask` once per `askAt` (trimmed, `MAX_ASK_LENGTH`); detail navigates `{ ask: askAbout(question, title), askAt }`; dock no longer pads the bar; agency `ScreenChatBar` gets voice. Labels: removed agency placeholder and the fake alert texts; added `askAbout`, `voiceNoteFailed*`. `chat-query` v22 `transcribe_only`.
+- **Changed assertions (requirement change)**: detail fake-alert test → navigation tests; `ChatInputBar` "without a microphone" block removed; `ScreenChatBar`/agency "without a microphone" → mic present; agency placeholder text.
+- **Verification**: typecheck clean; lint 4 pre-existing warnings; 1137/1141 — failures are the 3 known working-tree ones plus `propertyDetail` "agency badge" caused by a concurrent working-tree edit removing the "Sin honorarios de agencia" badge (not in this commit). Simulator: bar pixel-aligned on home/detail; detail question reached the chat. Live transcribe-only OK; search eval 15/15.
+- **Next Actions**: approve RFC 028; update the agency-badge test with the badge removal; commit/PR.
+
+---
+
+### [2026-09-23] RFC 029 role-aware start screen
+- **Request**: customize the main view's options and messages by signed-in role. Content approved (subtitle, action order, examples per visitor/client/agent/owner).
+- **Code**: `getStartAudience`; `getStartActions` puts the main task first (owner → my_agency, agent → register) and adds `create_agency` for clients (→ `/create-agency`); `START_EXAMPLES_BY_AUDIENCE` (search vs inventory examples, all verified live); `labels.startScreen.subtitles`, `actions.create_agency`; `StartScreen` takes `audience`.
+- **Changed assertions (requirement change)**: action order in `startActions.test`/`useStartScreen.test`, agent subtitle in `StartScreen.test`, visitor example text in `index.start.test`.
+- **Found**: "La casa más barata con parrillera" returns a house without a parrillera first — the similarity window lets a near match through and the price sort promotes it (RFC 027 follow-up). Example swapped to "…con jardín".
+- **Verification**: typecheck clean; lint 4 pre-existing warnings; 1152/1156 (the 4 failures come from uncommitted working-tree edits: badge, mic hint, agency badge). Simulator: agent account sees agent subtitle, Publicar first, inventory examples.
+

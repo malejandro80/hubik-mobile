@@ -274,6 +274,12 @@ Deno.serve(async (req: Request) => {
         transcript = await transcribeAudio(audio, groqKey);
         effectiveMessage = transcript;
         console.log(`[chat-query] transcription completed in ${Date.now() - transcribeStart}ms`);
+        if (body?.transcribe_only === true) {
+          return new Response(JSON.stringify({ transcript }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
       } catch (transcribeErr: any) {
         console.error(
           `[chat-query] Groq audio transcription error after ${Date.now() - transcribeStart}ms:`,

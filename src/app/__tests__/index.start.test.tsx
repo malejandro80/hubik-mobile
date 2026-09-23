@@ -107,6 +107,29 @@ describe('HomeScreen start screen', () => {
     expect(queryByText('Iniciar sesión')).toBeNull();
   });
 
+  it('speaks to each role with its own message, first task and examples', () => {
+    mockAuth = buildAuth('agent', 'Ana');
+    const agent = renderHome();
+    expect(agent.getByText('¿Qué va a publicar o buscar hoy?')).toBeTruthy();
+    const labels = agent.getAllByRole('button').map((button) => button.props.accessibilityLabel);
+    expect(labels.indexOf('Publicar una propiedad. Descríbala y suba fotos')).toBeLessThan(
+      labels.indexOf('Buscar propiedades. Vea lo que hay disponible')
+    );
+    expect(agent.getByLabelText('Probar: Apartamentos en venta en Valencia')).toBeTruthy();
+    agent.unmount();
+
+    mockAuth = buildAuth('client', 'Ana');
+    const client = renderHome();
+    expect(client.getByText('¿Qué vivienda busca hoy?')).toBeTruthy();
+    expect(client.getByText('Crear mi inmobiliaria')).toBeTruthy();
+    expect(client.getByLabelText('Probar: Casas con jardín en Valencia')).toBeTruthy();
+    client.unmount();
+
+    mockAuth = buildAuth(null);
+    const visitor = renderHome();
+    expect(visitor.getByText('Encuentre su próxima vivienda')).toBeTruthy();
+  });
+
   it('runs the search when the search card is tapped, and the chat takes over', async () => {
     const { getByLabelText, getByText, queryByText } = renderHome();
 
@@ -121,9 +144,9 @@ describe('HomeScreen start screen', () => {
   it('runs an example exactly as written', async () => {
     const { getByLabelText } = renderHome();
 
-    fireEvent.press(getByLabelText('Probar: Pisos en venta en Valencia'));
+    fireEvent.press(getByLabelText('Probar: Casas con jardín en Valencia'));
 
-    await waitFor(() => expect(chatApi.sendChatQuery).toHaveBeenCalledWith('Pisos en venta en Valencia'));
+    await waitFor(() => expect(chatApi.sendChatQuery).toHaveBeenCalledWith('Casas con jardín en Valencia'));
   });
 
   it('starts the listing composer for an agent', async () => {
@@ -152,7 +175,7 @@ describe('HomeScreen start screen', () => {
 
   it('comes back after "Reiniciar Chat"', async () => {
     const { getByLabelText, getByText, queryByText } = renderHome();
-    fireEvent.press(getByLabelText('Probar: Pisos en venta en Valencia'));
+    fireEvent.press(getByLabelText('Probar: Casas con jardín en Valencia'));
     await waitFor(() => expect(getByText('Encontré 2 propiedades')).toBeTruthy());
     expect(queryByText('Empezar')).toBeNull();
 

@@ -1,13 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  StyleProp,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
@@ -25,13 +17,9 @@ export interface ChatInputBarProps {
   value: string;
   onChangeText: (text: string) => void;
   onSend: (text?: string) => void;
-  onMicPress?: () => void;
+  onMicPress: () => void;
   isRecording?: boolean;
-  placeholder?: string;
   loading?: boolean;
-  accessibilityLabel?: string;
-  containerStyle?: StyleProp<ViewStyle>;
-  hasTopBorder?: boolean;
 }
 
 export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
@@ -40,19 +28,12 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
   onSend,
   onMicPress,
   isRecording = false,
-  placeholder,
   loading = false,
-  accessibilityLabel,
-  containerStyle,
-  hasTopBorder = false,
 }) => {
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
   const labels = useLabels();
   const [isFocused, setIsFocused] = useState(false);
-
-  const resolvedPlaceholder = placeholder ?? labels.chat.inputPlaceholder;
-  const resolvedAccessibilityLabel = accessibilityLabel ?? labels.chat.accessibilityInput;
 
   const { styles, placeholderTextColor, iconColor } = useMemo(
     () => getChatInputBarStyles(theme),
@@ -63,12 +44,11 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
 
   const getActionType = (): ActionOptionKey => {
     if (isRecording) return 'recording';
-    if (isSendActive || !onMicPress) return 'send';
+    if (isSendActive) return 'send';
     return 'mic';
   };
 
   const actionType = getActionType();
-  const sendDisabled = actionType === 'send' && !isSendActive;
 
   const actionOptions: Record<ActionOptionKey, ActionOption> = useMemo(
     () => ({
@@ -93,19 +73,13 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
   const handleActionPress = () => {
     if (isSendActive) {
       onSend(value.trim());
-    } else if (onMicPress) {
+    } else {
       onMicPress();
     }
   };
 
   return (
-    <View
-      style={[
-        styles.wrapper,
-        hasTopBorder && styles.containerTopBorder,
-        containerStyle,
-      ]}
-    >
+    <View style={styles.wrapper}>
       <View style={styles.container}>
         <View
           style={[
@@ -115,7 +89,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
         >
           <TextInput
             style={styles.input}
-            placeholder={resolvedPlaceholder}
+            placeholder={labels.chat.inputPlaceholder}
             placeholderTextColor={placeholderTextColor}
             value={value}
             onChangeText={onChangeText}
@@ -126,7 +100,7 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
             }}
             returnKeyType="send"
             editable={!loading && !isRecording}
-            accessibilityLabel={resolvedAccessibilityLabel}
+            accessibilityLabel={labels.chat.accessibilityInput}
           />
         </View>
 
@@ -134,16 +108,14 @@ export const ChatInputBar: React.FC<ChatInputBarProps> = React.memo(({
           style={[
             styles.actionButton,
             isRecording && styles.actionButtonRecording,
-            sendDisabled && styles.actionButtonDisabled,
           ]}
           onPress={handleActionPress}
-          disabled={loading || sendDisabled}
+          disabled={loading}
           accessibilityRole="button"
           accessibilityLabel={selectedAction.accessibilityLabel}
           accessibilityState={{
             busy: loading,
             selected: isRecording,
-            disabled: sendDisabled,
           }}
           hitSlop={hitSlop.compact}
         >
