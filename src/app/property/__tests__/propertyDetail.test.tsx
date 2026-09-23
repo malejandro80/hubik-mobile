@@ -1,8 +1,20 @@
 import React from 'react';
-import { Alert, Image } from 'react-native';
+import { Alert, Image, Linking } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import PropertyDetailScreen from '../[id]';
 import * as chatApi from '../../../services/chatApi';
+import { AuthContext } from '../../../hooks/AuthProvider';
+import { getCapabilities } from '../../../lib/roles';
+import { AuthState } from '../../../types/auth';
+
+const agentSession: AuthState = {
+  status: 'signedIn',
+  profile: { userId: 'agent-1', role: 'agent', agencyId: 'a1', displayName: 'Luis' },
+  capabilities: getCapabilities('agent'),
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+  refreshProfile: jest.fn(),
+};
 
 jest.mock('../../../services/chatApi', () => ({
   generatePropertyDescription: jest.fn(),
@@ -45,6 +57,7 @@ let mockParams: {
   agency_name?: string;
   agent_name?: string;
   preview?: string;
+  whatsapp?: string;
 } = {
   id: 'prop-123',
   title: 'Barrio de Salamanca, Madrid',
@@ -123,18 +136,55 @@ describe('PropertyDetailScreen', () => {
     expect(getByText(/portero físico y ascensor accesible a cota cero/)).toBeTruthy();
   });
 
-  it('handles contact advisor action from fixed dock', async () => {
+  it('lets a visitor contact the listing agent on WhatsApp about this property', async () => {
+    mockParams = { ...mockParams, whatsapp: '+584141234567' };
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
     const { getByLabelText } = render(<PropertyDetailScreen />);
     await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
 
-    const contactBtn = getByLabelText('Contactar asesor de Hubik');
-    fireEvent.press(contactBtn);
+    fireEvent.press(getByLabelText('Contactar al asesor por WhatsApp'));
 
-    expect(Alert.alert).toHaveBeenCalledWith(
-      'Contactar asesor',
-      'Conectando con su asesor personal de Hubik para coordinar una visita accesible.',
-      [{ text: 'Entendido' }]
+    await waitFor(() =>
+      expect(openURL).toHaveBeenCalledWith(
+        'https://wa.me/584141234567?text=' +
+          encodeURIComponent('Hola, me interesa «Barrio de Salamanca, Madrid» que vi en Hubik.')
+      )
     );
+  });
+
+  it('explains when WhatsApp cannot be opened', async () => {
+    mockParams = { ...mockParams, whatsapp: '+584141234567' };
+    jest.spyOn(Linking, 'openURL').mockRejectedValue(new Error('no app'));
+    const { getByLabelText } = render(<PropertyDetailScreen />);
+    await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
+
+    fireEvent.press(getByLabelText('Contactar al asesor por WhatsApp'));
+
+    await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('No se pudo abrir WhatsApp', expect.any(String), expect.any(Array)));
+  });
+
+  it.each([
+    ['there is no number', undefined],
+    ['the number is not valid', '12345'],
+  ])('shows no contact button when %s', async (_label, whatsapp) => {
+    mockParams = { ...mockParams, whatsapp };
+    const { queryByLabelText } = render(<PropertyDetailScreen />);
+    await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
+
+    expect(queryByLabelText('Contactar al asesor por WhatsApp')).toBeNull();
+    expect(queryByLabelText('Contactar asesor de Hubik')).toBeNull();
+  });
+
+  it('does not offer the contact button to agents', async () => {
+    mockParams = { ...mockParams, whatsapp: '+584141234567' };
+    const { queryByLabelText } = render(
+      <AuthContext.Provider value={agentSession}>
+        <PropertyDetailScreen />
+      </AuthContext.Provider>
+    );
+    await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
+
+    expect(queryByLabelText('Contactar al asesor por WhatsApp')).toBeNull();
   });
 
   it('sends a typed question to the main chat, about this property, without a fake confirmation', async () => {

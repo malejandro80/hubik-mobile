@@ -250,5 +250,13 @@ graph TD
   RFC027 --> RFC030
   RFC030 --> SearchRpc
   SearchRpc -. "viewer CTE: auth.uid() → profiles.agency_id (agent/owner)" .-> Tenancy
+
+  RFC031["RFC 031: WhatsApp contact<br/>(agent number, agency fallback; visitors/clients contact)"]
+  RFC030 --> RFC031
+  WhatsApp["profiles.whatsapp / agencies.whatsapp<br/>(CHECK E.164, UPDATE(whatsapp) + owner-row RLS)"]
+  WhatsAppUi["lib/whatsapp + WhatsAppField<br/>(drawer for agents, Mi inmobiliaria for owners)"]
+  RFC031 --> WhatsApp
+  RFC031 --> WhatsAppUi
+  SearchRpc -. "contact_whatsapp = coalesce(agent, agency)" .-> WhatsApp
 ```
 

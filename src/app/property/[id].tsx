@@ -3,6 +3,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   Text,
@@ -25,6 +26,8 @@ import { useAppMenu } from '../../hooks/useAppMenu';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { useLabels } from '../../hooks/useLabels';
 import { useVoiceNote } from '../../hooks/useVoiceNote';
+import { useAuth } from '../../hooks/useAuth';
+import { canContactAgents, normalizeWhatsApp, whatsAppUrl } from '../../lib/whatsapp';
 import { useLegacyDescription } from '../../hooks/useLegacyDescription';
 import { useListingAttribution } from '../../hooks/useListingAttribution';
 import { usePhotoGallery } from '../../hooks/usePhotoGallery';
@@ -42,6 +45,7 @@ import { getPropertyDetailStyles } from './[id].styles';
 export default function PropertyDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<PropertyDetailRouteParams>();
+  const { profile } = useAuth();
 
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
@@ -114,12 +118,18 @@ export default function PropertyDetailScreen() {
     </>
   );
 
+  const contactPhone = params.whatsapp ? normalizeWhatsApp(params.whatsapp) : null;
+  const showContact = contactPhone !== null && canContactAgents(profile);
+
   const handleContactAdvisor = () => {
-    Alert.alert(
-      labels.propertyDetail.contactAdvisorAlertTitle,
-      labels.propertyDetail.contactAdvisorAlertMessage,
-      [{ text: labels.common.understood }]
-    );
+    if (!contactPhone) return;
+    Linking.openURL(whatsAppUrl(contactPhone, labels.propertyDetail.whatsappMessage(title))).catch(() => {
+      Alert.alert(
+        labels.propertyDetail.whatsappUnavailableTitle,
+        labels.propertyDetail.whatsappUnavailableMessage,
+        [{ text: labels.common.understood }]
+      );
+    });
   };
 
   const askInChat = useCallback(
@@ -253,20 +263,22 @@ export default function PropertyDetailScreen() {
         </ScrollView>
 
         <View style={styles.bottomDock}>
-          <TouchableOpacity
-            style={styles.contactButton}
-            onPress={handleContactAdvisor}
-            accessibilityRole="button"
-            accessibilityLabel={labels.propertyDetail.contactAdvisorA11y}
-          >
-            <Ionicons
-              name="headset-outline"
-              size={22}
-              color={iconColorOnPrimary}
-              style={styles.contactIcon}
-            />
-            <Text style={styles.contactButtonText}>{labels.propertyDetail.contactAdvisor}</Text>
-          </TouchableOpacity>
+          {showContact && (
+            <TouchableOpacity
+              style={styles.contactButton}
+              onPress={handleContactAdvisor}
+              accessibilityRole="button"
+              accessibilityLabel={labels.propertyDetail.contactWhatsAppA11y}
+            >
+              <Ionicons
+                name="logo-whatsapp"
+                size={22}
+                color={iconColorOnPrimary}
+                style={styles.contactIcon}
+              />
+              <Text style={styles.contactButtonText}>{labels.propertyDetail.contactWhatsApp}</Text>
+            </TouchableOpacity>
+          )}
 
           {!isPreview && (
             <ChatInputBar

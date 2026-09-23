@@ -36,6 +36,7 @@ export interface Property {
   agency_name?: string | null;
   agent_name?: string | null;
   created_by?: string;
+  contact_whatsapp?: string | null;
 }
 
 export interface PropertyDraft {

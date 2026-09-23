@@ -5,15 +5,17 @@ import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { getInitials } from '../lib/userDisplay';
+import { updateMyWhatsApp } from '../services/authApi';
 import { colors } from '../theme';
 import { AVATAR_SIZE, getDrawerProfileCardStyles } from './DrawerProfileCard.styles';
+import { WhatsAppField } from './WhatsAppField';
 
 export interface DrawerProfileCardProps {
   onSignInPress: () => void;
 }
 
 export const DrawerProfileCard: React.FC<DrawerProfileCardProps> = ({ onSignInPress }) => {
-  const { status, profile } = useAuth();
+  const { status, profile, refreshProfile } = useAuth();
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
   const labels = useLabels();
@@ -48,32 +50,42 @@ export const DrawerProfileCard: React.FC<DrawerProfileCardProps> = ({ onSignInPr
   const showPhoto = avatarUrl !== null && failedAvatarUrl !== avatarUrl;
   const initials = getInitials(profile.displayName);
 
+  const saveWhatsApp = async (phone: string | null) => {
+    await updateMyWhatsApp(profile.userId, phone);
+    await refreshProfile();
+  };
+
   return (
-    <View
-      testID="profile-card"
-      style={styles.profileCard}
-      accessible
-      accessibilityLabel={labels.burgerMenu.profileA11y(name, roleLabel)}
-    >
-      <View style={styles.avatarCircle}>
-        {showPhoto ? (
-          <Image
-            testID="profile-avatar-image"
-            source={{ uri: avatarUrl }}
-            style={styles.avatarImage}
-            onError={() => setFailedAvatarUrl(avatarUrl)}
-            accessibilityIgnoresInvertColors
-          />
-        ) : initials ? (
-          <Text style={styles.avatarText}>{initials}</Text>
-        ) : (
-          <Ionicons name="person" size={AVATAR_SIZE / 2} color={theme.onPrimary} />
-        )}
+    <>
+      <View
+        testID="profile-card"
+        style={styles.profileCard}
+        accessible
+        accessibilityLabel={labels.burgerMenu.profileA11y(name, roleLabel)}
+      >
+        <View style={styles.avatarCircle}>
+          {showPhoto ? (
+            <Image
+              testID="profile-avatar-image"
+              source={{ uri: avatarUrl }}
+              style={styles.avatarImage}
+              onError={() => setFailedAvatarUrl(avatarUrl)}
+              accessibilityIgnoresInvertColors
+            />
+          ) : initials ? (
+            <Text style={styles.avatarText}>{initials}</Text>
+          ) : (
+            <Ionicons name="person" size={AVATAR_SIZE / 2} color={theme.onPrimary} />
+          )}
+        </View>
+        <View style={styles.profileInfo}>
+          <Text style={styles.profileName}>{name}</Text>
+          <Text style={styles.profileRole}>{roleLabel}</Text>
+        </View>
       </View>
-      <View style={styles.profileInfo}>
-        <Text style={styles.profileName}>{name}</Text>
-        <Text style={styles.profileRole}>{roleLabel}</Text>
-      </View>
-    </View>
+      {profile.role === 'agent' && (
+        <WhatsAppField title={labels.whatsapp.profileTitle} value={profile.whatsapp} onSave={saveWhatsApp} />
+      )}
+    </>
   );
 };

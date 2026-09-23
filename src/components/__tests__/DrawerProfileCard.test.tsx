@@ -1,9 +1,14 @@
 import React from 'react';
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { DrawerProfileCard } from '../DrawerProfileCard';
 import { AuthContext } from '../../hooks/AuthProvider';
 import { getCapabilities } from '../../lib/roles';
 import { AuthState, Profile } from '../../types/auth';
+import { updateMyWhatsApp } from '../../services/authApi';
+
+jest.mock('../../services/authApi', () => ({
+  updateMyWhatsApp: jest.fn().mockResolvedValue(undefined),
+}));
 
 const buildAuthState = (overrides: Partial<AuthState>): AuthState => ({
   status: 'signedOut',
@@ -112,4 +117,25 @@ describe('DrawerProfileCard', () => {
     const { queryByTestId } = renderCard(buildAuthState({ status: 'loading' }));
     expect(queryByTestId('profile-card')).toBeNull();
   });
+
+  it('lets an agent publish their WhatsApp number and refreshes the profile', async () => {
+    const refreshProfile = jest.fn().mockResolvedValue(undefined);
+    const state = { ...signedIn({ role: 'agent', agencyId: 'a1', userId: 'agent-1' }), refreshProfile };
+    const { getByText, getByLabelText } = renderCard(state);
+
+    expect(getByText('WhatsApp de contacto')).toBeTruthy();
+    fireEvent.press(getByLabelText('Añadir WhatsApp'));
+    fireEvent.changeText(getByLabelText('Número de WhatsApp'), '+58 414 123 4567');
+    fireEvent.press(getByLabelText('Guardar'));
+
+    await waitFor(() => expect(updateMyWhatsApp).toHaveBeenCalledWith('agent-1', '+584141234567'));
+    await waitFor(() => expect(refreshProfile).toHaveBeenCalled());
+  });
+
+  it.each(['client', 'owner'] as const)('does not ask a %s for a WhatsApp number', (role) => {
+    const { queryByText } = renderCard(signedIn({ role }));
+
+    expect(queryByText('WhatsApp de contacto')).toBeNull();
+  });
 });
+

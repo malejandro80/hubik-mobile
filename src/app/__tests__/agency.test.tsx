@@ -32,6 +32,8 @@ jest.mock('../../services/authApi', () => ({
   fetchAgentInvites: jest.fn(),
   addAgent: jest.fn(),
   cancelAgentInvite: jest.fn(),
+  fetchAgencyWhatsApp: jest.fn(),
+  updateAgencyWhatsApp: jest.fn(),
 }));
 
 const ownerAuth = {
@@ -65,6 +67,30 @@ describe('AgencyScreen', () => {
     mockAuth = ownerAuth;
     (authApi.fetchAgencyAgents as jest.Mock).mockResolvedValue([]);
     (authApi.fetchAgentInvites as jest.Mock).mockResolvedValue([]);
+    (authApi.fetchAgencyWhatsApp as jest.Mock).mockResolvedValue(null);
+    (authApi.updateAgencyWhatsApp as jest.Mock).mockResolvedValue(undefined);
+  });
+
+  it('lets the owner set the agency WhatsApp number used as fallback', async () => {
+    (authApi.fetchAgencyListings as jest.Mock).mockResolvedValue([listing]);
+    const utils = render(<AgencyScreen />);
+
+    fireEvent.press(await utils.findByLabelText('Añadir WhatsApp'));
+    fireEvent.changeText(utils.getByLabelText('Número de WhatsApp'), '+58 424 000 0001');
+    fireEvent.press(utils.getByLabelText('Guardar'));
+
+    await waitFor(() => expect(authApi.updateAgencyWhatsApp).toHaveBeenCalledWith('a1', '+584240000001'));
+    expect(await utils.findByText('+584240000001')).toBeTruthy();
+  });
+
+  it('shows the agency number already saved', async () => {
+    (authApi.fetchAgencyListings as jest.Mock).mockResolvedValue([listing]);
+    (authApi.fetchAgencyWhatsApp as jest.Mock).mockResolvedValue('+584240000001');
+    const utils = render(<AgencyScreen />);
+
+    expect(await utils.findByText('WhatsApp de la inmobiliaria')).toBeTruthy();
+    expect(await utils.findByText('+584240000001')).toBeTruthy();
+    expect(authApi.fetchAgencyWhatsApp).toHaveBeenCalledWith('a1');
   });
 
   it('lists the properties published by the owner agency', async () => {
