@@ -1824,3 +1824,22 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Found**: "La casa más barata con parrillera" returns a house without a parrillera first — the similarity window lets a near match through and the price sort promotes it (RFC 027 follow-up). Example swapped to "…con jardín".
 - **Verification**: typecheck clean; lint 4 pre-existing warnings; 1152/1156 (the 4 failures come from uncommitted working-tree edits: badge, mic hint, agency badge). Simulator: agent account sees agent subtitle, Publicar first, inventory examples.
 
+---
+
+### [2026-09-23] RFC 027 amendment: sorted requests keep only lexical hits
+- **Bug**: "La casa más barata con parrillera" returned Los Colorados (550, no barbacoa) first. It passed the semantic window, then the price sort put it first. Only La Viña and the Guataparo quinta match "parrillera" lexically.
+- **Fix**: `search_properties_hybrid` keeps only lexical hits when `p_sort` is set and any lexical hit exists; otherwise the unchanged floor + window apply. Migration `20260923_precise_hybrid_search_sorted_lexical.sql` applied via MCP; anon test query returns La Viña, Guataparo. RFC 027 §8 documents it (amendment, not a new RFC).
+- **Eval**: new case → 15/16 before, 16/16 after. Advisors: no new findings.
+- **Known trade-off**: a sorted request whose term matches some listings lexically drops listings that only match a synonym ("la más barata con pileta" would still use the semantic window, since "pileta" has no lexical hits).
+- **Next Actions**: approve RFC 027 with the amendment; commit.
+
+---
+
+### [2026-09-23] RFC 030 role-scoped search (slice 1 of 2)
+- **Request**: clients see all listings and contact the agent by WhatsApp; agents see their own + their agency's; owners see their team's. Scoped into RFC 030 (visibility) and RFC 031 (WhatsApp, next). Decisions: agent and owner both see the whole agency (agent's own marked "Tuya"); visitors like clients; scoping in search/listings, not RLS.
+- **DB**: `role_scoped_search` recreates `search_properties_hybrid` from the live definition (incl. the sorted-lexical amendment) with a `viewer` CTE (`auth.uid()` → own profile, agent/owner) and a `created_by` column. Verified by impersonation (visitor/client 22/5 agencies, agent/owner 6/1). Advisors unchanged.
+- **App**: `Property.created_by`; `PropertyCard` "Tuya" badge for the signed-in author agent.
+- **Known limitation**: `chat-query`'s structured fallback (only on RPC error) and `querySupabaseDirectly` stay unscoped.
+- **Env note**: this worktree is nested in the main repo, so ESLint must run with `--no-eslintrc -c .eslintrc.json`, Jest with `--testPathIgnorePatterns='/\.kilo/'`, and eval needs the main `.env` exported.
+- **Verification**: typecheck clean; lint 4 pre-existing warnings; 1154/1158 (4 known design-edit failures); search eval 16/16; simulator agent search scoped to Casa Norte.
+

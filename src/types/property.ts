@@ -35,6 +35,7 @@ export interface Property {
   agency_id?: string;
   agency_name?: string | null;
   agent_name?: string | null;
+  created_by?: string;
 }
 
 export interface PropertyDraft {

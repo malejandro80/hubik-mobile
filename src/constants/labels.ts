@@ -62,6 +62,7 @@ export const labels = {
     attachMorePhotos: 'Adjuntar más fotos',
   },
   propertyCard: {
+    ownListing: 'Tuya',
     status: {
       available: 'Disponible',
       pending: 'Pendiente',

@@ -30,6 +30,7 @@ export const SEARCH_EVAL_CASES: SearchEvalCase[] = [
   },
   { query: 'con vista a la montaña', expect: { kind: 'topHaveAmenity', within: 3, amenity: 'vista a la montaña' } },
   { query: 'la casa más barata con jardín', expect: { kind: 'first', title: 'Casa en alquiler en El Bosque' } },
+  { query: 'La casa más barata con parrillera', expect: { kind: 'topHaveAmenity', within: 1, amenity: 'barbacoa' } },
   { query: 'castillo medieval con foso', expect: { kind: 'empty' } },
   { query: 'pisos en Valencia', expect: { kind: 'minCount', count: 9 } },
   { query: 'casas de 3 habitaciones', expect: { kind: 'minCount', count: 4 } },

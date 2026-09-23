@@ -38,7 +38,8 @@ results when nothing is relevant).
 - [x] Relevance floor: when the request has distinctive terms, a listing is kept only if it
       matches them lexically or its similarity reaches `MIN_SIMILARITY`; pure-filter requests
       ("pisos en Valencia") are not thresholded.
-- [x] Explicit price sorts rank by relevance first, then order the relevant rows by price.
+- [x] Explicit price sorts rank by relevance first, then order the relevant rows by price. When
+      a sorted request has lexical hits for its content terms, only those hits are kept (§8).
 - [x] Without a Gemini key, the RPC still works lexically (no threshold).
 - [x] Eval set passes 15/15.
 
@@ -147,3 +148,21 @@ and deciding whether the relevance floor applies.
 - Follow-up: drop `match_properties_hybrid` (no longer called) and the legacy `match_properties`
   once nothing references them.
 
+
+---
+
+## 8. Amendment: sorted requests keep only lexical hits (2026-09-23)
+- **Bug**: "La casa más barata con parrillera" returned "Casa en alquiler en Los Colorados" first.
+  It has no `barbacoa` amenity and does not mention a parrillera. Only two houses match the term
+  lexically (La Viña, 165 000; Guataparo, 285 000). Los Colorados passed the semantic window, and
+  the price sort then put it first because it costs 550. With a price sort, the cheapest row that
+  is only semantically close wins, so the window is not precise enough there.
+- **Rule**: when `p_sort` is set and at least one filtered row matches the content terms lexically,
+  the RPC keeps only the lexical hits. When no row matches lexically (synonyms such as "pileta" →
+  `piscina`), the unsorted floor and window still apply. Requests without a sort are unchanged.
+  Tightening the window for sorted requests was rejected: it would be a second threshold calibrated
+  on 22 listings, and it would still let a close but unrelated cheap listing through.
+- **Migration**: `20260923_precise_hybrid_search_sorted_lexical.sql` (`CREATE OR REPLACE`, same
+  signature and grants, still `SECURITY INVOKER`), applied via MCP. No Edge Function change.
+- **Eval**: case added (`topHaveAmenity` within 1, `barbacoa`). Before 15/16 (the new case fails)
+  → after 16/16. Security advisors: no new findings.
