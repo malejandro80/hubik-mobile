@@ -9,6 +9,7 @@ import {
   intakePropertyAudio,
   publishProperty,
   generatePropertyDescription,
+  transcribeVoiceNote,
 } from '../chatApi';
 import { supabase } from '../../lib/supabase';
 import { LISTING_COLUMNS } from '../../constants/propertyColumns';
@@ -689,3 +690,28 @@ describe('chatApi - generatePropertyDescription', () => {
     await expect(generatePropertyDescription({})).rejects.toThrow();
   });
 });
+
+describe('chatApi - transcribeVoiceNote', () => {
+  const audio = { data: 'YmFzZTY0LWF1ZGlv', mimeType: 'audio/mp4' };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('asks chat-query only for the transcript of the voice note', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({ data: { transcript: ' ¿Tiene garaje? ' }, error: null });
+
+    await expect(transcribeVoiceNote(audio)).resolves.toBe('¿Tiene garaje?');
+    expect(supabase.functions.invoke).toHaveBeenCalledWith(
+      'chat-query',
+      expect.objectContaining({ body: { audio, transcribe_only: true } })
+    );
+  });
+
+  it('fails when nothing was understood', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({ data: { transcript: '   ' }, error: null });
+
+    await expect(transcribeVoiceNote(audio)).rejects.toThrow();
+  });
+});
+

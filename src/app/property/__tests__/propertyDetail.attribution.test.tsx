@@ -2,6 +2,10 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import PropertyDetailScreen from '../[id]';
 
+jest.mock('../../../hooks/useVoiceRecorder', () => ({
+  useVoiceRecorder: () => ({ state: { status: 'idle' }, start: jest.fn(), stop: jest.fn(), cancel: jest.fn() }),
+}));
+
 jest.mock('../../../services/chatApi', () => ({
   generatePropertyDescription: jest.fn().mockResolvedValue({ description: 'Vivienda luminosa.' }),
 }));

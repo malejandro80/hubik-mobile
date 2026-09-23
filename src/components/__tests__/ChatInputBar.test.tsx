@@ -14,7 +14,6 @@ describe('ChatInputBar Component', () => {
         onChangeText={handleChangeText}
         onSend={handleSend}
         onMicPress={handleMic}
-        placeholder="Escriba su consulta aquí..."
       />
     );
 
@@ -39,7 +38,6 @@ describe('ChatInputBar Component', () => {
         onChangeText={handleChangeText}
         onSend={handleSend}
         onMicPress={handleMic}
-        placeholder="Escriba su consulta aquí..."
       />
     );
 
@@ -60,6 +58,7 @@ describe('ChatInputBar Component', () => {
         value="Ático con terraza"
         onChangeText={handleChangeText}
         onSend={handleSend}
+        onMicPress={jest.fn()}
       />
     );
 
@@ -81,7 +80,6 @@ describe('ChatInputBar Component', () => {
         onSend={handleSend}
         onMicPress={handleMic}
         isRecording={true}
-        placeholder="Escriba su consulta aquí..."
       />
     );
 
@@ -104,6 +102,7 @@ describe('ChatInputBar Component', () => {
         value="Searching..."
         onChangeText={handleChangeText}
         onSend={handleSend}
+        onMicPress={jest.fn()}
         loading={true}
       />
     );
@@ -113,24 +112,13 @@ describe('ChatInputBar Component', () => {
   });
 });
 
-describe('ChatInputBar without a microphone', () => {
-  it('shows a disabled send button instead of a microphone when the field is empty', () => {
-    const onSend = jest.fn();
-    const { getByLabelText, queryByLabelText } = render(<ChatInputBar value="" onChangeText={jest.fn()} onSend={onSend} />);
+describe('ChatInputBar is the same on every screen', () => {
+  it('always shows the standard placeholder and a microphone when empty', () => {
+    const { getByPlaceholderText, getByLabelText } = render(
+      <ChatInputBar value="" onChangeText={jest.fn()} onSend={jest.fn()} onMicPress={jest.fn()} />
+    );
 
-    expect(queryByLabelText('Hablar por micrófono')).toBeNull();
-    const button = getByLabelText('Enviar consulta');
-    expect(button.props.accessibilityState.disabled).toBe(true);
-    fireEvent.press(button);
-    expect(onSend).not.toHaveBeenCalled();
-  });
-
-  it('sends normally once there is text', () => {
-    const onSend = jest.fn();
-    const { getByLabelText } = render(<ChatInputBar value=" hola " onChangeText={jest.fn()} onSend={onSend} />);
-
-    fireEvent.press(getByLabelText('Enviar consulta'));
-
-    expect(onSend).toHaveBeenCalledWith('hola');
+    expect(getByPlaceholderText('Escriba su consulta aquí...')).toBeTruthy();
+    expect(getByLabelText('Hablar por micrófono')).toBeTruthy();
   });
 });

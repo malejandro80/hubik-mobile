@@ -12,10 +12,6 @@ export const getChatInputBarStyles = (theme: ThemeColors) => ({
       paddingHorizontal: spacing.lg,
       paddingVertical: spacing.md,
     },
-    containerTopBorder: {
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.border,
-    },
     inputCapsule: {
       flex: 1,
       flexDirection: 'row',
@@ -46,9 +42,6 @@ export const getChatInputBarStyles = (theme: ThemeColors) => ({
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.primary,
-    },
-    actionButtonDisabled: {
-      opacity: 0.4,
     },
     actionButtonRecording: {
       backgroundColor: theme.error,

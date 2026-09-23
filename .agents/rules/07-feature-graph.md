@@ -230,5 +230,14 @@ graph TD
   ChatQuery -. "buildHybridSearch → search_properties_hybrid" .-> SearchRpc
   SearchRpc -. "reads via property_listings (security_invoker)" .-> SearchTsv
   Publish -. "embeds listingDocument (title+type+operation+city+description+amenities)" .-> Embedding
+
+  RFC028["RFC 028: One input bar<br/>(same look + real voice on every screen; detail asks in the chat)"]
+  RFC026 --> RFC028
+  InputBar["ChatInputBar (no per-screen props, mic required)<br/>useVoiceNote + transcribeVoiceNote"]
+  RouteAsk["useChatRouteParams<br/>(startRegistration, ask/askAt)"]
+  RFC028 --> InputBar
+  RFC028 --> RouteAsk
+  InputBar -. "transcribe_only" .-> ChatQuery
+  RouteAsk -. "property detail → router.navigate('/', { ask, askAt })" .-> Hook
 ```
 

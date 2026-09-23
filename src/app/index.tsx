@@ -26,6 +26,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useConversation } from '../hooks/useConversation';
 import { useDraftReview } from '../hooks/useDraftReview';
+import { ChatRouteParams, useChatRouteParams } from '../hooks/useChatRouteParams';
 import { useLabels } from '../hooks/useLabels';
 import { useNewReply } from '../hooks/useNewReply';
 import { usePropertyRegistrationChat } from '../hooks/usePropertyRegistrationChat';
@@ -53,7 +54,7 @@ import {
 export default function HomeScreen() {
   const router = useRouter();
   const { status: authStatus, capabilities } = useAuth();
-  const params = useLocalSearchParams<{ startRegistration?: string }>();
+  const params = useLocalSearchParams<ChatRouteParams>();
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
   const labels = useLabels();
@@ -65,7 +66,6 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(false);
   const [mapPickerVisible, setMapPickerVisible] = useState(false);
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
-  const hasAutoStartedRef = useRef(false);
   const registration = usePropertyRegistrationChat();
   const recorder = useVoiceRecorder();
 
@@ -264,12 +264,7 @@ export default function HomeScreen() {
     [registration, handleSend]
   );
 
-  useEffect(() => {
-    if (params.startRegistration && !hasAutoStartedRef.current) {
-      hasAutoStartedRef.current = true;
-      handleSend(REGISTER_COMMAND);
-    }
-  }, [params.startRegistration, handleSend]);
+  useChatRouteParams(params, handleSend);
 
   const handleMicPress = useCallback(async () => {
     if (recorder.state.status === 'recording') {
@@ -394,7 +389,6 @@ export default function HomeScreen() {
           onSend={handleSend}
           onMicPress={handleMicPress}
           isRecording={recorder.state.status === 'recording'}
-          placeholder={labels.chat.inputPlaceholder}
           loading={loading || recorder.state.status === 'processing'}
         />
       </KeyboardAvoidingView>

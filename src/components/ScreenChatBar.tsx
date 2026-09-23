@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Text, TouchableOpacity, View } from 'react-native';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { useScreenChat } from '../hooks/useScreenChat';
+import { useVoiceNote } from '../hooks/useVoiceNote';
 import { colors, hitSlop } from '../theme';
 import { ChatInputBar } from './ChatInputBar';
 import { getScreenChatBarStyles } from './ScreenChatBar.styles';
@@ -18,6 +19,8 @@ export const ScreenChatBar: React.FC<ScreenChatBarProps> = ({ chat, onOpenConver
   const { screenChat } = useLabels();
   const colorScheme = useColorScheme();
   const styles = useMemo(() => getScreenChatBarStyles(colors[colorScheme]), [colorScheme]);
+  const { send } = chat;
+  const voice = useVoiceNote(useCallback((text: string) => void send(text), [send]));
 
   return (
     <View>
@@ -41,9 +44,9 @@ export const ScreenChatBar: React.FC<ScreenChatBarProps> = ({ chat, onOpenConver
         value={chat.inputText}
         onChangeText={chat.setInputText}
         onSend={(text) => void chat.send(text)}
-        loading={chat.loading}
-        placeholder={screenChat.inputPlaceholder}
-        hasTopBorder
+        onMicPress={() => void voice.onMicPress()}
+        isRecording={voice.isRecording}
+        loading={chat.loading || voice.busy}
       />
     </View>
   );
