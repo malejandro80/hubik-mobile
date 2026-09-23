@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { PROPERTY_TYPE_LABEL_ES, Property } from '../types/property';
+import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { formatPrice } from '../lib/propertyDetail';
@@ -27,6 +28,8 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
   const labels = useLabels();
+  const { profile } = useAuth();
+  const isOwnListing = profile?.role === 'agent' && Boolean(property.created_by) && property.created_by === profile.userId;
   const { styles, iconColorText, iconColorPrimaryText } = useMemo(
     () => getPropertyCardStyles(theme),
     [theme]
@@ -85,6 +88,11 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
             </Text>
             <Text style={styles.exclusivePercent}>{labels.propertyCard.commission}</Text>
           </View>
+          {isOwnListing && (
+            <View style={styles.ownBadge}>
+              <Text style={styles.ownBadgeText}>{labels.propertyCard.ownListing}</Text>
+            </View>
+          )}
         </View>
 
 

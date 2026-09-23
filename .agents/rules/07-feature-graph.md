@@ -245,5 +245,10 @@ graph TD
   StartAudience["lib/startActions getStartAudience + getStartActions<br/>constants/startScreen START_EXAMPLES_BY_AUDIENCE"]
   RFC029 --> StartAudience
   AuthClient -. "status + profile.role" .-> StartAudience
+
+  RFC030["RFC 030: Role-scoped search<br/>(agents/owners see only their agency; 'Tuya' badge)"]
+  RFC027 --> RFC030
+  RFC030 --> SearchRpc
+  SearchRpc -. "viewer CTE: auth.uid() → profiles.agency_id (agent/owner)" .-> Tenancy
 ```
 

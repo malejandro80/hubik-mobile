@@ -37,6 +37,16 @@ export const getPropertyCardStyles = (theme: ThemeColors) => ({
       borderRadius: radii.full,
       marginRight: spacing.sm,
     },
+    ownBadge: {
+      backgroundColor: theme.surface,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: radii.full,
+    },
+    ownBadgeText: {
+      ...typography.caption,
+      color: theme.primary,
+    },
     exclusiveDot: {
       ...typography.caption,
       color: theme.onPrimaryContainer,
