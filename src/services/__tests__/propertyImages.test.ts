@@ -1,5 +1,6 @@
 import { uploadPropertyImages, MAX_PROPERTY_IMAGES } from '../propertyImages';
 import { supabase } from '../../lib/supabase';
+import { IMAGE_UPLOAD_ATTEMPTS } from '../../constants/imageUpload';
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
@@ -73,5 +74,34 @@ describe('propertyImages - uploadPropertyImages', () => {
     uploadMock.mockResolvedValueOnce({ data: null, error: { message: 'network error' } });
 
     await expect(uploadPropertyImages('draft-1', ['file://a.jpg'])).rejects.toThrow(/network error/);
+  });
+
+  it('retries a photo whose upload never reached storage because the connection dropped', async () => {
+    uploadMock.mockResolvedValueOnce({
+      data: null,
+      error: { name: 'StorageUnknownError', message: 'fetch failed: The network connection was lost.' },
+    });
+
+    const urls = await uploadPropertyImages('draft-1', ['file://a.jpg']);
+
+    expect(uploadMock).toHaveBeenCalledTimes(2);
+    expect(urls).toHaveLength(1);
+  });
+
+  it('gives up with the connection error once every retry has dropped', async () => {
+    uploadMock.mockResolvedValue({
+      data: null,
+      error: { name: 'StorageUnknownError', message: 'fetch failed: The network connection was lost.' },
+    });
+
+    await expect(uploadPropertyImages('draft-1', ['file://a.jpg'])).rejects.toThrow(/network connection was lost/);
+    expect(uploadMock).toHaveBeenCalledTimes(IMAGE_UPLOAD_ATTEMPTS);
+  });
+
+  it('does not retry an error the storage server itself returned', async () => {
+    uploadMock.mockResolvedValueOnce({ data: null, error: { name: 'StorageApiError', message: 'Payload too large' } });
+
+    await expect(uploadPropertyImages('draft-1', ['file://a.jpg'])).rejects.toThrow(/Payload too large/);
+    expect(uploadMock).toHaveBeenCalledTimes(1);
   });
 });
