@@ -4,19 +4,20 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { START_ACTION_ICONS } from '../constants/startScreen';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
-import { StartActionKey } from '../lib/startActions';
+import { StartActionKey, StartAudience } from '../lib/startActions';
 import { colors } from '../theme';
 import { getStartScreenStyles } from './StartScreen.styles';
 
 export interface StartScreenProps {
   name: string | null;
+  audience: StartAudience;
   actions: StartActionKey[];
   examples: string[];
   onAction: (key: StartActionKey) => void;
   onExample: (text: string) => void;
 }
 
-export const StartScreen: React.FC<StartScreenProps> = ({ name, actions, examples, onAction, onExample }) => {
+export const StartScreen: React.FC<StartScreenProps> = ({ name, audience, actions, examples, onAction, onExample }) => {
   const { startScreen } = useLabels();
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
@@ -27,7 +28,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({ name, actions, example
       <Text style={styles.greeting} accessibilityRole="header">
         {name ? startScreen.greeting(name) : startScreen.greetingAnonymous}
       </Text>
-      <Text style={styles.subtitle}>{startScreen.subtitle}</Text>
+      <Text style={styles.subtitle}>{startScreen.subtitles[audience]}</Text>
 
       <View style={styles.group}>
         <Text style={styles.groupTitle}>{startScreen.actionsTitle}</Text>

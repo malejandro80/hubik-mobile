@@ -182,7 +182,12 @@ export const labels = {
   startScreen: {
     greeting: (name: string) => `Hola, ${name}`,
     greetingAnonymous: 'Bienvenido a Hubik',
-    subtitle: '¿Qué quiere hacer hoy?',
+    subtitles: {
+      visitor: 'Encuentre su próxima vivienda',
+      client: '¿Qué vivienda busca hoy?',
+      agent: '¿Qué va a publicar o buscar hoy?',
+      owner: 'Gestione su inmobiliaria y su equipo',
+    },
     actionsTitle: 'Empezar',
     examplesTitle: 'Pruebe a decir…',
     micHint: 'Toque el micrófono para hablar',
@@ -193,6 +198,7 @@ export const labels = {
       sign_in: { title: 'Iniciar sesión', subtitle: 'Con Google o Apple' },
       register: { title: 'Publicar una propiedad', subtitle: 'Descríbala y suba fotos' },
       my_agency: { title: 'Mi inmobiliaria', subtitle: 'Agentes y propiedades' },
+      create_agency: { title: 'Crear mi inmobiliaria', subtitle: 'Invite a sus agentes' },
     },
   },
   photoOrder: {

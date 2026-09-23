@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
-import { START_EXAMPLES, START_SEARCH_QUERY } from '../constants/startScreen';
+import { START_EXAMPLES_BY_AUDIENCE, START_SEARCH_QUERY } from '../constants/startScreen';
 import { REGISTER_COMMAND } from '../lib/chatRegistration';
-import { getStartActions, StartActionKey } from '../lib/startActions';
+import { getStartActions, getStartAudience, StartActionKey } from '../lib/startActions';
 import { useAuth } from './useAuth';
 
 export function useStartScreen(handleSend: (text: string) => void) {
@@ -10,6 +10,7 @@ export function useStartScreen(handleSend: (text: string) => void) {
   const { status, profile, capabilities } = useAuth();
 
   const actions = useMemo(() => getStartActions(capabilities, status), [capabilities, status]);
+  const audience = getStartAudience(status, profile?.role ?? null);
   const name = profile?.displayName?.trim() || null;
 
   const onAction = useCallback(
@@ -19,6 +20,7 @@ export function useStartScreen(handleSend: (text: string) => void) {
         register: () => handleSend(REGISTER_COMMAND),
         sign_in: () => router.push('/sign-in'),
         my_agency: () => router.push('/agency'),
+        create_agency: () => router.push('/create-agency'),
       };
       handlers[key]();
     },
@@ -27,5 +29,5 @@ export function useStartScreen(handleSend: (text: string) => void) {
 
   const onExample = useCallback((text: string) => handleSend(text), [handleSend]);
 
-  return { name, actions, examples: START_EXAMPLES, onAction, onExample };
+  return { name, audience, actions, examples: START_EXAMPLES_BY_AUDIENCE[audience], onAction, onExample };
 }

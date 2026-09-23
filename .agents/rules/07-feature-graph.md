@@ -239,5 +239,11 @@ graph TD
   RFC028 --> RouteAsk
   InputBar -. "transcribe_only" .-> ChatQuery
   RouteAsk -. "property detail → router.navigate('/', { ask, askAt })" .-> Hook
+
+  RFC029["RFC 029: Role-aware start screen<br/>(audience → subtitle, first task, examples)"]
+  RFC016 --> RFC029
+  StartAudience["lib/startActions getStartAudience + getStartActions<br/>constants/startScreen START_EXAMPLES_BY_AUDIENCE"]
+  RFC029 --> StartAudience
+  AuthClient -. "status + profile.role" .-> StartAudience
 ```
 

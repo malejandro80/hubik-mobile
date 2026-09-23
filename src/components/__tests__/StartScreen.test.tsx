@@ -6,6 +6,7 @@ const EXAMPLES = ['Pisos en venta en Valencia', 'Casas de 3 habitaciones en Madr
 
 const buildProps = (overrides: Partial<StartScreenProps> = {}): StartScreenProps => ({
   name: 'Ana',
+  audience: 'agent',
   actions: ['search', 'register'],
   examples: EXAMPLES,
   onAction: jest.fn(),
@@ -18,7 +19,27 @@ describe('StartScreen', () => {
     const { getByText } = render(<StartScreen {...buildProps()} />);
 
     expect(getByText('Hola, Ana')).toBeTruthy();
-    expect(getByText('¿Qué quiere hacer hoy?')).toBeTruthy();
+    expect(getByText('¿Qué va a publicar o buscar hoy?')).toBeTruthy();
+  });
+
+  it.each([
+    ['visitor', 'Encuentre su próxima vivienda'],
+    ['client', '¿Qué vivienda busca hoy?'],
+    ['agent', '¿Qué va a publicar o buscar hoy?'],
+    ['owner', 'Gestione su inmobiliaria y su equipo'],
+  ] as const)('speaks to the %s audience', (audience, subtitle) => {
+    const { getByText } = render(<StartScreen {...buildProps({ audience })} />);
+
+    expect(getByText(subtitle)).toBeTruthy();
+  });
+
+  it('offers a client the way to create an agency', () => {
+    const props = buildProps({ audience: 'client', actions: ['search', 'create_agency'] });
+    const { getByLabelText } = render(<StartScreen {...props} />);
+
+    fireEvent.press(getByLabelText('Crear mi inmobiliaria. Invite a sus agentes'));
+
+    expect(props.onAction).toHaveBeenCalledWith('create_agency');
   });
 
   it('greets a visitor without a name with a plain welcome', () => {
