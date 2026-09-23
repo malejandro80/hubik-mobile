@@ -1,6 +1,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { normalizeAmenities } from '../_shared/amenities.ts';
 import { embedText } from '../_shared/geminiEmbedding.ts';
+import { listingDocument } from '../_shared/listingDocument.ts';
 import { requireAgent } from '../_shared/auth.ts';
 import { normalizeCurrency } from '../_shared/currencies.ts';
 
@@ -169,10 +170,7 @@ Deno.serve(async (req: Request) => {
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
     const hasGeminiKey = Boolean(geminiKey) && geminiKey !== 'your_gemini_api_key_here';
-    const textToEmbed =
-      amenities.length > 0
-        ? `${property.description ?? ''}\n\nComodidades: ${amenities.join(', ')}`.trim()
-        : property.description;
+    const textToEmbed = listingDocument({ ...property, title: property.title || generateTitle(property), amenities });
     const embedding =
       textToEmbed && hasGeminiKey
         ? await embedText(textToEmbed, geminiKey!, 'RETRIEVAL_DOCUMENT')

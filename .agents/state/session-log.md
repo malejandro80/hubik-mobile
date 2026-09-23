@@ -1795,3 +1795,14 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Observed, not in scope**: "Pisos en venta en Valencia" returns rentals too — `operation_type` is not a search filter.
 - **Next Actions**: approve RFCs 025/026; commit.
 
+---
+
+### [2026-09-23] RFC 027 precise hybrid search
+- **Scope**: approved brief (single RFC; amenities as ranking signal; nothing shown when nothing is relevant). Spec `specs/027-precise-hybrid-search.md` (Under Review). Question answered along the way: chunked RAG does not help listings (descriptions 103-223 chars); it becomes useful for property documents, neighbourhood guides and process knowledge.
+- **Eval**: new `npm run eval:search` (`scripts/eval-search.ts`, cases in `scripts/eval/searchEvalCases.ts`) against live `chat-query`. Before 10/15 → after 15/15. One expectation of mine was wrong before implementation ("casas de 3 habitaciones" has 4 exact matches) and was corrected to `minCount: 4`.
+- **Root cause found**: Gemini extraction returns neighbourhoods as `city` (Guataparo, La Trigaleña) → hard filter → 0 rows. Now a city not in `properties.city` becomes a `place` that must appear in the listing text.
+- **DB** (MCP): migrations `precise_hybrid_search` + `precise_hybrid_search_window` — `unaccent` in `extensions`, `immutable_unaccent`, `listing_search_tsv`, generated GIN `properties.search_tsv` (+ column grant; SELECT on properties is column-level), view `property_listings` + `search_tsv` (security_invoker kept), RPC `search_properties_hybrid` (RRF k=60, OR lexical query, place AND query, floor 0.65 + window 0.05 only when there are content terms, price sort after relevance). Old `match_properties_hybrid` left in place, unused.
+- **Code**: `_shared/listingDocument.ts`, `_shared/hybridSearch.ts` (+ constants files, Jest-tested); `chat-query` v21 always calls the new RPC (embedding optional), structured query only on RPC error; `property-publish` v9 embeds `listingDocument`; `scripts/seed-properties.ts` too; `npm run reembed` backfilled 22/22. `tsconfig.json`: `noEmit` + `allowImportingTsExtensions`.
+- **Verification**: typecheck clean; lint 4 pre-existing warnings; 1127/1130 (3 known working-tree failures); publish smoke 401 from `requireAgent`; advisors unchanged.
+- **Next Actions**: approve RFCs 025-027; drop `match_properties_hybrid`/`match_properties` in a cleanup; sale/rent filter RFC; commit.
+

@@ -217,5 +217,18 @@ graph TD
   Typewriter["useTypewriter + lib/typewriter + useNewReply + useReduceMotion<br/>TypingIndicator (list footer while loading)"]
   RFC026 --> Typewriter
   Typewriter -. "animate only the reply that arrived after mount; cards and chips wait for the last word" .-> Chips
+
+  RFC027["RFC 027: Precise hybrid search<br/>(full listing document, weighted full-text, RRF, relevance floor)"]
+  RFC008 --> RFC027
+  RFC010 --> RFC027
+  HybridSearch["_shared/hybridSearch.ts + listingDocument.ts<br/>(content terms, place vs city, params)"]
+  SearchRpc["search_properties_hybrid RPC<br/>(replaces match_properties_hybrid)"]
+  SearchTsv["properties.search_tsv<br/>(generated, GIN; title A, amenities B, description C)"]
+  RFC027 --> HybridSearch
+  RFC027 --> SearchRpc
+  RFC027 --> SearchTsv
+  ChatQuery -. "buildHybridSearch → search_properties_hybrid" .-> SearchRpc
+  SearchRpc -. "reads via property_listings (security_invoker)" .-> SearchTsv
+  Publish -. "embeds listingDocument (title+type+operation+city+description+amenities)" .-> Embedding
 ```
 
