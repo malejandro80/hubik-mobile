@@ -50,3 +50,8 @@ export interface AgentInvite {
   email: string;
   createdAt: string;
 }
+
+export interface PropertyLandlord {
+  displayName: string | null;
+  email: string;
+}

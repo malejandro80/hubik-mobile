@@ -4,6 +4,7 @@ import { embedText } from '../_shared/geminiEmbedding.ts';
 import { listingDocument } from '../_shared/listingDocument.ts';
 import { requireAgent } from '../_shared/auth.ts';
 import { normalizeCurrency } from '../_shared/currencies.ts';
+import { isEligibleLandlord, parseLandlordId } from '../_shared/landlord.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -152,6 +153,28 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    const landlord = parseLandlordId(body?.landlord_id);
+    if (!landlord.ok) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid landlord_id' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    if (landlord.landlordId) {
+      const { data: landlordProfile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('user_id', landlord.landlordId)
+        .maybeSingle();
+      const { data: landlordUser } = await supabase.auth.admin.getUserById(landlord.landlordId);
+      if (!isEligibleLandlord(landlordProfile, landlordUser?.user ?? null)) {
+        return new Response(
+          JSON.stringify({ error: 'El propietario debe ser un cliente registrado' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     const { data: existing } = await supabase
       .from('properties')
       .select('id')
@@ -212,6 +235,16 @@ Deno.serve(async (req: Request) => {
         );
       }
       throw new Error(`Database insert error: ${error.message}`);
+    }
+
+    if (landlord.landlordId) {
+      const { error: linkError } = await supabase
+        .from('property_landlords')
+        .insert({ property_id: data.id, landlord_id: landlord.landlordId });
+      if (linkError) {
+        await supabase.from('properties').delete().eq('id', data.id);
+        throw new Error(`Landlord link error: ${linkError.message}`);
+      }
     }
 
     return new Response(

@@ -546,6 +546,36 @@ describe('usePropertyRegistrationChat', () => {
       expect(result.current.state.draft).toEqual({});
     });
 
+    it('keeps the chosen landlord outside the draft and publishes with its id, then forgets it', async () => {
+      intake.mockResolvedValueOnce(intakeResponse(COMPLETE));
+      publish.mockResolvedValueOnce({ id: 'new-1', title: 'Piso en venta en Madrid' });
+      const { result } = startComposer();
+      await act(async () => {
+        await result.current.processMessage('todos los datos');
+      });
+      const ana = { userId: 'c1', displayName: 'Ana García', maskedEmail: 'a***@gmail.com' };
+
+      act(() => result.current.setLandlord(ana));
+      expect(result.current.state.landlord).toEqual(ana);
+      expect(result.current.state.draft).not.toHaveProperty('landlord');
+
+      await act(async () => {
+        await result.current.confirmPublish();
+      });
+
+      expect(publish).toHaveBeenCalledWith(expect.objectContaining({ city: 'Madrid' }), 'c1');
+      expect(result.current.state.landlord).toBeNull();
+    });
+
+    it('lets the landlord be removed before publishing', () => {
+      const { result } = startComposer();
+
+      act(() => result.current.setLandlord({ userId: 'c1', displayName: 'Ana', maskedEmail: 'a***@gmail.com' }));
+      act(() => result.current.setLandlord(null));
+
+      expect(result.current.state.landlord).toBeNull();
+    });
+
     it('confirmPublish() uploads staged local photos as a single batch, preserving order', async () => {
       intake.mockResolvedValueOnce(intakeResponse(COMPLETE));
       upload.mockResolvedValueOnce(['https://storage.example.com/a.jpg', 'https://storage.example.com/b.jpg']);

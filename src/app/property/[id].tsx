@@ -18,6 +18,7 @@ import { ChatInputBar } from '../../components/ChatInputBar';
 import { Header } from '../../components/Header';
 import { PhotoGallery } from '../../components/PhotoGallery';
 import { PropertyAgentCard } from '../../components/PropertyAgentCard';
+import { PropertyLandlordSection } from '../../components/PropertyLandlordSection';
 import { PropertyDescriptionSection } from '../../components/PropertyDescriptionSection';
 import { PropertyMapPreview } from '../../components/PropertyMapPreview';
 import { PropertyStatsBar } from '../../components/PropertyStatsBar';
@@ -253,6 +254,8 @@ export default function PropertyDetailScreen() {
               </View>
             </View>
           )}
+
+          {!isPreview && params.id ? <PropertyLandlordSection propertyId={params.id} /> : null}
 
           <PropertyAgentCard
             agencyName={attribution.agencyName}

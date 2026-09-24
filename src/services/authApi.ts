@@ -19,6 +19,7 @@ import {
   AuthProviderName,
   ClientCandidate,
   Profile,
+  PropertyLandlord,
   Role,
   SignInOutcome,
 } from '../types/auth';
@@ -152,6 +153,21 @@ export async function searchAgentCandidates(query: string): Promise<ClientCandid
   const { data, error } = await supabase.rpc('search_agent_candidates', { p_query: normalizeClientQuery(query) });
   if (error) throw isRateLimitedError(error) ? new RateLimitedError() : error;
   return toClientCandidates(data);
+}
+
+export async function searchLandlordCandidates(query: string): Promise<ClientCandidate[]> {
+  if (!shouldSearchClients(query)) return [];
+
+  const { data, error } = await supabase.rpc('search_landlord_candidates', { p_query: normalizeClientQuery(query) });
+  if (error) throw isRateLimitedError(error) ? new RateLimitedError() : error;
+  return toClientCandidates(data);
+}
+
+export async function fetchPropertyLandlord(propertyId: string): Promise<PropertyLandlord | null> {
+  const { data, error } = await supabase.rpc('get_property_landlord', { p_property_id: propertyId });
+  if (error) throw error;
+  const row = Array.isArray(data) ? data[0] : null;
+  return row ? { displayName: row.display_name ?? null, email: row.email } : null;
 }
 
 export async function addAgentById(userId: string): Promise<AddAgentOutcome> {

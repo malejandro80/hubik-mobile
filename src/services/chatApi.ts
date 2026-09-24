@@ -664,10 +664,10 @@ async function publishPropertyDirect(draft: PropertyDraft): Promise<Property> {
   } as Property;
 }
 
-export async function publishProperty(draft: PropertyDraft): Promise<Property> {
+export async function publishProperty(draft: PropertyDraft, landlordId?: string | null): Promise<Property> {
   try {
     const { data, error } = await supabase.functions.invoke<{ property: Property }>('property-publish', {
-      body: { property: draft },
+      body: { property: draft, ...(landlordId ? { landlord_id: landlordId } : {}) },
     });
 
     if (error) throw error;

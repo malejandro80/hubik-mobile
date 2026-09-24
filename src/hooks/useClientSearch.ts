@@ -20,7 +20,10 @@ interface Settled {
 const IDLE: ClientSearchResult = { status: 'idle', results: [] };
 const LOADING: ClientSearchResult = { status: 'loading', results: [] };
 
-export function useClientSearch(query: string): ClientSearchResult {
+export function useClientSearch(
+  query: string,
+  search: (text: string) => Promise<ClientCandidate[]> = searchAgentCandidates
+): ClientSearchResult {
   const normalized = normalizeClientQuery(query);
   const searchable = shouldSearchClients(query);
   const [settledQuery, setSettledQuery] = useState({ id: 0, query: '' });
@@ -40,7 +43,7 @@ export function useClientSearch(query: string): ClientSearchResult {
     let active = true;
     const { id, query: text } = settledQuery;
 
-    searchAgentCandidates(text)
+    search(text)
       .then((results) => {
         if (active) setOutcome({ id, status: 'ready', results });
       })
@@ -53,7 +56,7 @@ export function useClientSearch(query: string): ClientSearchResult {
     return () => {
       active = false;
     };
-  }, [settledQuery]);
+  }, [settledQuery, search]);
 
   if (!searchable) return IDLE;
   if (settledQuery.query === normalized && outcome?.id === settledQuery.id) {

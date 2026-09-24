@@ -278,4 +278,19 @@ describe('DraftPanel description', () => {
     expect(utils.props.onRequestDescription).toHaveBeenCalledTimes(1);
     expect(utils.getByLabelText('Publicar propiedad').props.accessibilityState.disabled).toBeFalsy();
   });
+
+  it('offers the optional landlord picker when the screen handles it', () => {
+    const onLandlordChange = jest.fn();
+    const utils = renderPanel({
+      landlord: { userId: 'c1', displayName: 'Ana García', maskedEmail: 'a***@gmail.com' },
+      onLandlordChange,
+    });
+    expand(utils);
+    const { getByText, getByLabelText } = utils;
+
+    expect(getByText('Propietario (opcional)')).toBeTruthy();
+    fireEvent.press(getByLabelText('Quitar propietario'));
+    expect(onLandlordChange).toHaveBeenCalledWith(null);
+  });
 });
+

@@ -258,5 +258,14 @@ graph TD
   RFC031 --> WhatsApp
   RFC031 --> WhatsAppUi
   SearchRpc -. "contact_whatsapp = coalesce(agent, agency)" .-> WhatsApp
+
+  RFC032["RFC 032: Property landlord<br/>(optional client picked by autocomplete; agent + agency owner only)"]
+  RFC018 --> RFC032
+  RFC012 --> RFC032
+  Landlords["property_landlords (RLS) + search_landlord_candidates + get_property_landlord"]
+  LandlordUi["LandlordPicker (DraftPanel) + PropertyLandlordSection (detail)"]
+  RFC032 --> Landlords
+  RFC032 --> LandlordUi
+  Publish -. "validates landlord_id (confirmed client), links it, rolls back on failure" .-> Landlords
 ```
 

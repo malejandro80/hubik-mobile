@@ -11,7 +11,9 @@ import { DraftEditableField, FieldEditResult } from '../lib/draftValidation';
 import { MAX_PROPERTY_IMAGES } from '../services/propertyImages';
 import { colors, hitSlop } from '../theme';
 import { PropertyDraft } from '../types/property';
+import { ClientCandidate } from '../types/auth';
 import { AmenitiesConfirmation } from './AmenitiesConfirmation';
+import { LandlordPicker } from './LandlordPicker';
 import { DraftDescriptionBlock } from './DraftDescriptionBlock';
 import { getDraftPanelStyles } from './DraftPanel.styles';
 import { LivingDraftCard } from './LivingDraftCard';
@@ -34,6 +36,8 @@ export interface DraftPanelProps {
   onRequestDescription: () => void;
   onPublish: () => void;
   onPreview: () => void;
+  landlord?: ClientCandidate | null;
+  onLandlordChange?: (landlord: ClientCandidate | null) => void;
 }
 
 export const DraftPanel: React.FC<DraftPanelProps> = ({
@@ -53,6 +57,8 @@ export const DraftPanel: React.FC<DraftPanelProps> = ({
   onRequestDescription,
   onPublish,
   onPreview,
+  landlord,
+  onLandlordChange,
 }) => {
   const { composer } = useLabels();
   const colorScheme = useColorScheme();
@@ -225,6 +231,8 @@ export const DraftPanel: React.FC<DraftPanelProps> = ({
           </View>
 
           <AmenitiesConfirmation amenities={draft.amenities ?? []} onChange={onAmenitiesChange} />
+
+          {onLandlordChange && <LandlordPicker value={landlord ?? null} onChange={onLandlordChange} />}
 
           <DraftDescriptionBlock
             description={draft.description}
