@@ -11,7 +11,9 @@ import {
   fetchAgencyWhatsApp,
   fetchAgentInvites,
   fetchProfile,
+  fetchPropertyLandlord,
   searchAgentCandidates,
+  searchLandlordCandidates,
   signInWithProvider,
   signOut,
   updateAgencyWhatsApp,
@@ -492,6 +494,39 @@ describe('authApi WhatsApp numbers', () => {
 
     await expect(fetchAgencyWhatsApp('a1')).resolves.toBe('+584240000001');
     expect(select).toHaveBeenCalledWith('whatsapp');
+  });
+});
+
+describe('authApi landlord', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('searches landlord candidates through the agent-only function, with masked emails', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValue({
+      data: [{ user_id: 'c1', display_name: 'Ana García', masked_email: 'a***@gmail.com' }],
+      error: null,
+    });
+
+    await expect(searchLandlordCandidates('  Ana ')).resolves.toEqual([
+      { userId: 'c1', displayName: 'Ana García', maskedEmail: 'a***@gmail.com' },
+    ]);
+    expect(supabase.rpc).toHaveBeenCalledWith('search_landlord_candidates', { p_query: 'Ana' });
+  });
+
+  it('does not search with fewer than 3 characters', async () => {
+    await expect(searchLandlordCandidates('an')).resolves.toEqual([]);
+    expect(supabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it('reads the landlord of a listing when allowed, or null', async () => {
+    (supabase.rpc as jest.Mock).mockResolvedValueOnce({
+      data: [{ display_name: 'Ana García', email: 'ana@gmail.com' }],
+      error: null,
+    });
+    await expect(fetchPropertyLandlord('p1')).resolves.toEqual({ displayName: 'Ana García', email: 'ana@gmail.com' });
+    expect(supabase.rpc).toHaveBeenCalledWith('get_property_landlord', { p_property_id: 'p1' });
+
+    (supabase.rpc as jest.Mock).mockResolvedValueOnce({ data: [], error: null });
+    await expect(fetchPropertyLandlord('p2')).resolves.toBeNull();
   });
 });
 

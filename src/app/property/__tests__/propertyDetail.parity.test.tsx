@@ -14,6 +14,7 @@ jest.mock('../../../services/chatApi', () => ({
 
 jest.mock('../../../services/authApi', () => ({
   fetchAgencyName: jest.fn().mockResolvedValue('Casa Norte'),
+  fetchPropertyLandlord: jest.fn().mockResolvedValue(null),
 }));
 
 jest.mock('../../../hooks/useAuth', () => {

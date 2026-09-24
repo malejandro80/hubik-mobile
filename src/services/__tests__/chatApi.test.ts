@@ -660,6 +660,20 @@ describe('chatApi - publishProperty', () => {
     );
   });
 });
+describe('chatApi - publishProperty with a landlord', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('sends the landlord id next to the property, never inside it', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({ data: { property: { id: 'p1' } }, error: null });
+
+    await publishProperty({ city: 'Valencia' }, 'c1');
+
+    expect(supabase.functions.invoke).toHaveBeenCalledWith('property-publish', {
+      body: { property: { city: 'Valencia' }, landlord_id: 'c1' },
+    });
+  });
+});
+
 
 describe('chatApi - generatePropertyDescription', () => {
   beforeEach(() => {

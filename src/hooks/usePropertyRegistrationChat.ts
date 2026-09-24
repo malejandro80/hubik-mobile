@@ -14,6 +14,7 @@ import {
 } from '../services/chatApi';
 import { MAX_PROPERTY_IMAGES, uploadPropertyImages } from '../services/propertyImages';
 import { Property, PropertyDraft } from '../types/property';
+import { ClientCandidate } from '../types/auth';
 
 export type ComposerPhase = 'idle' | 'composing';
 
@@ -24,6 +25,7 @@ export interface ComposerState {
   describing: boolean;
   descriptionFailed: boolean;
   describedFrom: string | null;
+  landlord: ClientCandidate | null;
 }
 
 export interface IntakeOutcome {
@@ -44,6 +46,7 @@ const INITIAL_STATE: ComposerState = {
   describing: false,
   descriptionFailed: false,
   describedFrom: null,
+  landlord: null,
 };
 
 const generateSessionId = (): string => `d${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
@@ -91,6 +94,10 @@ export function usePropertyRegistrationChat() {
   const start = useCallback(() => {
     resetSession({ ...INITIAL_STATE, phase: 'composing' });
   }, [resetSession]);
+
+  const setLandlord = useCallback((landlord: ClientCandidate | null) => {
+    setState((prev) => ({ ...prev, landlord }));
+  }, []);
 
   const cancel = useCallback(() => {
     resetSession(INITIAL_STATE);
@@ -229,7 +236,7 @@ export function usePropertyRegistrationChat() {
   }, []);
 
   const confirmPublish = useCallback(async (): Promise<Property> => {
-    const { draft } = stateRef.current;
+    const { draft, landlord } = stateRef.current;
     const draftImages = draft.images ?? [];
     const localUris = draftImages.filter((uri) => uri.startsWith('file://'));
 
@@ -240,7 +247,8 @@ export function usePropertyRegistrationChat() {
       images = draftImages.map((uri) => (uri.startsWith('file://') ? uploaded[next++] : uri));
     }
 
-    const property = await publishProperty({ ...draft, images });
+    const listing = { ...draft, images };
+    const property = landlord ? await publishProperty(listing, landlord.userId) : await publishProperty(listing);
     resetSession(INITIAL_STATE);
     return property;
   }, [resetSession]);
@@ -261,5 +269,6 @@ export function usePropertyRegistrationChat() {
     updateAmenities,
     requestDescription,
     confirmPublish,
+    setLandlord,
   };
 }

@@ -298,6 +298,17 @@ export const labels = {
     addA11y: 'Agregar comodidad',
     removeA11y: (amenity: string) => `Quitar ${amenity}`,
   },
+  landlord: {
+    title: 'Propietario (opcional)',
+    sectionTitle: 'Propietario',
+    placeholder: 'Nombre o correo del propietario',
+    searchA11y: 'Buscar propietario por nombre o correo',
+    remove: 'Quitar',
+    removeA11y: 'Quitar propietario',
+    unnamed: 'Sin nombre',
+    selected: (name: string, maskedEmail: string) => `${name} · ${maskedEmail}`,
+    shown: (name: string, email: string) => `${name} · ${email}`,
+  },
   whatsapp: {
     profileTitle: 'WhatsApp de contacto',
     agencyTitle: 'WhatsApp de la inmobiliaria',

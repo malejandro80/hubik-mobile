@@ -378,6 +378,8 @@ export default function HomeScreen() {
             onRequestDescription={() => registration.requestDescription().catch(() => undefined)}
             onPublish={() => conversation.requestPublish()}
             onPreview={review.openPreview}
+            landlord={registration.state.landlord}
+            onLandlordChange={registration.setLandlord}
           />
         )}
 

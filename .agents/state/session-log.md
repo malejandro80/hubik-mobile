@@ -1852,3 +1852,13 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Verification**: typecheck clean; lint 4 pre-existing warnings; 1185/1189 (4 known design-edit failures); live search returns `contact_whatsapp`; advisors unchanged.
 - **Next Actions**: agents add their numbers; approve RFCs 030/031; push branches; new EAS build for Play (versionCode 3).
 
+---
+
+### [2026-09-23] RFC 032 property landlord
+- **Scope** (approved): optional "Propietario" in registration, autocomplete over registered clients (masked emails, RFC 018 pattern), visible (name + full email) only to the listing agent and the agency owner; no editing after publish; no invites.
+- **DB** (`property_landlords`): link table with RLS (listing agent / agency owner); `search_landlord_candidates` (agents only, rate-limited via `client_search_log`); `get_property_landlord`; EXECUTE revoked from anon. `property-publish` v10 validates `landlord_id` (UUID, confirmed client) before inserting and deletes the listing if the link fails.
+- **App**: landlord in composer state (not `PropertyDraft`, never sent to intake); `useClientSearch(query, search)`; `LandlordPicker` in `DraftPanel`; `PropertyLandlordSection` in the detail; `publishProperty(draft, landlordId?)`.
+- **Finding**: production has 0 client accounts; RFC 030's "client" check had run without a user — re-verified now with a temporary client (22 listings).
+- **Verification**: typecheck clean; lint 4 pre-existing warnings; 1207/1211 (4 known design-edit failures); SQL access matrix by impersonation; publish smoke 401.
+- **Known**: `publishPropertyDirect` fallback can't link a landlord; `[id].tsx` at 302 lines.
+
