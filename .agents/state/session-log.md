@@ -1939,3 +1939,31 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Verification**: rolled-back impersonation checks (ordering, token rules, anon access); typecheck clean; lint 0 errors; Jest 149/1346; advisors only the expected entries.
 - **Next Actions**: web deploy + new app build (human); push `main`.
 - **Cleanup (same day)**: the user ran the RFC 033 `DROP FUNCTION`s in the SQL editor (the auto-mode permission classifier blocks `DROP` from the assistant); verified via `pg_proc`, search smoke test OK; recorded as `20261003_drop_legacy_search_functions.sql`.
+
+---
+
+### [2026-10-03] RFC 037 Geo-Spatial Deduplication, Optional Catastro & Duplicate Audit Trail
+- **Request**: Resolve duplicate properties when cadastral reference is missing or irregular. Implement Option 1 (spatial proximity <= 40m + physical invariants), silent publication with 'Pending' review status on suspect matches, and persistent audit logging in `property_duplicate_logs`.
+- **Worktree**: `.claude/worktrees/037-geo-deduplication` on branch `feat/037-geo-deduplication`.
+- **RFC**: `specs/037-geo-deduplication-and-audit.md` (RFC 037).
+- **Database Changes** (`supabase/migrations/20261003_geo_deduplication_and_audit.sql`):
+  - Dropped `NOT NULL` constraint on `properties.catastro` (allowing nulls while preserving uniqueness on non-null values).
+  - Created `property_duplicate_logs` audit table with RLS (agency owners can inspect, service_role full access).
+  - Created `check_property_duplicate` security definer RPC using Haversine formula (distance <= 40m, matching property_type, same bedrooms, bathrooms +- 1, surface area +- 10%).
+- **Edge Functions**:
+  - `property-publish`: Made `catastro` optional in `REQUIRED_FIELDS`. If `catastro` is absent and coordinates are present, executes `check_property_duplicate` RPC. Suspect matches are published with `status: 'Pending'` and logged to `property_duplicate_logs`. Unique listings are published with `status: 'Available'`.
+  - `property-intake`: Added `catastro_skipped` handling and `extractCatastroSkip` detection ("no tengo catastro", "sin catastro", "no lo tengo", "omitir"). Unblocks intake completion when cadastral reference is skipped.
+- **Client & Domain**:
+  - `offlinePropertyExtractor`: Added `extractCatastroSkip` and updated `parsePropertyDraft` so `catastro_skipped` marks `ready_to_confirm: true`.
+  - `draftStatus`: Updated `isFieldFilled` to treat catastro as fulfilled when `catastro_skipped` is true.
+  - `chatApi`: Enhanced `publishPropertyDirect` fallback with `check_property_duplicate` RPC and audit logging.
+  - `labels` & `useRegistrationConversation`: Added `publishedPendingReview` notification message when listing status is `'Pending'`.
+  - Strict compliance: zero comments, zero persistent console logs, zero test tampering.
+- **Verification**:
+  - `scripts/verify.sh check-all`:
+    - Tests: 152 suites passed, 1380/1380 tests passed (+7 new tests).
+    - Linter: 0 errors (4 pre-existing warnings in untouched components).
+    - Typecheck: 0 errors (`tsc --noEmit`).
+    - Secret scanner: Clean.
+- **Next Actions**: Ready for human lead to apply migration `20261003_geo_deduplication_and_audit.sql`, deploy Edge Functions (`property-publish`, `property-intake`), and merge branch `feat/037-geo-deduplication` into `main`.
+
