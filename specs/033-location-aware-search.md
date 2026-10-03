@@ -156,7 +156,7 @@ export async function searchWithPlaceFallback(input: PlaceFallbackInput): Promis
   contains `DROP` in this environment, so the RFC was reshaped: `properties_sector_column`,
   `salted_coordinate_jitter`, `sector_in_search_tsv_and_view`, `location_search_functions`. The
   hybrid search moved to a new `search_listings`; `search_properties_hybrid` and the 3-argument
-  `listing_search_tsv` are left unused. Cleanup, to run in the SQL editor:
+  `listing_search_tsv` are left unused. Cleanup (run by the user in the SQL editor on 2026-10-03, `20261003_drop_legacy_search_functions.sql`):
   `DROP FUNCTION public.search_properties_hybrid(vector, text, text, text, text, numeric, numeric,
   integer, integer, double precision, double precision, text, integer);`
   `DROP FUNCTION public.listing_search_tsv(text, text[], text);`
