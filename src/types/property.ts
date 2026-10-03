@@ -9,7 +9,7 @@ export type PropertyStatus = 'Available' | 'Pending' | 'Sold';
 
 export type OperationType = 'sale' | 'rent';
 
-export interface Property {
+export interface PropertySummary {
   id: string;
   catastro?: string;
   title: string;
@@ -25,19 +25,25 @@ export interface Property {
   address: string | null;
   latitude?: number;
   longitude?: number;
-  description?: string;
   status: PropertyStatus;
   image_url: string;
   images: string[];
-  amenities: string[];
-  similarity?: number;
-  embedding?: number[];
+}
+
+export interface PropertyMetadata {
   created_at?: string;
   agency_id?: string;
   agency_name?: string | null;
   agent_name?: string | null;
   created_by?: string;
   contact_whatsapp?: string | null;
+  similarity?: number;
+  embedding?: number[];
+}
+
+export interface Property extends PropertySummary, PropertyMetadata {
+  description?: string;
+  amenities: string[];
 }
 
 export interface PropertyDraft {

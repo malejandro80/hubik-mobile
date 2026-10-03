@@ -1908,6 +1908,30 @@ This file records the chronological record of agent sessions to ensure continuit
 
 ---
 
+### [2026-10-03] RFC 034 SOLID & Clean Architecture Implementation
+- **Request**: Implement architectural recommendations addressing SOLID violations, Clean Code, and Clean Architecture principles in worktree 034 (`feat/034-architecture-analysis`).
+- **Changes Made**:
+  - **Single Responsibility Principle (SRP) & Clean Architecture**:
+    - Decomposed `chatApi.ts` from 499 lines down to 184 lines.
+    - Extracted the pure regex/NLP draft entity extraction engine into `src/lib/offlinePropertyExtractor.ts` (`extractOperationType`, `extractPrice`, `extractCatastro`, `buildAssistantMessage`, `parsePropertyDraft`, `generatePropertyTitle`).
+    - Extracted direct Supabase table searches and suggestions into `src/services/directSearchService.ts` (`fetchDynamicSuggestions`, `querySupabaseDirectly`).
+    - Cleaned up `chatApi.ts` to focus solely on transport coordination for Edge Functions and audio notes, maintaining full backwards compatibility.
+  - **Clean Presentation Containers & Hooks**:
+    - Extracted async side-effect fetching out of `PropertyLandlordSection.tsx` into a dedicated use-case hook `usePropertyLandlord.ts`.
+    - Made `PropertyLandlordSection.tsx` a pure presentation component.
+  - **Interface Segregation Principle (ISP)**:
+    - Segregated the monolithic `Property` interface into `PropertySummary`, `PropertyMetadata`, and `Property`.
+    - Added `src/types/chat.ts` for clean request/response envelope interfaces (`ChatResponse`, `AudioPayload`).
+  - **Zero-Comment & Zero-Console Discipline**:
+    - All newly created and modified files contain strictly zero comments and zero persistent console calls.
+- **Verification**:
+  - `npm run typecheck`: 0 errors.
+  - ESLint: 0 errors (4 pre-existing warnings in untouched components).
+  - Jest: 139 passed out of 139 total suites, 1293 passed out of 1293 total tests (all 47 original `chatApi` tests preserved + 27 new tests).
+- **Next Actions**: Merged into `main`.
+
+---
+
 ### [2026-10-03] RFC 035 scout sharing
 - **Scope** (approved): agency members see their own listings first, then colleagues'; sharing a colleague's listing produces an opaque link (`/s/<token>`) that shows the listing and the agency (agency WhatsApp, no button without one), never the listing agent; own listings, clients and organic search unchanged. Non-goals: recording who shared, notifications, expiry, cross-agency sharing.
 - **DB** (applied via MCP, no `DROP`): `listing_share_links` (one random token per listing, no sharer, RLS on, no grants), `create_listing_share_link` (definer, only for agency members on colleagues' listings), `get_shared_listing` (definer, public fields + agency contact, no id/address/agent), own-first `ORDER BY` in `search_listings` and `search_properties_nearby`.
