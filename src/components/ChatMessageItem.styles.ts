@@ -37,6 +37,11 @@ export const getChatMessageItemStyles = (theme: ThemeColors) =>
       marginBottom: spacing.sm,
       color: theme.primary,
     },
+    assistantBadge: {
+      ...typography.caption,
+      marginBottom: spacing.xs,
+      color: theme.secondary,
+    },
 
     messageText: {
       ...typography.body,

@@ -53,10 +53,6 @@ const generateSessionId = (): string => `d${Date.now()}${Math.random().toString(
 
 const pickVariant = (variants: readonly string[]): string => variants[Math.floor(Math.random() * variants.length)];
 
-// The "ready to confirm" chat message claims the listing is fully set up, but a draft with no
-// photo and no map pin isn't really - swap in a message that asks for one of those instead of
-// letting the assistant call an empty-media draft "done" (the panel below still allows
-// publishing without them; this only affects the chat's wording).
 const withMediaGate = (message: string, readyToConfirm: boolean, localDraft: PropertyDraft): string => {
   if (!readyToConfirm) return message;
   const hasPhotos = (localDraft.images?.length ?? 0) > 0;

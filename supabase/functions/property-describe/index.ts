@@ -2,6 +2,7 @@ import { describableFacts } from '../_shared/describeFacts.ts';
 import { propertyDescribeInstruction } from '../_shared/prompts.ts';
 import { geminiGenerateJson } from '../_shared/geminiFacade.ts';
 import { groqChatJson } from '../_shared/groqFacade.ts';
+import { ErrorCode, handleErrorResponse } from '../_shared/errorFacade.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,7 +72,6 @@ Deno.serve(async (req: Request) => {
 
     let description: string | undefined;
 
-    // 1. Try Gemini
     if (hasGeminiKey) {
       const parsed = await geminiGenerateJson<{ description?: string }>({
         model: 'gemini-2.5-flash',
@@ -85,7 +85,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 2. Try Groq fallback if Gemini is rate-limited (e.g. 429) or unavailable
     if (!description && groqKey) {
       const parsed = await groqChatJson<{ description?: string }>({
         key: groqKey,
@@ -100,7 +99,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 3. Fallback to clean deterministic description if all external AI services fail
     if (!description) {
       description = generateFallbackDescription(known);
     }
@@ -109,11 +107,12 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({ description }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
-    console.error('❌ [property-describe] Edge Function error:', error);
-    return new Response(
-      JSON.stringify({ error: error?.message || 'No se pudo generar la descripción' }),
-      { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+  } catch (error: unknown) {
+    return handleErrorResponse(error, {
+      logTag: 'property-describe',
+      corsHeaders,
+      fallbackCode: ErrorCode.UPSTREAM_SERVICE_ERROR,
+      fallbackMessage: 'No se pudo generar la descripción',
+    });
   }
 });

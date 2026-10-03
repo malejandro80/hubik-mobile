@@ -1,17 +1,4 @@
-// Gemini system instructions for every Edge Function. Written in English (prompt-engineering
-// convention for instruction-following models), each one explicitly directs the model to keep
-// its user-facing output (transcript, description, free text) in Spanish for Hubik's audience.
-
-// `gemini-2.5-flash-lite`: Google's documented model for high-volume classification/extraction
-// and low-latency use - a better fit than `gemini-2.5-flash` for the *text* extraction/
-// classification call sites (search filters, property fields; confirmed working live). Also gets
-// ahead of `gemini-2.5-flash`'s 2026-10-16 shutdown for these highest-volume calls.
-// `property-describe`'s generation call is intentionally left on `gemini-2.5-flash` for now
-// (RFC 008 Non-Goals).
 export const GEMINI_EXTRACTION_MODEL = 'gemini-2.5-flash';
-
-// Audio transcription moved to Groq/Whisper (RFC 009, `_shared/groqAudio.ts`) - Whisper takes no
-// system instruction, so there's no Gemini audio model/instruction to keep here anymore.
 
 export function chatQueryTextInstruction(): string {
   return (

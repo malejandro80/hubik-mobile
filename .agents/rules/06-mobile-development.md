@@ -58,8 +58,13 @@ This rule establishes mandatory standards for all mobile application code built 
 - **Declarative Views**: Screens and components remain strictly lean and declarative, focusing purely on UI composition, theme consumption, and user interactions.
 
 ## 11. Self-Documenting Code & Zero-Comment Discipline
-- **Zero Explanatory Comments**: Comments explaining component props, hooks, render blocks, or stylesheet metrics are strictly forbidden.
+- **Zero Comments Permitted**: Absolutely no comments (`//`, `/* */`, `{/* */}`, or JSDoc blocks) are permitted in component files, hooks, utilities, styles, or tests.
 - **Expressive Semantic Identifiers**: All component props, interfaces, event handlers, and constants must possess clear, unmistakable semantic names that render comments redundant.
 - **Clean JSX**: JSX markup must remain pristine and uncluttered by inline comment delimiters.
+
+## 12. Console Output Policy (Zero Console Noise)
+- **Zero Persistent Console Calls**: Never ship `console.log`, `console.info`, `console.debug`, or `console.warn` calls in mobile screens, hooks, or service layers.
+- **Temporary Debugging Strictly**: Console logs used for local diagnostics during development must be removed prior to code completion or review.
+- **Client Error Parsing**: Errors must be parsed and surfaced through `parseStandardError` and UI state, never by dumping unhandled error traces to the console.
 
 

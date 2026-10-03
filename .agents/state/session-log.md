@@ -1873,3 +1873,23 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Verification**: `video` typecheck clean, render 30.0 s h264. App: typecheck clean; lint 4 pre-existing warnings; 1166/1170 (same 4 known working-tree failures, confirmed unchanged with `video/` moved away).
 - **Next Actions**: add a licensed music track; delete the demo listing; decide whether to commit `video/`.
 - **Follow-up (same day), 60 s version**: composition extended to 1800 frames → `video/out/hubik-asesores-60s.mp4` (the 30 s render is kept as `hubik-asesores-30s.mp4`; its source timeline no longer exists). Added dictated search, price filter, semantic search and share scenes. The "third-party listings / partnerships" message was dropped: `search_properties_hybrid` scopes agents/owners to their own agency (`viewer` CTE), so an agent never sees other agencies' listings. Search issues seen while capturing: "50 mil" is not parsed as 50000; "Propiedades en Guataparo" returned nothing although the agency has a listing whose address is in Guataparo; two Casa Norte listings (Naguanagua, Campo Carabobo) have a simulator stock waterfall photo.
+
+---
+
+### [2026-10-03] Zero Comments Discipline & Zero Console Noise Policy
+- **Request**: Restrict console logging strictly to temporary local debugging, eliminate all explanatory comments (`//`, `/* */`), apply globally across codebase, and update agent governance rules.
+- **Changes Made**:
+  - Removed all `console.log` and non-facade `console.warn` statements across `supabase/functions/` and `src/`.
+  - Removed internal `console.error` from `groqFacade.ts` and `chatApi.ts`, delegating all server error logging strictly to the centralized error facade (`handleErrorResponse` in `supabase/functions/_shared/errorFacade.ts`).
+  - Removed all explanatory code comments (`//`, `/* */`) across all modified Edge Functions (`chat-query`, `property-intake`, `property-describe`, `property-publish`, `groqFacade`, `geminiFacade`, `prompts`, `cities`, `searchAnswer`, `audioPayload`) and client files (`chatApi`, `usePropertyRegistrationChat`, `intakeMessages`).
+  - Updated Agent Governance:
+    - [AGENTS.md](file:///Users/miguel/Desktop/programacion/hubik-mobile/AGENTS.md): Codified strict Zero-Comment Discipline (no comments permitted anywhere in application code, Edge Functions, or test files) and Console Output Policy (temporary debugging only; zero persistent console noise; only error facade allowed).
+    - [.agents/rules/02-architecture-core.md](file:///Users/miguel/Desktop/programacion/hubik-mobile/.agents/rules/02-architecture-core.md): Updated Section 7 (Zero Comments Allowed) and added Section 10 (Console Output Policy).
+    - [.agents/rules/03-definition-of-done.md](file:///Users/miguel/Desktop/programacion/hubik-mobile/.agents/rules/03-definition-of-done.md): Added zero console logs and zero comments to non-negotiable DoD item 5.
+    - [.agents/rules/06-mobile-development.md](file:///Users/miguel/Desktop/programacion/hubik-mobile/.agents/rules/06-mobile-development.md): Updated Section 11 and added Section 12 (Console Output Policy for mobile).
+- **Verification**:
+  - `npm run typecheck`: Clean (0 errors).
+  - `npm run lint`: Clean (0 errors).
+  - `npm test`: 136 suites passed, 1266 tests passed.
+  - `scripts/verify.sh check-all`: Clean pass across all 4 targets (test, lint, typecheck/build, secret scanner).
+- **Next Actions**: Ready for human lead review and atomic commit.

@@ -15,6 +15,7 @@ export const labels = {
     micA11y: 'Hablar por micrófono',
     sendSrOnly: 'Enviar',
     propertiesFound: (count: number) => `Propiedades Encontradas (${count}):`,
+    assistantBadge: '🤖 Asistente Hubik',
     justNow: 'Ahora',
     typing: 'Hubik está escribiendo…',
     voiceNote: '🎤 Nota de voz',

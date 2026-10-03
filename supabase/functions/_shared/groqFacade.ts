@@ -46,7 +46,6 @@ export async function groqChatJson<T>(params: GroqChatJsonParams): Promise<T | n
     });
 
     if (!response.ok) {
-      console.warn(`${logPrefix}Groq chat returned non-ok status:`, response.status);
       return null;
     }
 
@@ -56,14 +55,12 @@ export async function groqChatJson<T>(params: GroqChatJsonParams): Promise<T | n
     }
 
     return JSON.parse(content) as T;
-  } catch (error) {
-    console.warn(`${logPrefix}Groq chat error:`, error);
+  } catch {
     return null;
   }
 }
 
 export async function groqTranscribeAudio(params: GroqTranscribeParams): Promise<string> {
-  const logPrefix = params.logTag ? `[${params.logTag}] ` : '';
   const url = 'https://api.groq.com/openai/v1/audio/transcriptions';
   const formData = new FormData();
   formData.append('file', base64ToBlob(params.audio.data, params.audio.mimeType), 'recording.m4a');
@@ -75,7 +72,6 @@ export async function groqTranscribeAudio(params: GroqTranscribeParams): Promise
   });
 
   if (!response.ok) {
-    console.error(`${logPrefix}Groq transcription request failed (${response.status}): ${response.errorText || ''}`);
     throw new Error(`Groq transcription request failed (${response.status})`);
   }
 

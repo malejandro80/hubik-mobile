@@ -42,6 +42,7 @@ import {
   sendChatQuery,
   sendChatQueryAudio,
 } from '../services/chatApi';
+import { parseStandardError } from '../lib/errorFacade';
 import { colors } from '../theme';
 import { ChatMessage, Property } from '../types/property';
 import { getIndexStyles } from './index.styles';
@@ -180,10 +181,11 @@ export default function HomeScreen() {
       try {
         const response = await sendChatQuery(textToSend);
         appendAssistantMessage(newMessages, response.answer, response.data, response.suggestions);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const standard = parseStandardError(err);
         appendAssistantMessage(
           newMessages,
-          labels.chat.serviceError(err?.message || 'Verifica la conexión')
+          labels.chat.serviceError(standard.message)
         );
       } finally {
         setLoading(false);
@@ -229,14 +231,15 @@ export default function HomeScreen() {
           { id: generateMessageId('user'), sender: 'user', text: response.transcript, timestamp: labels.chat.justNow },
         ];
         appendAssistantMessage(newMessages, response.answer, response.data, response.suggestions);
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const standard = parseStandardError(err);
         const newMessages: ChatMessage[] = [
           ...messages,
           { id: generateMessageId('user'), sender: 'user', text: labels.chat.voiceNote, timestamp: labels.chat.justNow },
         ];
         appendAssistantMessage(
           newMessages,
-          labels.chat.voiceProcessError(err?.message || 'Verifica la conexión')
+          labels.chat.voiceProcessError(standard.message)
         );
       } finally {
         setLoading(false);

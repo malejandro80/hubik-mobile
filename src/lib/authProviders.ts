@@ -1,4 +1,5 @@
 import { labels } from '../constants/labels';
+import { parseStandardError } from './errorFacade';
 import { AuthProviderName } from '../types/auth';
 
 export interface AuthProviderOption {
@@ -12,5 +13,5 @@ export const AUTH_PROVIDER_OPTIONS: AuthProviderOption[] = [
 ];
 
 export function describeAuthError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  return parseStandardError(error).message;
 }

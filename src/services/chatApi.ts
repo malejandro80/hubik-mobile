@@ -43,12 +43,11 @@ async function invokeAudioFunction<T>(functionName: string, body: Record<string,
 
   try {
     return await attempt();
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (!(err instanceof FunctionsFetchError)) throw err;
-    console.warn(`[chatApi] ${functionName} audio request failed (${err?.context?.message || err.message}), retrying once...`);
     try {
       return await attempt();
-    } catch (retryErr: any) {
+    } catch (retryErr: unknown) {
       if (retryErr instanceof FunctionsFetchError) {
         throw new Error('No se pudo conectar para procesar la nota de voz. Verifica tu conexión e inténtalo de nuevo.');
       }
@@ -161,7 +160,6 @@ export async function querySupabaseDirectly(message: string): Promise<ChatRespon
   const { data, error } = await query;
 
   if (error) {
-    console.error('❌ [chatApi] Direct Supabase query error:', error.message);
     throw new Error(`Database query error: ${error.message}`);
   }
 
@@ -271,10 +269,6 @@ function extractCatastro(text: string, alreadyProvided: boolean): string | undef
   const legacyMatch = text.match(/\bLEGACY-[A-Za-z0-9]{5,13}\b/i);
   if (legacyMatch) return legacyMatch[0].toUpperCase();
 
-  // Official grouping (7-7-4-2 or 14-4-2), space- or hyphen-separated. Checked before the
-  // loose continuous pattern below: that pattern's character class includes hyphens, so on a
-  // full 4-group hyphenated reference it would otherwise grab an incomplete 14-20 char slice
-  // instead of the whole code.
   const spacedMatch = text.match(
     /\b([A-Za-z0-9]{7}\s+[A-Za-z0-9]{7}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2}|[A-Za-z0-9]{14}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2})\b/
   );
@@ -295,13 +289,6 @@ function extractCatastro(text: string, alreadyProvided: boolean): string | undef
     return trimmed.toUpperCase();
   }
 
-  // RFC 006 only requires a non-empty string for catastro (format/checksum validation against
-  // the real cadastre is explicitly out of scope). While it's still the field being collected,
-  // a single whitespace-free reply with a digit in it is almost certainly the user answering
-  // directly, even when it doesn't match the shapes above (test/dummy values, shorter internal
-  // references, etc). Gated to before catastro is already known so it can't misfire on a later
-  // single-word answer (bedroom count, m2, ...), and requires a digit so plain replies like
-  // "gracias" or "hola" aren't mistaken for a reference.
   if (!alreadyProvided && /^\S+$/.test(trimmed) && trimmed.length >= 4 && /[0-9]/.test(trimmed)) {
     return trimmed.toUpperCase();
   }
@@ -401,11 +388,7 @@ export async function intakeProperty(message: string, known: PropertyDraft): Pro
     if (data) return data;
 
     throw new Error('Invalid response received from property-intake function');
-  } catch (err: any) {
-    console.warn(
-      '[chatApi] property-intake Edge Function unreachable or failed. Using local heuristic extraction...',
-      err?.message
-    );
+  } catch {
     return parsePropertyDraft(message, known);
   }
 }
@@ -464,11 +447,7 @@ export async function publishProperty(draft: PropertyDraft, landlordId?: string 
     if (data?.property) return data.property;
 
     throw new Error('Invalid response received from property-publish function');
-  } catch (err: any) {
-    console.warn(
-      '[chatApi] property-publish Edge Function unreachable or failed. Inserting directly...',
-      err?.message
-    );
+  } catch {
     return publishPropertyDirect(draft);
   }
 }
@@ -491,11 +470,7 @@ export async function sendChatQuery(message: string): Promise<ChatResponse> {
     }
 
     throw new Error('Invalid response received from chat-query function');
-  } catch (err: any) {
-    console.warn(
-      '[chatApi] Supabase Edge Function unreachable or failed. Querying Supabase database directly...',
-      err?.message
-    );
+  } catch {
     return querySupabaseDirectly(message);
   }
 }

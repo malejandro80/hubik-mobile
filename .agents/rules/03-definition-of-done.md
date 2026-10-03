@@ -18,7 +18,8 @@ No task, feature, or bug fix is considered complete until it satisfies all crite
    - No sensitive credentials, tokens, or plain-text secrets exist in code or logs.
    - Passes `scripts/pre-commit-hook.sh` secret scan.
 5. **Zero Waste & Clean Worktree**:
-   - No temporary debug scripts, scratch test files, or commented-out dead code left in the working tree.
+   - No temporary console logging (`console.log`, `console.warn`, `console.debug`) or temporary debug scripts left in code.
+   - Zero comments (`//`, `/* */`, `{/* */}`) anywhere in the codebase; code is strictly self-documenting.
    - Git status is clean with atomic commits following the Conventional Commits format.
 6. **Session Handoff Ledger**:
    - The completed increment and next steps are logged in `.agents/state/session-log.md`.

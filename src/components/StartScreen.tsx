@@ -68,7 +68,7 @@ export const StartScreen: React.FC<StartScreenProps> = ({ name, audience, action
         ))}
       </View>
 
-     
+      <Text style={styles.micHint}>{startScreen.micHint}</Text>
     </View>
   );
 };

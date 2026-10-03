@@ -112,8 +112,7 @@ export async function composeSearchAnswer(input: SearchAnswerInput): Promise<Sea
 
   try {
     return (await requestAnswer(input, input.geminiKey)) ?? fallback();
-  } catch (error) {
-    console.warn('[searchAnswer] Gemini answer failed, using template:', error);
+  } catch {
     return fallback();
   }
 }

@@ -15,6 +15,7 @@ import { MAX_PROPERTY_IMAGES } from '../services/propertyImages';
 import { ChatMessage, Property } from '../types/property';
 import { useLabels } from './useLabels';
 import { usePropertyRegistrationChat } from './usePropertyRegistrationChat';
+import { parseStandardError } from '../lib/errorFacade';
 
 type Registration = ReturnType<typeof usePropertyRegistrationChat>;
 
@@ -27,8 +28,7 @@ export interface RegistrationConversationDeps {
   openMapPicker: () => void;
 }
 
-const errorText = (error: unknown, fallback: string): string =>
-  error instanceof Error && error.message ? error.message : fallback;
+
 
 export function useRegistrationConversation({
   registration,
@@ -70,7 +70,7 @@ export function useRegistrationConversation({
           addPhotos(result.assets.map((asset) => asset.uri));
         }
       } catch (error) {
-        appendAssistantMessage(base, labels.chat.photosSelectionError(errorText(error, 'error desconocido')));
+        appendAssistantMessage(base, labels.chat.photosSelectionError(parseStandardError(error).message));
       }
     },
     [messages, state.draft.images, addPhotos, appendAssistantMessage, labels]
@@ -83,7 +83,7 @@ export function useRegistrationConversation({
         const property = await confirmPublish();
         appendAssistantMessage(base, labels.chat.publishedSuccess(property.title), [property]);
       } catch (error) {
-        appendAssistantMessage(base, labels.chat.publishError(errorText(error, 'error desconocido')));
+        appendAssistantMessage(base, labels.chat.publishError(parseStandardError(error).message));
       } finally {
         setPublishing(false);
       }
@@ -126,7 +126,7 @@ export function useRegistrationConversation({
         const outcome = await processMessage(text);
         appendAssistantMessage(base, outcome.assistantMessage);
       } catch (error) {
-        appendAssistantMessage(base, labels.chat.processDataError(errorText(error, 'Verifica la conexión')));
+        appendAssistantMessage(base, labels.chat.processDataError(parseStandardError(error).message));
       } finally {
         setLoading(false);
       }

@@ -99,8 +99,11 @@ export const ChatMessageItem: React.FC<ChatMessageItemProps> = React.memo(
                   {message.title}
                 </Text>
               )}
-
-  
+              {!message.title && (
+                <Text style={styles.assistantBadge}>
+                  {labels.chat.assistantBadge}
+                </Text>
+              )}
 
               {renderBodyContent()}
 

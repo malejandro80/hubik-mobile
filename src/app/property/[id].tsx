@@ -191,7 +191,9 @@ export default function PropertyDetailScreen() {
             <Text style={styles.priceText}>{price}</Text>
 
             <View style={styles.badgeRow}>
-
+              <View style={styles.agencyBadge}>
+                <Text style={styles.agencyBadgeText}>{labels.propertyDetail.noAgencyFees}</Text>
+              </View>
               {propertyTypeLabel && (
                 <View style={styles.typeBadge}>
                   <Text style={styles.typeBadgeText}>{propertyTypeLabel}</Text>

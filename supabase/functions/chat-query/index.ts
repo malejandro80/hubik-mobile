@@ -8,6 +8,7 @@ import { composeSearchAnswer } from '../_shared/searchAnswer.ts';
 import { chatQueryTextInstruction, GEMINI_EXTRACTION_MODEL } from '../_shared/prompts.ts';
 import { transcribeAudio } from '../_shared/groqAudio.ts';
 import { geminiGenerateJson } from '../_shared/geminiFacade.ts';
+import { ErrorCode, handleErrorResponse } from '../_shared/errorFacade.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -244,8 +245,6 @@ Deno.serve(async (req: Request) => {
       },
     });
 
-    // 1. Resolve the message: transcribe-only for audio (no field extraction in that call),
-    // then run text and audio through the exact same cascade from here on.
     let transcript: string | undefined;
     let effectiveMessage: string;
 
@@ -255,56 +254,38 @@ Deno.serve(async (req: Request) => {
     const groqKey = Deno.env.get('GROQ_API_KEY');
 
     if (isAudioRequest) {
-      // Voice notes have no local text to run the regex heuristic against until transcribed.
-      // Deliberately no Gemini fallback here (RFC 009) - a fallback would silently reintroduce
-      // the free-tier quota ceiling this migration exists to get away from.
       if (!groqKey) {
         return new Response(
           JSON.stringify({ error: 'Las notas de voz requieren que Groq esté configurado en el servidor' }),
           { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      // Logged before transcription starts, not after: this line alone proves the request body
-      // (base64 audio) made it all the way to the Edge Function. When a voice note fails on the
-      // client with "Failed to send a request to the Edge Function" (a transport-level failure,
-      // not an HTTP error response), checking for this line at the reported time tells us whether
-      // the request ever arrived here at all, or died in transit before reaching Supabase.
-      console.log(`[chat-query] audio request received, base64 length: ${audio.data.length}`);
       const transcribeStart = Date.now();
       try {
         transcript = await transcribeAudio(audio, groqKey);
         effectiveMessage = transcript;
-        console.log(`[chat-query] transcription completed in ${Date.now() - transcribeStart}ms`);
         if (body?.transcribe_only === true) {
           return new Response(JSON.stringify({ transcript }), {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
-      } catch (transcribeErr: any) {
-        console.error(
-          `[chat-query] Groq audio transcription error after ${Date.now() - transcribeStart}ms:`,
-          transcribeErr
-        );
-        return new Response(
-          JSON.stringify({ error: transcribeErr?.message || 'No se pudo procesar la nota de voz' }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      } catch (transcribeErr: unknown) {
+        return handleErrorResponse(transcribeErr, {
+          logTag: 'chat-query',
+          corsHeaders,
+          requestStart: transcribeStart,
+          fallbackCode: ErrorCode.UPSTREAM_SERVICE_ERROR,
+          fallbackMessage: 'No se pudo procesar la nota de voz',
+        });
       }
     } else {
       effectiveMessage = message;
     }
 
-    // 1b. Cheap tier: the local heuristic against known cities (derived from what's actually in
-    // `properties.city` - any region, not a hardcoded list), zero tokens, ~2ms.
     const knownCities = await fetchKnownCities(supabaseUrl, supabaseKey);
     let filters: FilterParams = parsePromptFilters(effectiveMessage, knownCities);
 
-    // 1c. Escalate to Gemini when the heuristic came back empty, OR when it found something but
-    // no city - city is the single most determinant filter for the user, and a query that
-    // mentions a type/price/etc. alongside a city the heuristic doesn't recognize (a brand-new
-    // city with no listings yet, an accent/spelling variant, a typo) must still get a chance at
-    // it instead of silently searching with no city constraint at all.
     if (hasGeminiKey && (Object.keys(filters).length === 0 || !filters.city)) {
       const extractedFilters = await geminiGenerateJson<FilterParams>({
         model: GEMINI_EXTRACTION_MODEL,
@@ -315,8 +296,6 @@ Deno.serve(async (req: Request) => {
       });
 
       if (extractedFilters) {
-        // Heuristic values win on conflict (grounded in an exact DB city match); Gemini only
-        // fills gaps the heuristic left empty (e.g. city).
         filters = { ...extractedFilters, ...filters };
       }
     }
@@ -339,8 +318,8 @@ Deno.serve(async (req: Request) => {
       if (hybridError) throw hybridError;
       items = hybridMatches || [];
       usedHybridSearch = true;
-    } catch (hybridErr) {
-      console.warn('[chat-query] hybrid search failed, falling back to structured query:', hybridErr);
+    } catch {
+      usedHybridSearch = false;
     }
 
     if (!usedHybridSearch) {
@@ -403,10 +382,6 @@ Deno.serve(async (req: Request) => {
       geminiKey: hasGeminiKey ? geminiKey : undefined,
     });
 
-    console.log(
-      `[chat-query] request completed in ${Date.now() - requestStart}ms (${isAudioRequest ? 'audio' : 'text'})`
-    );
-
     return new Response(
       JSON.stringify({
         answer,
@@ -420,16 +395,12 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-  } catch (error: any) {
-    console.error(`❌ [chat-query] Edge Function error after ${Date.now() - requestStart}ms:`, error);
-    return new Response(
-      JSON.stringify({
-        error: error?.message || 'Internal error in chat-query Edge Function',
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+  } catch (error: unknown) {
+    return handleErrorResponse(error, {
+      logTag: 'chat-query',
+      corsHeaders,
+      requestStart,
+      fallbackMessage: 'Internal error in chat-query Edge Function',
+    });
   }
 });

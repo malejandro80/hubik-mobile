@@ -1,5 +1,5 @@
 export interface AudioPayload {
-  data: string; // base64-encoded recording, forwarded to the transcription vendor, never persisted
+  data: string;
   mimeType: string;
 }
 

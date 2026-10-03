@@ -37,7 +37,7 @@ Before introducing any new code, stop at the first rung that satisfies the requi
 - **Independent Testability**: Every library module under `src/lib/` must have an associated test suite under `src/lib/__tests__/`. React view files consume these tested libraries via clean imports.
 
 ## 7. Self-Documenting Code & Zero-Comment Discipline
-- **Zero Explanatory Comments**: Do not write comments (`//`, `/* */`, `{/* */}`) to explain what functions, constants, props, or components do.
+- **Zero Comments Allowed**: Absolutely no comments (`//`, `/* */`, `{/* */}`, or JSDoc blocks) are permitted in code, whether for explaining logic, annotating types, or leaving notes.
 - **Semantic Naming**: Ensure all types, props, functions, constants, and variables use crystal-clear, self-explanatory domain names that eliminate any ambiguity.
 - **Self-Evident Architecture**: If code requires an explanation, refactor it into smaller, semantically named functions, pure helpers, or well-named constants.
 
@@ -46,6 +46,24 @@ Before introducing any new code, stop at the first rung that satisfies the requi
 - **Dedicated Facade Layer**: All outbound HTTP calls, AI/LLM vendor queries (Google Gemini, Groq), and media/blob requests must pass through dedicated facade modules (e.g., `httpFacade`, `geminiFacade`, `groqFacade`).
 - **Encapsulated Transport Concerns**: The facade layer is exclusively responsible for headers, URL formatting, abort controllers/timeouts, response verification, error translation, and JSON parsing.
 - **Unit Test Isolation**: Every network and vendor facade must be covered by unit tests verifying status handling, timeouts, parsing, and failure fallbacks.
+
+## 9. Standardized Error Handling Facade Pattern (Zero Ad-Hoc Errors)
+- **Mandatory Catch Encapsulation**: Never return arbitrary error strings, ad-hoc status numbers, or unformatted responses from catch blocks.
+- **Edge Function Error Facade (`handleErrorResponse` & `AppError`)**:
+  - All catch blocks in Edge Functions (`supabase/functions/`) must delegate response formatting to `handleErrorResponse(error, options)` from `../_shared/errorFacade.ts`.
+  - Structured domain or validation errors must be instantiated using `AppError` static factories (`badRequest`, `unauthorized`, `forbidden`, `notFound`, `conflict`, `validation`, `upstream`, `timeout`, `internal`).
+  - Standard error responses always follow the envelope `{ error: string, code: ErrorCode, details?: unknown }`.
+- **Client Error Parsing Facade (`parseStandardError`)**:
+  - Mobile client code (`src/`, `app/`) must parse all incoming errors using `parseStandardError(error)` from `src/lib/errorFacade.ts`.
+  - All errors resolve to typed `ErrorCode` values and localized, user-friendly copy (`STANDARD_CLIENT_ERROR_MESSAGES`).
+  - Network drops, aborts/timeouts, and vendor failures are automatically classified into discrete codes (`NETWORK_ERROR`, `TIMEOUT_ERROR`, `UPSTREAM_SERVICE_ERROR`).
+- **Unit Test Coverage**: Error facades and envelopes must be accompanied by dedicated unit tests in both `supabase/functions/_shared/__tests__/` and `src/lib/__tests__/`.
+
+## 10. Console Output Policy (Zero Console Noise / Temporary Debugging Only)
+- **Zero Persistent Logging Noise**: Prohibit persistent `console.log`, `console.info`, `console.debug`, and unstructured `console.warn` statements anywhere in production or client/server code.
+- **Temporary Debugging Strictly**: Console statements are permitted solely during active local troubleshooting and MUST be removed completely before committing or completing tasks.
+- **Dedicated Server-Side Error Logging**: The only allowable persistent console statement is structured server-side logging in Edge Functions executed via `handleErrorResponse` with `console.error`.
+- **Security & Privacy**: Never log payloads containing passwords, auth tokens, or private user information.
 
 
 

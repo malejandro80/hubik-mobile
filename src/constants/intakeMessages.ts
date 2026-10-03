@@ -16,9 +16,6 @@ export const READY_TO_CONFIRM_VARIANTS = [
   'Excelente, ya reuní todo lo necesario. Eche un vistazo al resumen antes de publicar.',
 ];
 
-// Shown instead of READY_TO_CONFIRM_VARIANTS when every text field is complete but the draft
-// still has neither a photo nor a map pin - avoids telling the user the listing is fully ready
-// when it has no photo and no location.
 export const READY_NEEDS_MEDIA_VARIANTS = [
   'Ya tengo todos los datos del formulario. Antes de publicar, añada al menos una foto o marque la ubicación en el mapa para que el anuncio se vea completo.',
   'Los datos ya están completos. Para terminar, agregue una foto o marque la ubicación en el mapa antes de publicar.',

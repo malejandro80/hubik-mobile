@@ -5,6 +5,7 @@ import { listingDocument } from '../_shared/listingDocument.ts';
 import { requireAgent } from '../_shared/auth.ts';
 import { normalizeCurrency } from '../_shared/currencies.ts';
 import { isEligibleLandlord, parseLandlordId } from '../_shared/landlord.ts';
+import { AppError, ErrorCode, handleErrorResponse } from '../_shared/errorFacade.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -183,10 +184,7 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (existing) {
-      return new Response(
-        JSON.stringify({ error: 'Ya existe una propiedad registrada con esa referencia catastral' }),
-        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw AppError.conflict('Ya existe una propiedad registrada con esa referencia catastral');
     }
 
     const amenities = normalizeAmenities(property.amenities);
@@ -229,10 +227,7 @@ Deno.serve(async (req: Request) => {
 
     if (error) {
       if (error.code === '23505') {
-        return new Response(
-          JSON.stringify({ error: 'Ya existe una propiedad registrada con esa referencia catastral' }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        throw AppError.conflict('Ya existe una propiedad registrada con esa referencia catastral');
       }
       throw new Error(`Database insert error: ${error.message}`);
     }
@@ -251,11 +246,12 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({ property: data }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
-    console.error('❌ [property-publish] Edge Function error:', error);
-    return new Response(
-      JSON.stringify({ error: error?.message || 'Internal error in property-publish Edge Function' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+  } catch (error: unknown) {
+    return handleErrorResponse(error, {
+      logTag: 'property-publish',
+      corsHeaders,
+      fallbackCode: ErrorCode.INTERNAL_SERVER_ERROR,
+      fallbackMessage: 'Internal error in property-publish Edge Function',
+    });
   }
 });

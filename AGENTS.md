@@ -46,13 +46,22 @@ You are an expert **Mobile Software Engineer & Architect** operating within this
   - `.tsx` files must remain strictly declarative UI containers focused on styling, layout, hooks consumption, and event dispatching.
   - Every extracted library module must be accompanied by dedicated unit tests in `src/lib/__tests__/`.
 - **Self-Documenting Code & Zero-Comment Discipline**:
-  - Do NOT write explanatory comments (`//`, `/* */`, `{/* */}`, or JSDoc blocks) in application code.
+  - Absolutely NO comments (`//`, `/* */`, `{/* */}`, or JSDoc blocks) are permitted in application code, Edge Functions, or test files under any circumstances.
   - Code must be entirely self-documenting through expressive, semantic naming for objects, constants, functions, variables, and props.
-  - If logic feels non-obvious, refactor into cleanly named abstractions, semantic constants, or descriptive functions rather than adding comments.
+  - If logic feels non-obvious, refactor into cleanly named abstractions, semantic constants, or descriptive pure functions rather than adding comments.
+- **Console Output Policy (Zero Console Noise / Temporary Debugging Only)**:
+  - Persistent `console.log`, `console.info`, `console.debug`, and non-facade `console.warn` statements are strictly prohibited across both client and edge environments.
+  - Console statements are permitted ONLY for temporary local debugging during active investigation and MUST be completely excised before committing code or completing tasks.
+  - The ONLY authorized persistent console output is structured server-side exception logging via `handleErrorResponse` invoking `console.error` in Edge Functions.
+  - Never log raw payloads, sensitive authentication tokens, or personally identifiable information (PII).
 - **Encapsulated Network & AI Facade Pattern (Zero Raw `fetch`)**:
   - Never execute raw `fetch(...)` calls directly within view components, custom hooks, services, or edge function request handlers.
   - All HTTP communication, media/blob fetching, and AI/LLM vendor queries (Google Gemini, Groq) must pass through dedicated facade abstractions (`httpFacade`, `geminiFacade`, `groqFacade`).
   - The facade layer encapsulates endpoint URLs, authentication headers, payload serialization, abort signals/timeouts, response verification, error translation, and parsing, keeping domain logic clean and declarative.
+- **Standardized Error Handling Facade Pattern (Zero Ad-hoc Error Responses)**:
+  - Catch blocks in Edge Functions and mobile application code must NEVER return or display ad-hoc, unformatted, or arbitrary error strings.
+  - Edge Functions must encapsulate error responses using `handleErrorResponse(error, options)` and `AppError` static factories (`badRequest`, `unauthorized`, `forbidden`, `notFound`, `conflict`, `validation`, `upstream`, `timeout`, `internal`), producing a standardized response envelope (`{ error: string, code: ErrorCode, details?: unknown }`).
+  - Mobile client code must parse errors through `parseStandardError(error)` from `src/lib/errorFacade.ts`, ensuring uniform error codes (`ErrorCode`), user-friendly localized messages (`STANDARD_CLIENT_ERROR_MESSAGES`), and graceful fallback handling for timeouts, network drops, and upstream service failures.
 
 ---
 

@@ -12,6 +12,7 @@ import { transcribeAudio } from '../_shared/groqAudio.ts';
 import { buildAssistantMessage, type IntakeField } from '../_shared/intakeMessage.ts';
 import { geminiGenerateJson } from '../_shared/geminiFacade.ts';
 import { groqChatJson } from '../_shared/groqFacade.ts';
+import { ErrorCode, handleErrorResponse } from '../_shared/errorFacade.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -97,7 +98,6 @@ function extractOperationType(lower: string): OperationType | undefined {
 function extractPrice(text: string): number | undefined {
   const lower = text.toLowerCase();
 
-  // 1. "80 mil", "80mil", "80 k", "80k" with optional currency (e.g. "80 mil dólares", "$80 mil", "80k €")
   const milMatch = lower.match(
     /(?:(?:precio|valor|cuesta|por|en|pido)?\s*(?:es\s*(?:de\s*)?)?)?(?:\$|€)?\s*(\d+(?:[.,]\d+)?)\s*(?:mil|k)\b(?:\s*(?:€|euros?|eur|\$|usd|dólares?|dolares?|pesos?))?/i
   );
@@ -108,7 +108,6 @@ function extractPrice(text: string): number | undefined {
     }
   }
 
-  // 2. "80 millones" (e.g. LatAm)
   const millonesMatch = lower.match(
     /(?:(?:precio|valor|cuesta|por|en|pido)?\s*(?:es\s*(?:de\s*)?)?)?(?:\$|€)?\s*(\d+(?:[.,]\d+)?)\s*(?:millones?|m)\b(?:\s*(?:€|euros?|eur|\$|usd|dólares?|dolares?|pesos?))?/i
   );
@@ -119,7 +118,6 @@ function extractPrice(text: string): number | undefined {
     }
   }
 
-  // 3. Number with explicit currency suffix (e.g. "420.000 euros", "80,000 $", "80000 eur")
   const suffixMatch = lower.match(
     /(\d{1,3}(?:[.,]\d{3})+|\d{3,})(?:[.,]\d{1,2})?\s*(?:€|euros?|eur\b|\$|usd|dólares?|dolares?|pesos?)/i
   );
@@ -129,7 +127,6 @@ function extractPrice(text: string): number | undefined {
     if (!Number.isNaN(val) && val > 0) return val;
   }
 
-  // 4. Number with explicit currency prefix (e.g. "$420,000", "€80.000")
   const prefixMatch = lower.match(/(?:[$€])\s*(\d{1,3}(?:[.,]\d{3})+|\d{3,})(?:[.,]\d{1,2})?/i);
   if (prefixMatch) {
     const raw = prefixMatch[1].replace(/[.,]/g, '');
@@ -137,7 +134,6 @@ function extractPrice(text: string): number | undefined {
     if (!Number.isNaN(val) && val > 0) return val;
   }
 
-  // 5. Keyword preceded price (e.g. "precio es de 420000", "precio: 80000", "cuesta 95000")
   const keywordMatch = lower.match(
     /(?:precio|valor|cuesta|pido)\s*(?:es\s*(?:de\s*)?|:\s*)?\s*(\d{1,3}(?:[.,]\d{3})+|\d{3,})/i
   );
@@ -151,45 +147,29 @@ function extractPrice(text: string): number | undefined {
 }
 
 function extractCatastro(text: string, alreadyProvided: boolean): string | undefined {
-  // 1. Match legacy/seeded references generated during migrations (e.g. LEGACY-E1F2A3B479302)
   const legacyMatch = text.match(/\bLEGACY-[A-Za-z0-9]{5,13}\b/i);
   if (legacyMatch) return legacyMatch[0].toUpperCase();
 
-  // 2. Match the official grouping (7-7-4-2 or 14-4-2), space-separated (e.g. "9872023 VH5797S
-  // 0001 WX"). Checked before the loose continuous pattern below: that pattern's character
-  // class includes hyphens, so on a full 4-group hyphenated reference it would otherwise grab
-  // an incomplete 14-20 char slice instead of the whole code.
   const spacedMatch = text.match(
     /\b([A-Za-z0-9]{7}\s+[A-Za-z0-9]{7}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2}|[A-Za-z0-9]{14}\s+[A-Za-z0-9]{4}\s+[A-Za-z0-9]{2})\b/
   );
   if (spacedMatch) return spacedMatch[0].replace(/\s+/g, '').toUpperCase();
 
-  // 3. Same grouping with hyphens instead of spaces (e.g. "9872023-VH5797S-0001-WX") - a
-  // natural way to type a long code.
   const hyphenGroupMatch = text.match(
     /\b([A-Za-z0-9]{7}-[A-Za-z0-9]{7}-[A-Za-z0-9]{4}-[A-Za-z0-9]{2}|[A-Za-z0-9]{14}-[A-Za-z0-9]{4}-[A-Za-z0-9]{2})\b/
   );
   if (hyphenGroupMatch) return hyphenGroupMatch[0].replace(/-/g, '').toUpperCase();
 
-  // 4. Match standard Spanish cadastral references (14-20 alphanumeric characters, possibly with hyphens)
   const match = text.match(
     /\b(?=[A-Za-z0-9-]{14,20}\b)(?=[A-Za-z0-9-]*[0-9])(?=[A-Za-z0-9-]*[A-Za-z])[A-Za-z0-9-]{14,20}\b/
   );
   if (match) return match[0].toUpperCase();
 
-  // 5. Match user pasting the reference directly (with optional surrounding whitespace)
   const trimmed = text.trim();
   if (/^[A-Za-z0-9-]{14,20}$/.test(trimmed) && /[0-9]/.test(trimmed) && /[A-Za-z]/.test(trimmed)) {
     return trimmed.toUpperCase();
   }
 
-  // 6. RFC 006 only requires a non-empty string for catastro (format/checksum validation
-  // against the real cadastre is explicitly out of scope). While it's still the field being
-  // collected, a single whitespace-free reply with a digit in it is almost certainly the user
-  // answering directly, even when it doesn't match the shapes above (test/dummy values,
-  // shorter internal references, etc). Gated to before catastro is already known so it can't
-  // misfire on a later single-word answer (bedroom count, m2, ...), and requires a digit so
-  // plain replies like "gracias" or "hola" aren't mistaken for a reference.
   if (!alreadyProvided && /^\S+$/.test(trimmed) && trimmed.length >= 4 && /[0-9]/.test(trimmed)) {
     return trimmed.toUpperCase();
   }
@@ -289,43 +269,27 @@ Deno.serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? '';
 
     if (isAudioRequest) {
-      // Voice notes have no local text for the heuristic pass until transcribed. Deliberately no
-      // Gemini fallback here (RFC 009) - see chat-query's matching comment.
       if (!groqKey) {
         return new Response(
           JSON.stringify({ error: 'Las notas de voz requieren que Groq esté configurado en el servidor' }),
           { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      // Logged before transcription starts, not after: this line alone proves the request body
-      // (base64 audio) made it all the way to the Edge Function. When a voice note fails on the
-      // client with "Failed to send a request to the Edge Function" (a transport-level failure,
-      // not an HTTP error response), checking for this line at the reported time tells us whether
-      // the request ever arrived here at all, or died in transit before reaching Supabase.
-      console.log(`[property-intake] audio request received, base64 length: ${audio.data.length}`);
-      const transcribeStart = Date.now();
       try {
         transcript = await transcribeAudio(audio, groqKey);
         effectiveMessage = transcript;
-        console.log(`[property-intake] transcription completed in ${Date.now() - transcribeStart}ms`);
-      } catch (transcribeErr: any) {
-        console.error(
-          `[property-intake] Groq audio transcription error after ${Date.now() - transcribeStart}ms:`,
-          transcribeErr
-        );
-        return new Response(
-          JSON.stringify({ error: transcribeErr?.message || 'No se pudo procesar la nota de voz' }),
-          { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      } catch (transcribeErr: unknown) {
+        return handleErrorResponse(transcribeErr, {
+          logTag: 'property-intake',
+          corsHeaders,
+          fallbackCode: ErrorCode.UPSTREAM_SERVICE_ERROR,
+          fallbackMessage: 'No se pudo procesar la nota de voz',
+        });
       }
     } else {
       effectiveMessage = message;
     }
 
-    // Cheap tier: the local heuristic runs first regardless of audio/text origin, same as
-    // chat-query, matching cities against whatever is already in `properties.city` (any region,
-    // no hardcoded list). Only escalate to Gemini when a required field is still missing
-    // afterwards - bulk descriptions the heuristic already fully resolves skip the extra call.
     const knownCities = await fetchKnownCities(supabaseUrl, supabaseKey);
     let data: PropertyDraft = heuristicExtract(effectiveMessage, known, knownCities);
 
@@ -336,13 +300,11 @@ Deno.serve(async (req: Request) => {
     const amenitySignal = !requiredMissing && hasAmenitySignal(effectiveMessage);
 
     if (requiredMissing || amenitySignal) {
-      const llmStart = Date.now();
       let llmExtracted: Partial<PropertyDraft> | undefined;
       const instruction = requiredMissing
         ? propertyIntakeTextInstruction(known)
         : propertyIntakeAmenitiesOnlyInstruction(known);
 
-      // 1. Try Gemini
       if (hasGeminiKey) {
         const parsed = await geminiGenerateJson<Record<string, unknown>>({
           model: GEMINI_EXTRACTION_MODEL,
@@ -356,7 +318,6 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      // 2. Resilient fallback to Groq LLM if Gemini is rate-limited or fails
       if (!llmExtracted && groqKey) {
         const parsed = await groqChatJson<Record<string, unknown>>({
           key: groqKey,
@@ -378,16 +339,8 @@ Deno.serve(async (req: Request) => {
           data.amenities = normalizeAmenities([...(data.amenities ?? []), ...llmAmenities]);
         }
       }
-      console.log(
-        `[property-intake] LLM escalation completed in ${Date.now() - llmStart}ms (${llmExtracted ? 'hit' : 'miss'})`
-      );
     }
 
-    // First-step guard: if a catastro was just supplied (differs from what was already
-    // known on the draft), check it isn't already registered before accepting it, and
-    // give the user immediate feedback about that check either way. This lookup is
-    // advisory only - property-publish and the DB's UNIQUE constraint are the real
-    // enforcement point - so a lookup failure here fails open rather than blocking intake.
     let catastroStatus: 'verified' | 'unverified' | undefined;
     if (data.catastro && data.catastro !== known.catastro) {
       try {
@@ -403,7 +356,6 @@ Deno.serve(async (req: Request) => {
           if (existing) {
             data = { ...data, catastro: undefined };
             const missing_fields = REQUIRED_FIELDS.filter((field) => data[field] === undefined);
-            console.log(`[property-intake] request completed in ${Date.now() - requestStart}ms (duplicate catastro)`);
             return new Response(
               JSON.stringify({
                 data,
@@ -420,18 +372,13 @@ Deno.serve(async (req: Request) => {
         } else {
           catastroStatus = 'unverified';
         }
-      } catch (lookupErr) {
-        console.warn('[property-intake] catastro uniqueness lookup failed, continuing:', lookupErr);
+      } catch {
         catastroStatus = 'unverified';
       }
     }
 
     const missing_fields = REQUIRED_FIELDS.filter((field) => data[field] === undefined);
     const ready_to_confirm = missing_fields.length === 0;
-
-    console.log(
-      `[property-intake] request completed in ${Date.now() - requestStart}ms (${isAudioRequest ? 'audio' : 'text'})`
-    );
 
     return new Response(
       JSON.stringify({
@@ -443,11 +390,12 @@ Deno.serve(async (req: Request) => {
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error: any) {
-    console.error(`❌ [property-intake] Edge Function error after ${Date.now() - requestStart}ms:`, error);
-    return new Response(
-      JSON.stringify({ error: error?.message || 'Internal error in property-intake Edge Function' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+  } catch (error: unknown) {
+    return handleErrorResponse(error, {
+      logTag: 'property-intake',
+      corsHeaders,
+      fallbackCode: ErrorCode.INTERNAL_SERVER_ERROR,
+      fallbackMessage: 'Internal error in property-intake Edge Function',
+    });
   }
 });
