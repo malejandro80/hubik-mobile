@@ -20,6 +20,10 @@ describe('listingDocument', () => {
     );
   });
 
+  it('leaves the sector out, so proper nouns do not dilute the semantic signal', () => {
+    expect(listingDocument({ ...listing, sector: 'La Trigaleña' } as typeof listing)).not.toContain('Trigaleña');
+  });
+
   it('never includes the street address or cadastral reference', () => {
     const text = listingDocument(listing);
 

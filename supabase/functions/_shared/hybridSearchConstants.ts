@@ -4,6 +4,10 @@ export const SIMILARITY_WINDOW = 0.05;
 
 export const DEFAULT_MATCH_COUNT = 10;
 
+export const NEARBY_RADIUS_KM = 3;
+
+export const NEAR_REQUEST_PATTERN = /\b(?:cerca de|cerca del|cercan[oa]s? a|alrededor de|near)\b/i;
+
 export const PRICE_SORTS = ['price_asc', 'price_desc'] as const;
 
 export const MIN_TERM_LENGTH = 3;

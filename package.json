@@ -15,7 +15,8 @@
     "seed": "tsx scripts/seed-properties.ts",
     "arch-team": "tsx scripts/architecture-team/index.ts",
     "eval:search": "tsx scripts/eval-search.ts",
-    "reembed": "tsx scripts/reembed-properties.ts"
+    "reembed": "tsx scripts/reembed-properties.ts",
+    "backfill:sectors": "tsx scripts/backfill-sectors.ts"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",

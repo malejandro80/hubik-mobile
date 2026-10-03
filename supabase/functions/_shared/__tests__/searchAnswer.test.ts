@@ -74,6 +74,12 @@ describe('answerFacts', () => {
     );
   });
 
+  it('passes the sector and the rounded distance of nearby results', () => {
+    const [facts] = answerFacts([listing({ sector: 'Prebo', distance_km: 1.5 })]);
+
+    expect(facts).toMatchObject({ sector: 'Prebo', distance_km: 1.5 });
+  });
+
   it('passes at most the configured number of rows', () => {
     const items = Array.from({ length: MAX_FACT_ROWS + 5 }, (_, i) => listing({ id: `p${i}` }));
 
@@ -137,6 +143,24 @@ describe('fallbackSearchAnswer', () => {
     const result = fallbackSearchAnswer([], { city: 'Valencia', max_price: 1000 }, ['Valencia', 'Madrid']);
 
     expect(result.suggestions).toEqual(['Propiedades en Madrid']);
+  });
+
+  it('says the results are near the place, not in it, after widening to nearby listings', () => {
+    const result = fallbackSearchAnswer([listing()], { city: 'Valencia', place: 'Prebo', relaxed: 'nearby' }, ['Valencia']);
+
+    expect(result.answer).toBe('No encontré propiedades en Prebo, pero hay 1 cerca:');
+  });
+
+  it('describes a near request by its place', () => {
+    const result = fallbackSearchAnswer([listing(), listing({ id: 'p2' })], { place: 'Guataparo', relaxed: 'near' }, ['Valencia']);
+
+    expect(result.answer).toBe('Encontré 2 propiedades cerca de Guataparo:');
+  });
+
+  it('says the results are elsewhere in the city after widening to the city', () => {
+    const result = fallbackSearchAnswer([listing()], { city: 'Valencia', place: 'Prebo', relaxed: 'city' }, ['Valencia']);
+
+    expect(result.answer).toBe('No encontré propiedades en Prebo, pero hay 1 en Valencia:');
   });
 
   it('still answers when no city has listings', () => {

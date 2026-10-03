@@ -23,7 +23,9 @@ export const ANSWER_FACT_FIELDS = [
   'bathrooms',
   'square_meters',
   'city',
+  'sector',
   'amenities',
+  'distance_km',
 ] as const;
 
 export const PROPERTY_TYPE_PLURALS: Record<string, string> = {
@@ -42,6 +44,14 @@ export const noResultsAlternatives = (cities: string[]) => `Hay propiedades disp
 
 export const resultsAnswer = (count: number, plural: string, city?: string) =>
   `Encontré ${count} ${plural}${city ? ` en ${city}` : ''} que coinciden con tu búsqueda:`;
+
+export const nearbyAnswer = (count: number, place: string) =>
+  `No encontré propiedades en ${place}, pero hay ${count} cerca:`;
+
+export const nearAnswer = (count: number, place: string) => `Encontré ${count} propiedades cerca de ${place}:`;
+
+export const elsewhereInCityAnswer = (count: number, place: string, city: string) =>
+  `No encontré propiedades en ${place}, pero hay ${count} en ${city}:`;
 
 export const citySuggestion = (city: string) => `Propiedades en ${city}`;
 

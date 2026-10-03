@@ -1,5 +1,5 @@
 import { buildHybridSearch, contentTerms } from '../hybridSearch';
-import { MIN_SIMILARITY, SIMILARITY_WINDOW } from '../hybridSearchConstants';
+import { MIN_SIMILARITY, NEARBY_RADIUS_KM, SIMILARITY_WINDOW } from '../hybridSearchConstants';
 
 const cities = ['Valencia', 'San Diego'];
 
@@ -50,11 +50,76 @@ describe('buildHybridSearch', () => {
       p_max_price: 200000,
       p_min_bedrooms: null,
       p_max_bedrooms: null,
+      p_min_square_meters: null,
+      p_max_square_meters: null,
       p_min_similarity: MIN_SIMILARITY,
       p_similarity_window: SIMILARITY_WINDOW,
       p_sort: null,
       match_count: 5,
     });
+  });
+
+  it('sends area bounds as hard filters', () => {
+    const { params } = buildHybridSearch({
+      message: 'pisos de entre 80 y 120 m2',
+      filters: { property_type: 'Apartment', min_square_meters: 80, max_square_meters: 120 },
+      knownCities: cities,
+      embedding,
+    });
+
+    expect(params.p_min_square_meters).toBe(80);
+    expect(params.p_max_square_meters).toBe(120);
+  });
+
+  it('sends a known sector as the place without dropping the city, and keeps it out of the content terms', () => {
+    const { params, filters } = buildHybridSearch({
+      message: 'apartamentos con piscina en La Trigaleña, Valencia',
+      filters: { city: 'Valencia', place: 'La Trigaleña' },
+      knownCities: cities,
+      knownSectors: ['La Trigaleña'],
+      embedding,
+    });
+
+    expect(params.p_city).toBe('Valencia');
+    expect(params.p_place).toBe('La Trigaleña');
+    expect(params.p_query).toBe('piscina');
+    expect(filters).toEqual({ city: 'Valencia', place: 'La Trigaleña' });
+  });
+
+  it('prepares the nearby search with the hard filters and no city', () => {
+    const { nearbyParams } = buildHybridSearch({
+      message: 'apartamentos en Prebo hasta 50000 de más de 60 m2',
+      filters: { city: 'Valencia', place: 'Prebo', property_type: 'Apartment', max_price: 50000, min_square_meters: 60 },
+      knownCities: cities,
+      knownSectors: ['Prebo'],
+      embedding,
+    });
+
+    expect(nearbyParams).toEqual({
+      p_place: 'Prebo',
+      p_radius_km: NEARBY_RADIUS_KM,
+      p_property_type: 'Apartment',
+      p_min_price: null,
+      p_max_price: 50000,
+      p_min_bedrooms: null,
+      p_max_bedrooms: null,
+      p_min_square_meters: 60,
+      p_max_square_meters: null,
+      match_count: 10,
+    });
+  });
+
+  it('prepares the city search without the place or its name as a content term', () => {
+    const { cityParams } = buildHybridSearch({
+      message: 'algo con piscina en Guataparo',
+      filters: { city: 'Guataparo' },
+      knownCities: cities,
+      embedding,
+    });
+
+    expect(cityParams.p_place).toBeNull();
+    expect(cityParams.p_city).toBeNull();
+    expect(cityParams.p_query).toBe('piscina');
   });
 
   it('treats a "city" that has no listings as a place that must appear in the listing text', () => {

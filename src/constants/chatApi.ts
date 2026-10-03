@@ -24,7 +24,7 @@ export const PROMPT_FILTER_CITIES = [
   'New York',
 ] as const;
 
-export const SQFT_TO_SQM_RATIO = 0.092903;
+export { SQFT_TO_SQM_RATIO } from '../../supabase/functions/_shared/promptFiltersConstants';
 
 export const DEFAULT_QUERY_LIMIT = 10;
 

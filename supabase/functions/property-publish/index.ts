@@ -2,6 +2,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { normalizeAmenities } from '../_shared/amenities.ts';
 import { embedText } from '../_shared/geminiEmbedding.ts';
 import { listingDocument } from '../_shared/listingDocument.ts';
+import { extractSector } from '../_shared/sector.ts';
 import { requireAgent } from '../_shared/auth.ts';
 import { normalizeCurrency } from '../_shared/currencies.ts';
 import { isEligibleLandlord, parseLandlordId } from '../_shared/landlord.ts';
@@ -191,7 +192,11 @@ Deno.serve(async (req: Request) => {
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
     const hasGeminiKey = Boolean(geminiKey) && geminiKey !== 'your_gemini_api_key_here';
-    const textToEmbed = listingDocument({ ...property, title: property.title || generateTitle(property), amenities });
+    const title = property.title || generateTitle(property);
+    const sector = hasGeminiKey
+      ? await extractSector({ address: property.address, title, city: property.city }, geminiKey!)
+      : null;
+    const textToEmbed = listingDocument({ ...property, title, amenities });
     const embedding =
       textToEmbed && hasGeminiKey
         ? await embedText(textToEmbed, geminiKey!, 'RETRIEVAL_DOCUMENT')
@@ -201,7 +206,7 @@ Deno.serve(async (req: Request) => {
       .from('properties')
       .insert({
         catastro: property.catastro,
-        title: property.title || generateTitle(property),
+        title,
         property_type: property.property_type,
         operation_type: property.operation_type,
         price: property.price,
@@ -211,6 +216,7 @@ Deno.serve(async (req: Request) => {
         square_meters: property.square_meters,
         city: property.city,
         address: property.address,
+        sector,
         latitude: property.latitude,
         longitude: property.longitude,
         description: property.description,

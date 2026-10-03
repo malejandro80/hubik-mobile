@@ -2,7 +2,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { requireAgent } from '../_shared/auth.ts';
 import { isAudioPayload } from '../_shared/audioPayload.ts';
 import { extractAmenityKeywords, hasAmenitySignal, normalizeAmenities } from '../_shared/amenities.ts';
-import { fetchKnownCities, matchCityInText } from '../_shared/cities.ts';
+import { fetchKnownCities } from '../_shared/cities.ts';
+import { matchCityInText } from '../_shared/cityMatch.ts';
 import {
   GEMINI_EXTRACTION_MODEL,
   propertyIntakeAmenitiesOnlyInstruction,

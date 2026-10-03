@@ -6,6 +6,7 @@ import {
   cheaperSuggestion,
   citySuggestion,
   DEFAULT_PROPERTY_PLURAL,
+  elsewhereInCityAnswer,
   GEMINI_ANSWER_MODEL,
   luxurySuggestion,
   MAX_ALTERNATIVE_CITIES,
@@ -13,6 +14,8 @@ import {
   MAX_FACT_ROWS,
   MAX_SUGGESTION_LENGTH,
   MAX_SUGGESTIONS,
+  nearAnswer,
+  nearbyAnswer,
   NO_RESULTS_ANSWER,
   noResultsAlternatives,
   PROPERTY_TYPE_PLURALS,
@@ -68,6 +71,13 @@ export function parseSearchAnswer(raw: string): SearchAnswer | null {
   return { answer: trimmed, suggestions: cleanSuggestions };
 }
 
+function relaxedResultsAnswer(count: number, place: string, city: string | undefined, relaxed: unknown): string | null {
+  if (relaxed === 'near') return nearAnswer(count, place);
+  if (relaxed === 'nearby') return nearbyAnswer(count, place);
+  if (relaxed === 'city' && city) return elsewhereInCityAnswer(count, place, city);
+  return null;
+}
+
 export function fallbackSearchAnswer(items: Row[], filters: Row, knownCities: string[]): SearchAnswer {
   const city = typeof filters.city === 'string' ? filters.city : undefined;
 
@@ -79,12 +89,15 @@ export function fallbackSearchAnswer(items: Row[], filters: Row, knownCities: st
     return { answer, suggestions: alternatives.slice(0, MAX_SUGGESTIONS).map(citySuggestion) };
   }
 
+  const place = typeof filters.place === 'string' ? filters.place : undefined;
+  const relaxedAnswer = place ? relaxedResultsAnswer(items.length, place, city, filters.relaxed) : null;
+
   const type = typeof filters.property_type === 'string' ? filters.property_type : '';
   const plural = PROPERTY_TYPE_PLURALS[type] ?? DEFAULT_PROPERTY_PLURAL;
   const firstCity = typeof items[0].city === 'string' ? items[0].city : undefined;
   const suggestions = city ? [cheaperSuggestion(city), luxurySuggestion(city)] : firstCity ? [citySuggestion(firstCity)] : [];
 
-  return { answer: resultsAnswer(items.length, plural, city), suggestions };
+  return { answer: relaxedAnswer ?? resultsAnswer(items.length, plural, city), suggestions };
 }
 
 async function requestAnswer(input: SearchAnswerInput, geminiKey: string): Promise<SearchAnswer | null> {
