@@ -24,3 +24,15 @@ export const READY_NEEDS_MEDIA_VARIANTS = [
   'Los datos ya están completos. Para terminar, agregue una foto o marque la ubicación en el mapa antes de publicar.',
   'Con esto el formulario ya está completo. Solo falta una foto o la ubicación en el mapa para dejarlo listo.',
 ];
+
+export const MISSING_FIELDS_PREFIX_VARIANTS = ['Me falta: ', 'Aún necesito: ', 'Todavía me falta: '];
+
+export const MISSING_FIELDS_SUFFIX_VARIANTS = [
+  'Puede dármelos todos juntos o de a poco.',
+  'Puede indicármelos todos de una vez o uno a la vez.',
+  'Cuando guste, dígamelos juntos o por partes.',
+];
+
+export const CATASTRO_JUST_PROVIDED_PREFIX =
+  'Referencia catastral registrada. La verificaré de nuevo antes de publicar.\n\n';
+

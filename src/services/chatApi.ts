@@ -3,7 +3,6 @@ import {
   OperationType,
   Property,
   PropertyDraft,
-  PropertyType,
   PROPERTY_DRAFT_FIELD_LABELS,
   PROPERTY_TYPE_LABEL_ES,
   REQUIRED_PROPERTY_DRAFT_FIELDS,
@@ -11,19 +10,28 @@ import {
 import { extractAmenityKeywords, normalizeAmenities } from '../lib/amenities';
 import { supabase } from '../lib/supabase';
 import { LISTING_COLUMNS, PUBLIC_PROPERTY_COLUMNS } from '../constants/propertyColumns';
-import { CATASTRO_LAST_VARIANTS, DESCRIBE_INVITE_VARIANTS, READY_TO_CONFIRM_VARIANTS } from '../constants/intakeMessages';
+import {
+  CATASTRO_JUST_PROVIDED_PREFIX,
+  CATASTRO_LAST_VARIANTS,
+  DESCRIBE_INVITE_VARIANTS,
+  MISSING_FIELDS_PREFIX_VARIANTS,
+  MISSING_FIELDS_SUFFIX_VARIANTS,
+  READY_TO_CONFIRM_VARIANTS,
+} from '../constants/intakeMessages';
+import {
+  AUDIO_REQUEST_TIMEOUT_MS,
+  DEFAULT_QUERY_LIMIT,
+  DRAFT_CITIES,
+  EDGE_FUNCTIONS,
+  PROPERTY_TYPE_SUGGESTION_LABELS,
+  SUGGESTION_FETCH_LIMIT,
+  SUGGESTION_MAX_COUNT,
+  SUGGESTION_PRICE_ROUNDING_STEP,
+  VOICE_NOTE_MIME_TYPE,
+} from '../constants/chatApi';
+import { extractPropertyType, parsePromptFilters } from '../lib/promptFilters';
 
-// Voice notes have no local fallback (transcription can't happen on-device), and their server-side
-// path is a long, fully-sequential chain (Whisper transcription, then possibly Gemini and a Groq
-// fallback) with no response sent until it's all done - long enough for mobile networks/NAT/simulator
-// connections to silently drop the still-open request. supabase-js wraps that as a `FunctionsFetchError`
-// ("Failed to send a request to the Edge Function") regardless of whether the cause was a dropped
-// connection or our own timeout below - both are network-layer failures, not an error response from
-// the function. Unlike every other Edge Function call in this file, that left `intakePropertyAudio`/
-// `sendChatQueryAudio` with an unbounded wait and no retry, so a single transient drop surfaced
-// immediately as that raw message. A bounded timeout plus one retry turns that class of failure into a
-// usually-invisible blip.
-const AUDIO_REQUEST_TIMEOUT_MS = 20_000;
+export { AUDIO_REQUEST_TIMEOUT_MS, VOICE_NOTE_MIME_TYPE, parsePromptFilters };
 
 async function invokeAudioFunction<T>(functionName: string, body: Record<string, unknown>): Promise<T> {
   const attempt = (): Promise<T> =>
@@ -67,16 +75,13 @@ export interface AudioPayload {
   data: string;
   mimeType: string;
 }
-
-export const VOICE_NOTE_MIME_TYPE = 'audio/mp4';
-
 export async function fetchDynamicSuggestions(): Promise<string[]> {
   try {
     const { data, error } = await supabase
       .from('properties')
       .select('city, property_type, price')
       .order('created_at', { ascending: false })
-      .limit(8);
+      .limit(SUGGESTION_FETCH_LIMIT);
 
     if (error || !data || data.length === 0) {
       return [];
@@ -85,18 +90,10 @@ export async function fetchDynamicSuggestions(): Promise<string[]> {
     const suggestions: string[] = [];
     const seen = new Set<string>();
 
-    const typeMap: Record<string, string> = {
-      Apartment: 'Departamentos',
-      Condo: 'Condominios',
-      Townhouse: 'Casas adosadas',
-      Studio: 'Estudios',
-      'Single Family': 'Casas familiares',
-    };
-
     for (const item of data) {
       if (!item.city) continue;
-      const type = (item.property_type && typeMap[item.property_type]) || 'Propiedades';
-      const roundedPrice = item.price ? Math.ceil(item.price / 50000) * 50 : 0;
+      const type = (item.property_type && PROPERTY_TYPE_SUGGESTION_LABELS[item.property_type]) || 'Propiedades';
+      const roundedPrice = item.price ? Math.ceil(item.price / SUGGESTION_PRICE_ROUNDING_STEP) * 50 : 0;
       const phrase =
         roundedPrice > 0
           ? `${type} en ${item.city} por menos de $${roundedPrice}k`
@@ -106,7 +103,7 @@ export async function fetchDynamicSuggestions(): Promise<string[]> {
         seen.add(phrase);
         suggestions.push(phrase);
       }
-      if (suggestions.length >= 4) break;
+      if (suggestions.length >= SUGGESTION_MAX_COUNT) break;
     }
 
     return suggestions;
@@ -115,180 +112,6 @@ export async function fetchDynamicSuggestions(): Promise<string[]> {
   }
 }
 
-export function parsePromptFilters(message: string): Record<string, any> {
-  const lower = message.toLowerCase();
-  const filters: Record<string, any> = {};
-
-  const cities = ['Austin', 'Miami', 'Denver', 'Seattle', 'New York'];
-  for (const city of cities) {
-    if (lower.includes(city.toLowerCase())) {
-      filters.city = city;
-      break;
-    }
-  }
-
-  const amenityHits = extractAmenityKeywords(message);
-  if (amenityHits.length > 0) filters.amenities = amenityHits;
-
-  if (
-    lower.includes('apartment') ||
-    lower.includes('flat') ||
-    lower.includes('apartamento') ||
-    lower.includes('departamento') ||
-    lower.includes('piso')
-  ) {
-    filters.property_type = 'Apartment';
-  } else if (lower.includes('condo') || lower.includes('condominio')) {
-    filters.property_type = 'Condo';
-  } else if (
-    lower.includes('townhouse') ||
-    lower.includes('townhome') ||
-    lower.includes('casa adosada')
-  ) {
-    filters.property_type = 'Townhouse';
-  } else if (
-    lower.includes('studio') ||
-    lower.includes('estudio') ||
-    lower.includes('monoambiente') ||
-    lower.includes('microestudio')
-  ) {
-    filters.property_type = 'Studio';
-  } else if (
-    lower.includes('house') ||
-    lower.includes('single family') ||
-    lower.includes('home') ||
-    lower.includes('casa') ||
-    lower.includes('vivienda') ||
-    lower.includes('chalet')
-  ) {
-    filters.property_type = 'Single Family';
-  }
-
-  const maxPriceMatch = lower.match(
-    /(?:under|below|less than|<|max|menos de|menor a|hasta|máximo|maximo|bajo|debajo de)\s*\$?(\d+(?:k|,\d{3}|\.000)?)\b(?!\s*(?:m2|m²|sqm|sq\s*m|meter|metre|metro|square|sqft|sq\s*ft|bed|br|hab|dorm|cuart|recám))/i
-  );
-  if (maxPriceMatch) {
-    const raw = maxPriceMatch[1].toLowerCase();
-    let val = parseInt(raw.replace(/[k,]/g, ''), 10);
-    if (raw.includes('k')) val *= 1000;
-    filters.max_price = val;
-  }
-
-  const minPriceMatch = lower.match(
-    /(?:above|over|more than|>|min|más de|mas de|mayor a|desde|mínimo|minimo|sobre|arriba de)\s*\$?(\d+(?:k|,\d{3}|\.000)?)\b(?!\s*(?:m2|m²|sqm|sq\s*m|meter|metre|metro|square|sqft|sq\s*ft|bed|br|hab|dorm|cuart|recám))/i
-  );
-  if (minPriceMatch) {
-    const raw = minPriceMatch[1].toLowerCase();
-    let val = parseInt(raw.replace(/[k,]/g, ''), 10);
-    if (raw.includes('k')) val *= 1000;
-    filters.min_price = val;
-  }
-
-  const bedMatch = lower.match(
-    /(\d+)\s*(?:-| )?(?:bed|bedroom|br|habitación|habitaciones|hab|dormitorio|dormitorios|cuarto|cuartos|recámara|recámaras)/i
-  );
-  if (bedMatch) {
-    filters.min_bedrooms = parseInt(bedMatch[1], 10);
-  }
-
-  const maxAreaMatch = lower.match(
-    /(?:less than|less|under|below|<|max|menos de|menor a|hasta|máximo|maximo|debajo de)\s*(\d+)\s*(?:square meters|square metres|metros cuadrados|metros|m2|m²|sqm|sq m|square feet|square feets|sqft|sq ft|sq\.ft)?/i
-  );
-  if (
-    maxAreaMatch &&
-    (lower.includes('m2') ||
-      lower.includes('m²') ||
-      lower.includes('sqm') ||
-      lower.includes('sq m') ||
-      lower.includes('meter') ||
-      lower.includes('metre') ||
-      lower.includes('metro') ||
-      lower.includes('square') ||
-      lower.includes('sqft') ||
-      lower.includes('sq ft'))
-  ) {
-    let val = parseInt(maxAreaMatch[1], 10);
-    if (
-      lower.includes('sqft') ||
-      lower.includes('sq ft') ||
-      lower.includes('square feet') ||
-      lower.includes('feet')
-    ) {
-      val = Math.round(val * 0.092903);
-    }
-    filters.max_square_meters = val;
-  }
-  const minAreaMatch = lower.match(
-    /(?:more than|over|above|>|min|más de|mas de|mayor a|desde|mínimo|minimo|arriba de)\s*(\d+)\s*(?:square meters|square metres|metros cuadrados|metros|m2|m²|sqm|sq m|square feet|square feets|sqft|sq ft|sq\.ft)?/i
-  );
-  if (
-    minAreaMatch &&
-    (lower.includes('m2') ||
-      lower.includes('m²') ||
-      lower.includes('sqm') ||
-      lower.includes('sq m') ||
-      lower.includes('meter') ||
-      lower.includes('metre') ||
-      lower.includes('metro') ||
-      lower.includes('square') ||
-      lower.includes('sqft') ||
-      lower.includes('sq ft'))
-  ) {
-    let val = parseInt(minAreaMatch[1], 10);
-    if (
-      lower.includes('sqft') ||
-      lower.includes('sq ft') ||
-      lower.includes('square feet') ||
-      lower.includes('feet')
-    ) {
-      val = Math.round(val * 0.092903);
-    }
-    filters.min_square_meters = val;
-  }
-
-  const limitMatch = lower.match(
-    /(?:give|show|find|list|top|dame|muestra|mostrar|busca|buscar|encuentra|primeras|primeros)\s*(?:me\s*)?(\d+)/i
-  );
-  if (limitMatch) {
-    filters.limit = parseInt(limitMatch[1], 10);
-  }
-
-  if (
-    lower.includes('cheapest') ||
-    lower.includes('lowest price') ||
-    lower.includes('más barato') ||
-    lower.includes('mas barato') ||
-    lower.includes('más barata') ||
-    lower.includes('mas barata') ||
-    lower.includes('más económico') ||
-    lower.includes('mas economico') ||
-    lower.includes('más económica') ||
-    lower.includes('mas economica') ||
-    lower.includes('menor precio')
-  ) {
-    filters.sort_by = 'price_asc';
-  } else if (
-    lower.includes('most expensive') ||
-    lower.includes('highest price') ||
-    lower.includes('luxury') ||
-    lower.includes('más caro') ||
-    lower.includes('mas caro') ||
-    lower.includes('más cara') ||
-    lower.includes('mas cara') ||
-    lower.includes('más costoso') ||
-    lower.includes('mas costoso') ||
-    lower.includes('más costosa') ||
-    lower.includes('mas costosa') ||
-    lower.includes('mayor precio') ||
-    lower.includes('lujo') ||
-    lower.includes('lujoso') ||
-    lower.includes('lujosa')
-  ) {
-    filters.sort_by = 'price_desc';
-  }
-
-  return filters;
-}
 
 export async function querySupabaseDirectly(message: string): Promise<ChatResponse> {
   const filters = parsePromptFilters(message);
@@ -333,7 +156,7 @@ export async function querySupabaseDirectly(message: string): Promise<ChatRespon
     query = query.order('price', { ascending: true });
   }
 
-  query = query.limit(filters.limit || 10);
+  query = query.limit(filters.limit || DEFAULT_QUERY_LIMIT);
 
   const { data, error } = await query;
 
@@ -375,32 +198,6 @@ export async function querySupabaseDirectly(message: string): Promise<ChatRespon
   };
 }
 
-const DRAFT_CITIES = ['Austin', 'Miami', 'Denver', 'Seattle', 'New York', 'Madrid', 'Barcelona', 'Valencia', 'Sevilla'];
-
-function extractPropertyType(lower: string): PropertyType | undefined {
-  if (
-    lower.includes('apartamento') ||
-    lower.includes('departamento') ||
-    lower.includes('piso') ||
-    lower.includes('flat') ||
-    lower.includes('apartment')
-  ) {
-    return 'Apartment';
-  }
-  if (lower.includes('condominio') || lower.includes('condo')) return 'Condo';
-  if (lower.includes('adosada') || lower.includes('townhouse') || lower.includes('townhome')) return 'Townhouse';
-  if (lower.includes('estudio') || lower.includes('monoambiente') || lower.includes('studio')) return 'Studio';
-  if (
-    lower.includes('casa') ||
-    lower.includes('vivienda') ||
-    lower.includes('chalet') ||
-    lower.includes('house') ||
-    lower.includes('single family')
-  ) {
-    return 'Single Family';
-  }
-  return undefined;
-}
 
 function extractOperationType(lower: string): OperationType | undefined {
   if (
@@ -512,20 +309,13 @@ function extractCatastro(text: string, alreadyProvided: boolean): string | undef
   return undefined;
 }
 
-const MISSING_FIELDS_PREFIX_VARIANTS = ['Me falta: ', 'Aún necesito: ', 'Todavía me falta: '];
-const MISSING_FIELDS_SUFFIX_VARIANTS = [
-  'Puede dármelos todos juntos o de a poco.',
-  'Puede indicármelos todos de una vez o uno a la vez.',
-  'Cuando guste, dígamelos juntos o por partes.',
-];
-
-function pickVariant(variants: string[]): string {
+function pickVariant(variants: readonly string[] | string[]): string {
   return variants[Math.floor(Math.random() * variants.length)];
 }
 
 function buildAssistantMessage(missing: (keyof PropertyDraft)[], catastroJustProvided?: boolean): string {
   const prefix = catastroJustProvided
-    ? 'Referencia catastral registrada. La verificaré de nuevo antes de publicar.\n\n'
+    ? CATASTRO_JUST_PROVIDED_PREFIX
     : '';
 
   if (missing.length === 0) {
@@ -603,7 +393,7 @@ export function generatePropertyTitle(draft: PropertyDraft): string {
 
 export async function intakeProperty(message: string, known: PropertyDraft): Promise<PropertyIntakeResponse> {
   try {
-    const { data, error } = await supabase.functions.invoke<PropertyIntakeResponse>('property-intake', {
+    const { data, error } = await supabase.functions.invoke<PropertyIntakeResponse>(EDGE_FUNCTIONS.PROPERTY_INTAKE, {
       body: { message, known },
     });
 
@@ -624,7 +414,7 @@ export async function intakePropertyAudio(
   audio: AudioPayload,
   known: PropertyDraft
 ): Promise<PropertyIntakeResponse & { transcript: string }> {
-  return invokeAudioFunction<PropertyIntakeResponse & { transcript: string }>('property-intake', { audio, known });
+  return invokeAudioFunction<PropertyIntakeResponse & { transcript: string }>(EDGE_FUNCTIONS.PROPERTY_INTAKE, { audio, known });
 }
 
 async function publishPropertyDirect(draft: PropertyDraft): Promise<Property> {
@@ -666,7 +456,7 @@ async function publishPropertyDirect(draft: PropertyDraft): Promise<Property> {
 
 export async function publishProperty(draft: PropertyDraft, landlordId?: string | null): Promise<Property> {
   try {
-    const { data, error } = await supabase.functions.invoke<{ property: Property }>('property-publish', {
+    const { data, error } = await supabase.functions.invoke<{ property: Property }>(EDGE_FUNCTIONS.PROPERTY_PUBLISH, {
       body: { property: draft, ...(landlordId ? { landlord_id: landlordId } : {}) },
     });
 
@@ -686,7 +476,7 @@ export async function publishProperty(draft: PropertyDraft, landlordId?: string 
 export async function sendChatQuery(message: string): Promise<ChatResponse> {
   try {
     const { data, error } = await supabase.functions.invoke<ChatResponse>(
-      'chat-query',
+      EDGE_FUNCTIONS.CHAT_QUERY,
       {
         body: { message },
       }
@@ -711,7 +501,7 @@ export async function sendChatQuery(message: string): Promise<ChatResponse> {
 }
 
 export async function generatePropertyDescription(known: PropertyDraft): Promise<{ description: string }> {
-  const { data, error } = await supabase.functions.invoke<{ description: string }>('property-describe', {
+  const { data, error } = await supabase.functions.invoke<{ description: string }>(EDGE_FUNCTIONS.PROPERTY_DESCRIBE, {
     body: { known },
   });
 
@@ -722,11 +512,11 @@ export async function generatePropertyDescription(known: PropertyDraft): Promise
 }
 
 export async function sendChatQueryAudio(audio: AudioPayload): Promise<ChatResponse & { transcript: string }> {
-  return invokeAudioFunction<ChatResponse & { transcript: string }>('chat-query', { audio });
+  return invokeAudioFunction<ChatResponse & { transcript: string }>(EDGE_FUNCTIONS.CHAT_QUERY, { audio });
 }
 
 export async function transcribeVoiceNote(audio: AudioPayload): Promise<string> {
-  const { transcript } = await invokeAudioFunction<{ transcript?: string }>('chat-query', { audio, transcribe_only: true });
+  const { transcript } = await invokeAudioFunction<{ transcript?: string }>(EDGE_FUNCTIONS.CHAT_QUERY, { audio, transcribe_only: true });
   const text = typeof transcript === 'string' ? transcript.trim() : '';
   if (!text) throw new Error('Empty transcript');
   return text;

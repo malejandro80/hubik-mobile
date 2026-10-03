@@ -13,6 +13,11 @@ import {
 } from '../chatApi';
 import { supabase } from '../../lib/supabase';
 import { LISTING_COLUMNS } from '../../constants/propertyColumns';
+import {
+  AUDIO_REQUEST_TIMEOUT_MS,
+  EDGE_FUNCTIONS,
+  VOICE_NOTE_MIME_TYPE,
+} from '../../constants/chatApi';
 
 jest.mock('../../lib/supabase', () => ({
   supabase: {
@@ -220,7 +225,7 @@ describe('chatApi - sendChatQueryAudio', () => {
     jest.clearAllMocks();
   });
 
-  const audio = { data: 'YmFzZTY0LWF1ZGlv', mimeType: 'audio/mp4' };
+  const audio = { data: 'YmFzZTY0LWF1ZGlv', mimeType: VOICE_NOTE_MIME_TYPE };
 
   it('invokes chat-query with the audio payload and a bounded timeout, and returns the transcript', async () => {
     const mockApiResponse = {
@@ -235,9 +240,9 @@ describe('chatApi - sendChatQueryAudio', () => {
 
     const result = await sendChatQueryAudio(audio);
 
-    expect(supabase.functions.invoke).toHaveBeenCalledWith('chat-query', {
+    expect(supabase.functions.invoke).toHaveBeenCalledWith(EDGE_FUNCTIONS.CHAT_QUERY, {
       body: { audio },
-      timeout: 20000,
+      timeout: AUDIO_REQUEST_TIMEOUT_MS,
     });
     expect(result).toEqual(mockApiResponse);
   });
@@ -281,7 +286,7 @@ describe('chatApi - intakePropertyAudio', () => {
     jest.clearAllMocks();
   });
 
-  const audio = { data: 'YmFzZTY0LWF1ZGlv', mimeType: 'audio/mp4' };
+  const audio = { data: 'YmFzZTY0LWF1ZGlv', mimeType: VOICE_NOTE_MIME_TYPE };
 
   it('invokes property-intake with the audio payload and a bounded timeout, and returns the transcript', async () => {
     const mockResponse = {
@@ -298,9 +303,9 @@ describe('chatApi - intakePropertyAudio', () => {
 
     const result = await intakePropertyAudio(audio, {});
 
-    expect(supabase.functions.invoke).toHaveBeenCalledWith('property-intake', {
+    expect(supabase.functions.invoke).toHaveBeenCalledWith(EDGE_FUNCTIONS.PROPERTY_INTAKE, {
       body: { audio, known: {} },
-      timeout: 20000,
+      timeout: AUDIO_REQUEST_TIMEOUT_MS,
     });
     expect(result).toEqual(mockResponse);
   });
@@ -706,7 +711,7 @@ describe('chatApi - generatePropertyDescription', () => {
 });
 
 describe('chatApi - transcribeVoiceNote', () => {
-  const audio = { data: 'YmFzZTY0LWF1ZGlv', mimeType: 'audio/mp4' };
+  const audio = { data: 'YmFzZTY0LWF1ZGlv', mimeType: VOICE_NOTE_MIME_TYPE };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -717,7 +722,7 @@ describe('chatApi - transcribeVoiceNote', () => {
 
     await expect(transcribeVoiceNote(audio)).resolves.toBe('¿Tiene garaje?');
     expect(supabase.functions.invoke).toHaveBeenCalledWith(
-      'chat-query',
+      EDGE_FUNCTIONS.CHAT_QUERY,
       expect.objectContaining({ body: { audio, transcribe_only: true } })
     );
   });

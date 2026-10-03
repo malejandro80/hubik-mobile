@@ -3,6 +3,7 @@ import { usePropertyRegistrationChat } from '../usePropertyRegistrationChat';
 import * as chatApi from '../../services/chatApi';
 import * as propertyImages from '../../services/propertyImages';
 import { READY_NEEDS_MEDIA_VARIANTS, READY_TO_CONFIRM_VARIANTS } from '../../constants/intakeMessages';
+import { VOICE_NOTE_MIME_TYPE } from '../../constants/chatApi';
 import { PropertyDraft } from '../../types/property';
 
 jest.mock('../../services/chatApi', () => ({
@@ -152,7 +153,7 @@ describe('usePropertyRegistrationChat', () => {
         transcript: 'vendo mi piso',
       });
       const { result } = startComposer();
-      const audio = { data: 'YmFzZTY0', mimeType: 'audio/mp4' };
+      const audio = { data: 'YmFzZTY0', mimeType: VOICE_NOTE_MIME_TYPE };
 
       let outcome: unknown;
       await act(async () => {

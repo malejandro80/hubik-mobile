@@ -1,7 +1,8 @@
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
-import { transcribeVoiceNote, VOICE_NOTE_MIME_TYPE } from '../services/chatApi';
+import { transcribeVoiceNote } from '../services/chatApi';
+import { VOICE_NOTE_MIME_TYPE } from '../constants/chatApi';
 import { useLabels } from './useLabels';
 import { useVoiceRecorder } from './useVoiceRecorder';
 
