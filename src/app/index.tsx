@@ -36,11 +36,11 @@ import { useVoiceRecorder } from '../hooks/useVoiceRecorder';
 import { DraftEditableField, FieldEditResult, validateDraftField } from '../lib/draftValidation';
 import { resolveSlashMenu } from '../lib/slashCommands';
 import { CLEAR_COMMAND } from '../constants/slashCommands';
+import { VOICE_NOTE_MIME_TYPE } from '../constants/chatApi';
 import {
   AudioPayload,
   sendChatQuery,
   sendChatQueryAudio,
-  VOICE_NOTE_MIME_TYPE,
 } from '../services/chatApi';
 import { colors } from '../theme';
 import { ChatMessage, Property } from '../types/property';

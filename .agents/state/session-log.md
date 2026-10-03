@@ -1824,3 +1824,15 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Found**: "La casa más barata con parrillera" returns a house without a parrillera first — the similarity window lets a near match through and the price sort promotes it (RFC 027 follow-up). Example swapped to "…con jardín".
 - **Verification**: typecheck clean; lint 4 pre-existing warnings; 1152/1156 (the 4 failures come from uncommitted working-tree edits: badge, mic hint, agency badge). Simulator: agent account sees agent subtitle, Publicar first, inventory examples.
 
+
+---
+
+### [2026-10-02] Remotion promo video for agents
+- **Request**: 30 s vertical (1080x1920) demo for agents, Spanish, Apple-launch-style animated text, real captures, focus on AI + voice dictation for creating a property. No music track yet.
+- **Code**: new standalone `video/` project (own `package.json`, Remotion 4.0.532, not part of the Expo app). `npm run studio` / `npm run render` → `video/out/hubik-asesores.mp4`. Captures in `video/public/captures` (3 clips + stills cut from a simulator screen recording of a real dictated registration, iPhone 16e, agent account). Music slot: `MUSIC_FILE` in `video/src/constants/media.ts` (null). Root `tsconfig.json` excludes `video`, `.eslintrc.json` ignores `video/**`.
+- **Capture notes**: dev-client floating Tools button is hidden with `xcrun simctl spawn <udid> defaults write com.hubik.mobile EXDevMenuShowFloatingActionButton -bool NO`; cut clips with output seeking (`-i` before `-ss`), input seeking was ~6 s off on the VFR recording.
+- **Production data**: a demo listing was published for the capture — catastro `DEMO-2026-HUBIK-01`, "Casa en venta en Valencia", 4 Unsplash photos in `property-images`. Still live; the human removes it.
+- **Found**: draft sheet shows the price as `185.000 €` while the card/preview show `$185,000` (dictated in dollars); `ChatMapPicker` header close button overlaps the status bar clock.
+- **Verification**: `video` typecheck clean, render 30.0 s h264. App: typecheck clean; lint 4 pre-existing warnings; 1166/1170 (same 4 known working-tree failures, confirmed unchanged with `video/` moved away).
+- **Next Actions**: add a licensed music track; delete the demo listing; decide whether to commit `video/`.
+- **Follow-up (same day), 60 s version**: composition extended to 1800 frames → `video/out/hubik-asesores-60s.mp4` (the 30 s render is kept as `hubik-asesores-30s.mp4`; its source timeline no longer exists). Added dictated search, price filter, semantic search and share scenes. The "third-party listings / partnerships" message was dropped: `search_properties_hybrid` scopes agents/owners to their own agency (`viewer` CTE), so an agent never sees other agencies' listings. Search issues seen while capturing: "50 mil" is not parsed as 50000; "Propiedades en Guataparo" returned nothing although the agency has a listing whose address is in Guataparo; two Casa Norte listings (Naguanagua, Campo Carabobo) have a simulator stock waterfall photo.

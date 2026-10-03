@@ -21,6 +21,8 @@ Desktop.ini
 # AI Coding Agents & IDE Scratchpads
 .gemini/
 .antigravity/
+.claude/
+.kilo/
 scratch/
 brain/
 *.tmp
@@ -120,3 +122,6 @@ supabase/.temp/
 /ios
 
 *.p8
+
+
+/video

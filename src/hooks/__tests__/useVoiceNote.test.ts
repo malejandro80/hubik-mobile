@@ -2,6 +2,7 @@ import { Alert } from 'react-native';
 import { act, renderHook } from '@testing-library/react-native';
 import { useVoiceNote } from '../useVoiceNote';
 import { transcribeVoiceNote } from '../../services/chatApi';
+import { VOICE_NOTE_MIME_TYPE } from '../../constants/chatApi';
 
 const mockStart = jest.fn();
 const mockStop = jest.fn();
@@ -46,7 +47,7 @@ describe('useVoiceNote', () => {
     expect(result.current.isRecording).toBe(true);
     await act(() => result.current.onMicPress());
 
-    expect(transcribeVoiceNote).toHaveBeenCalledWith({ data: 'YmFzZTY0', mimeType: 'audio/mp4' });
+    expect(transcribeVoiceNote).toHaveBeenCalledWith({ data: 'YmFzZTY0', mimeType: VOICE_NOTE_MIME_TYPE });
     expect(onTranscript).toHaveBeenCalledWith('¿Tiene garaje?');
     expect(result.current.busy).toBe(false);
   });

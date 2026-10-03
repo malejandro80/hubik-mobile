@@ -7,6 +7,7 @@ import { useConversation } from '../../hooks/useConversation';
 import * as chatApi from '../../services/chatApi';
 import * as propertyImages from '../../services/propertyImages';
 import * as ImagePicker from 'expo-image-picker';
+import { VOICE_NOTE_MIME_TYPE } from '../../constants/chatApi';
 
 const mockSignedOutAuth = {
   status: 'signedOut',
@@ -208,7 +209,7 @@ describe('HomeScreen (Chat UI)', () => {
     await waitFor(() => {
       expect(chatApi.sendChatQueryAudio).toHaveBeenCalledWith({
         data: 'base64-audio-data',
-        mimeType: 'audio/mp4',
+        mimeType: VOICE_NOTE_MIME_TYPE,
       });
       expect(getByText('apartamentos en Austin')).toBeTruthy();
       expect(getByText('Encontré 1 apartamento en Austin')).toBeTruthy();
