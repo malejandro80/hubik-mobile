@@ -42,7 +42,6 @@ const PROPERTY_TYPES: PropertyType[] = ['Apartment', 'Single Family', 'Townhouse
 const OPERATION_TYPES: OperationType[] = ['sale', 'rent'];
 
 const REQUIRED_FIELDS: (keyof PropertyDraft)[] = [
-  'catastro',
   'property_type',
   'operation_type',
   'price',
@@ -177,15 +176,44 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const { data: existing } = await supabase
-      .from('properties')
-      .select('id')
-      .eq('catastro', property.catastro)
-      .limit(1)
-      .maybeSingle();
+    const rawCatastro = typeof property.catastro === 'string' ? property.catastro.trim() : null;
+    const catastro = rawCatastro && rawCatastro.length > 0 ? rawCatastro.toUpperCase() : null;
 
-    if (existing) {
-      throw AppError.conflict('Ya existe una propiedad registrada con esa referencia catastral');
+    if (catastro) {
+      const { data: existing } = await supabase
+        .from('properties')
+        .select('id')
+        .eq('catastro', catastro)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        throw AppError.conflict('Ya existe una propiedad registrada con esa referencia catastral');
+      }
+    }
+
+    let isSuspectDuplicate = false;
+    let suspectDuplicateId: string | null = null;
+    let matchDistance: number | null = null;
+
+    if (!catastro && property.latitude !== undefined && property.longitude !== undefined) {
+      const { data: duplicateMatches, error: rpcError } = await supabase.rpc('check_property_duplicate', {
+        p_latitude: property.latitude,
+        p_longitude: property.longitude,
+        p_property_type: property.property_type,
+        p_bedrooms: property.bedrooms,
+        p_bathrooms: property.bathrooms,
+        p_square_meters: property.square_meters,
+      });
+
+      if (!rpcError && Array.isArray(duplicateMatches) && duplicateMatches.length > 0) {
+        const topMatch = duplicateMatches[0];
+        if (topMatch?.duplicate_id) {
+          isSuspectDuplicate = true;
+          suspectDuplicateId = topMatch.duplicate_id;
+          matchDistance = topMatch.distance_meters;
+        }
+      }
     }
 
     const amenities = normalizeAmenities(property.amenities);
@@ -202,10 +230,12 @@ Deno.serve(async (req: Request) => {
         ? await embedText(textToEmbed, geminiKey!, 'RETRIEVAL_DOCUMENT')
         : null;
 
+    const status = isSuspectDuplicate ? 'Pending' : 'Available';
+
     const { data, error } = await supabase
       .from('properties')
       .insert({
-        catastro: property.catastro,
+        catastro,
         title,
         property_type: property.property_type,
         operation_type: property.operation_type,
@@ -220,7 +250,7 @@ Deno.serve(async (req: Request) => {
         latitude: property.latitude,
         longitude: property.longitude,
         description: property.description,
-        status: 'Available',
+        status,
         images: property.images || [],
         image_url: property.images?.[0] || null,
         amenities,
@@ -238,6 +268,28 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Database insert error: ${error.message}`);
     }
 
+    if (isSuspectDuplicate && suspectDuplicateId) {
+      const { error: logError } = await supabase.from('property_duplicate_logs').insert({
+        property_id: data.id,
+        suspected_duplicate_of: suspectDuplicateId,
+        agent_id: identity.userId,
+        agency_id: identity.agencyId,
+        distance_meters: matchDistance ?? 0,
+        match_details: {
+          property_type: property.property_type,
+          bedrooms: property.bedrooms,
+          bathrooms: property.bathrooms,
+          square_meters: property.square_meters,
+          latitude: property.latitude,
+          longitude: property.longitude,
+        },
+        status: 'flagged',
+      });
+      if (logError) {
+        throw new Error(`Duplicate log insert error: ${logError.message}`);
+      }
+    }
+
     if (landlord.landlordId) {
       const { error: linkError } = await supabase
         .from('property_landlords')
@@ -249,7 +301,10 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ property: data }),
+      JSON.stringify({
+        property: data,
+        duplicate_flagged: isSuspectDuplicate,
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: unknown) {

@@ -24,6 +24,8 @@ export const labels = {
     cancelRegistrationConfirmation:
       'De acuerdo, cancelé el registro. Puede volver a intentarlo cuando quiera.',
     publishedSuccess: (title: string) => `¡Listo! Publiqué "${title}" en Hubik.`,
+    publishedPendingReview: (title: string) =>
+      `Publiqué "${title}" en estado de revisión. Estará disponible una vez verificada por la agencia.`,
     publishError: (err: string) =>
       `⚠️ No pude publicar la propiedad (${err}). Sus datos siguen guardados, puede intentar de nuevo.`,
     photosPrompt:

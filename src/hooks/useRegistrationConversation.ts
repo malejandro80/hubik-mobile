@@ -81,7 +81,10 @@ export function useRegistrationConversation({
       setPublishing(true);
       try {
         const property = await confirmPublish();
-        appendAssistantMessage(base, labels.chat.publishedSuccess(property.title), [property]);
+        const publishMessage = property.status === 'Pending'
+          ? labels.chat.publishedPendingReview(property.title)
+          : labels.chat.publishedSuccess(property.title);
+        appendAssistantMessage(base, publishMessage, [property]);
       } catch (error) {
         appendAssistantMessage(base, labels.chat.publishError(parseStandardError(error).message));
       } finally {

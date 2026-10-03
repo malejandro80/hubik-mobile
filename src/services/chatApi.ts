@@ -77,10 +77,37 @@ export async function intakePropertyAudio(
 }
 
 async function publishPropertyDirect(draft: PropertyDraft): Promise<Property> {
+  let isSuspectDuplicate = false;
+  let suspectDuplicateId: string | null = null;
+  let matchDistance: number | null = null;
+
+  if (!draft.catastro && draft.latitude !== undefined && draft.longitude !== undefined) {
+    try {
+      const { data: duplicateMatches } = await supabase.rpc('check_property_duplicate', {
+        p_latitude: draft.latitude,
+        p_longitude: draft.longitude,
+        p_property_type: draft.property_type,
+        p_bedrooms: draft.bedrooms,
+        p_bathrooms: draft.bathrooms,
+        p_square_meters: draft.square_meters,
+      });
+
+      if (Array.isArray(duplicateMatches) && duplicateMatches.length > 0 && duplicateMatches[0]?.duplicate_id) {
+        isSuspectDuplicate = true;
+        suspectDuplicateId = duplicateMatches[0].duplicate_id;
+        matchDistance = duplicateMatches[0].distance_meters;
+      }
+    } catch {
+      isSuspectDuplicate = false;
+    }
+  }
+
+  const status = isSuspectDuplicate ? 'Pending' : 'Available';
+
   const { data, error } = await supabase
     .from('properties')
     .insert({
-      catastro: draft.catastro,
+      catastro: draft.catastro || null,
       title: draft.title || generatePropertyTitle(draft),
       property_type: draft.property_type,
       operation_type: draft.operation_type,
@@ -93,7 +120,7 @@ async function publishPropertyDirect(draft: PropertyDraft): Promise<Property> {
       latitude: draft.latitude,
       longitude: draft.longitude,
       description: draft.description,
-      status: 'Available',
+      status,
       images: draft.images || [],
       image_url: draft.images?.[0] || null,
       amenities: normalizeAmenities(draft.amenities),
@@ -103,6 +130,36 @@ async function publishPropertyDirect(draft: PropertyDraft): Promise<Property> {
 
   if (error) {
     throw new Error(`No se pudo publicar la propiedad: ${error.message}`);
+  }
+
+  if (isSuspectDuplicate && suspectDuplicateId) {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user?.id) {
+        await supabase.from('property_duplicate_logs').insert({
+          property_id: data.id,
+          suspected_duplicate_of: suspectDuplicateId,
+          agent_id: authData.user.id,
+          distance_meters: matchDistance ?? 0,
+          match_details: {
+            property_type: draft.property_type,
+            bedrooms: draft.bedrooms,
+            bathrooms: draft.bathrooms,
+            square_meters: draft.square_meters,
+            latitude: draft.latitude,
+            longitude: draft.longitude,
+          },
+          status: 'flagged',
+        });
+      }
+    } catch {
+      return {
+        ...(data as unknown as Property),
+        address: draft.address,
+        latitude: draft.latitude,
+        longitude: draft.longitude,
+      } as Property;
+    }
   }
 
   return {

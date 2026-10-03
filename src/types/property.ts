@@ -48,6 +48,7 @@ export interface Property extends PropertySummary, PropertyMetadata {
 
 export interface PropertyDraft {
   catastro?: string;
+  catastro_skipped?: boolean;
   title?: string;
   property_type?: PropertyType;
   operation_type?: OperationType;

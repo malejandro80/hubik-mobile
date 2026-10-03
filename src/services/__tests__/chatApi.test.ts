@@ -25,6 +25,10 @@ jest.mock('../../lib/supabase', () => ({
       invoke: jest.fn(),
     },
     from: jest.fn(),
+    rpc: jest.fn(),
+    auth: {
+      getUser: jest.fn(),
+    },
   },
 }));
 
@@ -663,6 +667,68 @@ describe('chatApi - publishProperty', () => {
         description: 'Piso luminoso en el centro de Madrid.',
       })
     );
+  });
+
+  it('sets status to Pending and logs duplicate audit when spatial match is found in fallback', async () => {
+    (supabase.functions.invoke as jest.Mock).mockResolvedValueOnce({ data: null, error: new Error('unreachable') });
+    (supabase.rpc as jest.Mock).mockResolvedValueOnce({
+      data: [{ duplicate_id: 'existing-prop-id', distance_meters: 15.4, title: 'Original Piso', agency_id: 'agency-1' }],
+      error: null,
+    });
+    (supabase.auth.getUser as jest.Mock).mockResolvedValueOnce({
+      data: { user: { id: 'agent-123' } },
+      error: null,
+    });
+
+    const insertedRow = { id: 'new-prop-4', title: 'Piso en venta en Madrid', status: 'Pending', images: [] };
+    const mockSingle = jest.fn().mockResolvedValueOnce({ data: insertedRow, error: null });
+    const mockSelect = jest.fn().mockReturnValue({ single: mockSingle });
+    const mockInsert = jest.fn().mockReturnValue({ select: mockSelect });
+    const mockAuditInsert = jest.fn().mockResolvedValueOnce({ data: null, error: null });
+
+    (supabase.from as jest.Mock).mockImplementation((table: string) => {
+      if (table === 'property_duplicate_logs') {
+        return { insert: mockAuditInsert };
+      }
+      return { insert: mockInsert };
+    });
+
+    const draftWithoutCatastro = {
+      property_type: 'Apartment' as const,
+      operation_type: 'sale' as const,
+      price: 200000,
+      bedrooms: 3,
+      bathrooms: 2,
+      square_meters: 90,
+      city: 'Madrid',
+      address: 'Calle Mayor 1',
+      latitude: 40.41,
+      longitude: -3.7,
+    };
+
+    const result = await publishProperty(draftWithoutCatastro);
+
+    expect(supabase.rpc).toHaveBeenCalledWith('check_property_duplicate', {
+      p_latitude: 40.41,
+      p_longitude: -3.7,
+      p_property_type: 'Apartment',
+      p_bedrooms: 3,
+      p_bathrooms: 2,
+      p_square_meters: 90,
+    });
+    expect(mockInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 'Pending', catastro: null })
+    );
+    expect(mockAuditInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        property_id: 'new-prop-4',
+        suspected_duplicate_of: 'existing-prop-id',
+        agent_id: 'agent-123',
+        distance_meters: 15.4,
+        status: 'flagged',
+      })
+    );
+    expect(result.status).toBe('Pending');
   });
 });
 describe('chatApi - publishProperty with a landlord', () => {

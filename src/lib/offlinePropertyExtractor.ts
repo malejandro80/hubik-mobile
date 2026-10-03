@@ -150,12 +150,43 @@ export function buildAssistantMessage(missing: (keyof PropertyDraft)[], catastro
   return `${prefix}${pickVariant(MISSING_FIELDS_PREFIX_VARIANTS)}${joined}. ${pickVariant(MISSING_FIELDS_SUFFIX_VARIANTS)}`;
 }
 
+export function extractCatastroSkip(text: string, isOnlyCatastroRemaining: boolean): boolean {
+  const lower = text.toLowerCase().trim();
+  const explicitSkip =
+    /\b(no\s+tengo\s+(el\s+)?catastro|no\s+tengo\s+(la\s+)?(c[eé]dula|ficha|referencia)(\s+catastral)?|sin\s+catastro|sin\s+(c[eé]dula|ficha|referencia)(\s+catastral)?|no\s+(dispongo|poseo)\s+de\s+catastro|omitir\s+catastro|no\s+hay\s+catastro|no\s+cuenta\s+con\s+catastro|no\s+posee\s+catastro)\b/i.test(
+      lower
+    );
+  if (explicitSkip) return true;
+
+  if (isOnlyCatastroRemaining) {
+    const contextualSkip =
+      /^(no(\s+tengo|\s+lo\s+tengo|\s+la\s+tengo|\s+dispongo|\s+poseo)?|omitir|paso|despu[eé]s|luego|ningun[oa]|no\s+aplica)$/i.test(
+        lower
+      );
+    if (contextualSkip) return true;
+  }
+
+  return false;
+}
+
 export function parsePropertyDraft(message: string, known: PropertyDraft): PropertyIntakeResponse {
   const lower = message.toLowerCase();
   const extracted: PropertyDraft = {};
 
+  const isOnlyCatastroRemaining =
+    known.catastro === undefined &&
+    !known.catastro_skipped &&
+    REQUIRED_PROPERTY_DRAFT_FIELDS.every((f) => f === 'catastro' || known[f] !== undefined);
+
+  if (extractCatastroSkip(message, isOnlyCatastroRemaining)) {
+    extracted.catastro_skipped = true;
+  }
+
   const catastro = extractCatastro(message, known.catastro !== undefined);
-  if (catastro) extracted.catastro = catastro;
+  if (catastro) {
+    extracted.catastro = catastro;
+    extracted.catastro_skipped = false;
+  }
 
   const propertyType = extractPropertyType(lower);
   if (propertyType) extracted.property_type = propertyType;
@@ -187,7 +218,12 @@ export function parsePropertyDraft(message: string, known: PropertyDraft): Prope
 
   const data: PropertyDraft = { ...known, ...extracted };
   data.amenities = normalizeAmenities([...(known.amenities ?? []), ...extractAmenityKeywords(message)]);
-  const missing_fields = REQUIRED_PROPERTY_DRAFT_FIELDS.filter((field) => data[field] === undefined);
+  const missing_fields = REQUIRED_PROPERTY_DRAFT_FIELDS.filter((field) => {
+    if (field === 'catastro') {
+      return !data.catastro && !data.catastro_skipped;
+    }
+    return data[field] === undefined;
+  });
   const catastroJustProvided = Boolean(extracted.catastro) && extracted.catastro !== known.catastro;
 
   return {

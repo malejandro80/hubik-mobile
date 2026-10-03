@@ -26,6 +26,7 @@ type OperationType = 'sale' | 'rent';
 
 interface PropertyDraft {
   catastro?: string;
+  catastro_skipped?: boolean;
   title?: string;
   property_type?: PropertyType;
   operation_type?: OperationType;
@@ -178,12 +179,43 @@ function extractCatastro(text: string, alreadyProvided: boolean): string | undef
   return undefined;
 }
 
+function extractCatastroSkip(text: string, isOnlyCatastroRemaining: boolean): boolean {
+  const lower = text.toLowerCase().trim();
+  const explicitSkip =
+    /\b(no\s+tengo\s+(el\s+)?catastro|no\s+tengo\s+(la\s+)?(c[eé]dula|ficha|referencia)(\s+catastral)?|sin\s+catastro|sin\s+(c[eé]dula|ficha|referencia)(\s+catastral)?|no\s+(dispongo|poseo)\s+de\s+catastro|omitir\s+catastro|no\s+hay\s+catastro|no\s+cuenta\s+con\s+catastro|no\s+posee\s+catastro)\b/i.test(
+      lower
+    );
+  if (explicitSkip) return true;
+
+  if (isOnlyCatastroRemaining) {
+    const contextualSkip =
+      /^(no(\s+tengo|\s+lo\s+tengo|\s+la\s+tengo|\s+dispongo|\s+poseo)?|omitir|paso|despu[eé]s|luego|ningun[oa]|no\s+aplica)$/i.test(
+        lower
+      );
+    if (contextualSkip) return true;
+  }
+
+  return false;
+}
+
 function heuristicExtract(message: string, known: PropertyDraft, knownCities: string[]): PropertyDraft {
   const lower = message.toLowerCase();
   const extracted: PropertyDraft = {};
 
+  const isOnlyCatastroRemaining =
+    known.catastro === undefined &&
+    !known.catastro_skipped &&
+    REQUIRED_FIELDS.every((f) => f === 'catastro' || known[f] !== undefined);
+
+  if (extractCatastroSkip(message, isOnlyCatastroRemaining)) {
+    extracted.catastro_skipped = true;
+  }
+
   const catastro = extractCatastro(message, known.catastro !== undefined);
-  if (catastro) extracted.catastro = catastro;
+  if (catastro) {
+    extracted.catastro = catastro;
+    extracted.catastro_skipped = false;
+  }
 
   const propertyType = extractPropertyType(lower);
   if (propertyType) extracted.property_type = propertyType;
@@ -216,6 +248,7 @@ function sanitizeGeminiFields(raw: any): Partial<PropertyDraft> {
   const clean: Partial<PropertyDraft> = {};
   if (!raw || typeof raw !== 'object') return clean;
 
+  if (typeof raw.catastro_skipped === 'boolean') clean.catastro_skipped = raw.catastro_skipped;
   if (typeof raw.catastro === 'string' && raw.catastro.trim()) clean.catastro = raw.catastro.trim().toUpperCase();
   if (typeof raw.title === 'string' && raw.title.trim()) clean.title = raw.title.trim();
   if (PROPERTY_TYPES.includes(raw.property_type)) clean.property_type = raw.property_type;
@@ -297,7 +330,15 @@ Deno.serve(async (req: Request) => {
     const heuristicAmenityHits = extractAmenityKeywords(effectiveMessage);
     data.amenities = normalizeAmenities([...(data.amenities ?? []), ...heuristicAmenityHits]);
 
-    const requiredMissing = REQUIRED_FIELDS.some((field) => data[field] === undefined);
+    const computeMissingFields = (current: PropertyDraft): (keyof PropertyDraft)[] =>
+      REQUIRED_FIELDS.filter((field) => {
+        if (field === 'catastro') {
+          return !current.catastro && !current.catastro_skipped;
+        }
+        return current[field] === undefined;
+      });
+
+    const requiredMissing = computeMissingFields(data).length > 0;
     const amenitySignal = !requiredMissing && hasAmenitySignal(effectiveMessage);
 
     if (requiredMissing || amenitySignal) {
@@ -356,7 +397,7 @@ Deno.serve(async (req: Request) => {
 
           if (existing) {
             data = { ...data, catastro: undefined };
-            const missing_fields = REQUIRED_FIELDS.filter((field) => data[field] === undefined);
+            const missing_fields = computeMissingFields(data);
             return new Response(
               JSON.stringify({
                 data,
@@ -378,7 +419,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const missing_fields = REQUIRED_FIELDS.filter((field) => data[field] === undefined);
+    const missing_fields = computeMissingFields(data);
     const ready_to_confirm = missing_fields.length === 0;
 
     return new Response(
