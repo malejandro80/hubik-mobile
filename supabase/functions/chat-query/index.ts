@@ -7,6 +7,7 @@ import { buildHybridSearch } from '../_shared/hybridSearch.ts';
 import { composeSearchAnswer } from '../_shared/searchAnswer.ts';
 import { chatQueryTextInstruction, GEMINI_EXTRACTION_MODEL } from '../_shared/prompts.ts';
 import { transcribeAudio } from '../_shared/groqAudio.ts';
+import { geminiGenerateJson } from '../_shared/geminiFacade.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -305,36 +306,18 @@ Deno.serve(async (req: Request) => {
     // city with no listings yet, an accent/spelling variant, a typo) must still get a chance at
     // it instead of silently searching with no city constraint at all.
     if (hasGeminiKey && (Object.keys(filters).length === 0 || !filters.city)) {
-      try {
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EXTRACTION_MODEL}:generateContent?key=${geminiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: effectiveMessage }] }],
-              systemInstruction: {
-                parts: [{ text: chatQueryTextInstruction() }],
-              },
-              generationConfig: {
-                responseMimeType: 'application/json',
-              },
-            }),
-          }
-        );
+      const extractedFilters = await geminiGenerateJson<FilterParams>({
+        model: GEMINI_EXTRACTION_MODEL,
+        key: geminiKey,
+        prompt: effectiveMessage,
+        systemInstruction: chatQueryTextInstruction(),
+        logTag: 'chat-query',
+      });
 
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) {
-            const parsed = JSON.parse(text);
-            // Heuristic values win on conflict (grounded in an exact DB city match); Gemini only
-            // fills gaps the heuristic left empty (e.g. city).
-            filters = { ...parsed, ...filters };
-          }
-        }
-      } catch (geminiErr) {
-        console.warn('[chat-query] Gemini parsing error, using heuristic fallback:', geminiErr);
+      if (extractedFilters) {
+        // Heuristic values win on conflict (grounded in an exact DB city match); Gemini only
+        // fills gaps the heuristic left empty (e.g. city).
+        filters = { ...extractedFilters, ...filters };
       }
     }
 

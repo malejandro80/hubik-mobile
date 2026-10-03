@@ -1,5 +1,7 @@
 import { describableFacts } from '../_shared/describeFacts.ts';
 import { propertyDescribeInstruction } from '../_shared/prompts.ts';
+import { geminiGenerateJson } from '../_shared/geminiFacade.ts';
+import { groqChatJson } from '../_shared/groqFacade.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,73 +73,30 @@ Deno.serve(async (req: Request) => {
 
     // 1. Try Gemini
     if (hasGeminiKey) {
-      try {
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: 'Genera la descripción del anuncio.' }] }],
-              systemInstruction: { parts: [{ text: propertyDescribeInstruction(known) }] },
-              generationConfig: { responseMimeType: 'application/json' },
-            }),
-          }
-        );
-
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-          const parsed = text ? JSON.parse(text) : null;
-          if (typeof parsed?.description === 'string' && parsed.description.trim()) {
-            description = parsed.description.trim();
-          }
-        } else {
-          console.warn('[property-describe] Gemini returned non-ok status:', geminiRes.status);
-        }
-      } catch (geminiErr) {
-        console.warn('[property-describe] Gemini error:', geminiErr);
+      const parsed = await geminiGenerateJson<{ description?: string }>({
+        model: 'gemini-2.5-flash',
+        key: geminiKey,
+        prompt: 'Genera la descripción del anuncio.',
+        systemInstruction: propertyDescribeInstruction(known),
+        logTag: 'property-describe',
+      });
+      if (typeof parsed?.description === 'string' && parsed.description.trim()) {
+        description = parsed.description.trim();
       }
     }
 
     // 2. Try Groq fallback if Gemini is rate-limited (e.g. 429) or unavailable
     if (!description && groqKey) {
-      try {
-        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${groqKey}`,
-          },
-          body: JSON.stringify({
-            model: 'qwen/qwen3.8-27b',
-            messages: [
-              {
-                role: 'system',
-                content: propertyDescribeInstruction(known),
-              },
-              {
-                role: 'user',
-                content: 'Genera la descripción del anuncio.',
-              },
-            ],
-            max_tokens: 300,
-            response_format: { type: 'json_object' },
-          }),
-        });
-
-        if (groqRes.ok) {
-          const groqData = await groqRes.json();
-          const content = groqData.choices?.[0]?.message?.content;
-          const parsed = content ? JSON.parse(content) : null;
-          if (typeof parsed?.description === 'string' && parsed.description.trim()) {
-            description = parsed.description.trim();
-          }
-        } else {
-          console.warn('[property-describe] Groq returned non-ok status:', groqRes.status);
-        }
-      } catch (groqErr) {
-        console.warn('[property-describe] Groq error:', groqErr);
+      const parsed = await groqChatJson<{ description?: string }>({
+        key: groqKey,
+        model: 'qwen/qwen3.8-27b',
+        systemInstruction: propertyDescribeInstruction(known),
+        userPrompt: 'Genera la descripción del anuncio.',
+        maxTokens: 300,
+        logTag: 'property-describe',
+      });
+      if (typeof parsed?.description === 'string' && parsed.description.trim()) {
+        description = parsed.description.trim();
       }
     }
 

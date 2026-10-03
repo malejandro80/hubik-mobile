@@ -10,6 +10,8 @@ import {
 } from '../_shared/prompts.ts';
 import { transcribeAudio } from '../_shared/groqAudio.ts';
 import { buildAssistantMessage, type IntakeField } from '../_shared/intakeMessage.ts';
+import { geminiGenerateJson } from '../_shared/geminiFacade.ts';
+import { groqChatJson } from '../_shared/groqFacade.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -342,73 +344,30 @@ Deno.serve(async (req: Request) => {
 
       // 1. Try Gemini
       if (hasGeminiKey) {
-        try {
-          const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_EXTRACTION_MODEL}:generateContent?key=${geminiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{ parts: [{ text: effectiveMessage }] }],
-                systemInstruction: {
-                  parts: [{ text: instruction }],
-                },
-                generationConfig: { responseMimeType: 'application/json' },
-              }),
-            }
-          );
-
-          if (geminiRes.ok) {
-            const geminiData = await geminiRes.json();
-            const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              llmExtracted = sanitizeGeminiFields(JSON.parse(text));
-            }
-          } else {
-            console.warn('[property-intake] Gemini extraction returned status:', geminiRes.status);
-          }
-        } catch (geminiErr) {
-          console.warn('[property-intake] Gemini extraction error:', geminiErr);
+        const parsed = await geminiGenerateJson<Record<string, unknown>>({
+          model: GEMINI_EXTRACTION_MODEL,
+          key: geminiKey,
+          prompt: effectiveMessage,
+          systemInstruction: instruction,
+          logTag: 'property-intake',
+        });
+        if (parsed) {
+          llmExtracted = sanitizeGeminiFields(parsed);
         }
       }
 
       // 2. Resilient fallback to Groq LLM if Gemini is rate-limited or fails
       if (!llmExtracted && groqKey) {
-        try {
-          const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${groqKey}`,
-            },
-            body: JSON.stringify({
-              model: 'qwen/qwen3.8-27b',
-              messages: [
-                {
-                  role: 'system',
-                  content: instruction,
-                },
-                {
-                  role: 'user',
-                  content: effectiveMessage,
-                },
-              ],
-              max_tokens: 500,
-              response_format: { type: 'json_object' },
-            }),
-          });
-
-          if (groqRes.ok) {
-            const groqData = await groqRes.json();
-            const content = groqData.choices?.[0]?.message?.content;
-            if (content) {
-              llmExtracted = sanitizeGeminiFields(JSON.parse(content));
-            }
-          } else {
-            console.warn('[property-intake] Groq LLM extraction returned status:', groqRes.status);
-          }
-        } catch (groqErr) {
-          console.warn('[property-intake] Groq LLM extraction error:', groqErr);
+        const parsed = await groqChatJson<Record<string, unknown>>({
+          key: groqKey,
+          model: 'qwen/qwen3.8-27b',
+          systemInstruction: instruction,
+          userPrompt: effectiveMessage,
+          maxTokens: 500,
+          logTag: 'property-intake',
+        });
+        if (parsed) {
+          llmExtracted = sanitizeGeminiFields(parsed);
         }
       }
 

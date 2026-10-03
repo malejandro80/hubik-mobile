@@ -49,6 +49,10 @@ You are an expert **Mobile Software Engineer & Architect** operating within this
   - Do NOT write explanatory comments (`//`, `/* */`, `{/* */}`, or JSDoc blocks) in application code.
   - Code must be entirely self-documenting through expressive, semantic naming for objects, constants, functions, variables, and props.
   - If logic feels non-obvious, refactor into cleanly named abstractions, semantic constants, or descriptive functions rather than adding comments.
+- **Encapsulated Network & AI Facade Pattern (Zero Raw `fetch`)**:
+  - Never execute raw `fetch(...)` calls directly within view components, custom hooks, services, or edge function request handlers.
+  - All HTTP communication, media/blob fetching, and AI/LLM vendor queries (Google Gemini, Groq) must pass through dedicated facade abstractions (`httpFacade`, `geminiFacade`, `groqFacade`).
+  - The facade layer encapsulates endpoint URLs, authentication headers, payload serialization, abort signals/timeouts, response verification, error translation, and parsing, keeping domain logic clean and declarative.
 
 ---
 

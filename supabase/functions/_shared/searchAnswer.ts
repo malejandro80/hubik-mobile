@@ -1,4 +1,5 @@
 import { searchAnswerInstruction } from './prompts.ts';
+import { geminiGenerateJson } from './geminiFacade.ts';
 import {
   ANSWER_FACT_FIELDS,
   ANSWER_TIMEOUT_MS,
@@ -6,7 +7,6 @@ import {
   citySuggestion,
   DEFAULT_PROPERTY_PLURAL,
   GEMINI_ANSWER_MODEL,
-  geminiGenerateUrl,
   luxurySuggestion,
   MAX_ALTERNATIVE_CITIES,
   MAX_ANSWER_LENGTH,
@@ -88,35 +88,22 @@ export function fallbackSearchAnswer(items: Row[], filters: Row, knownCities: st
 }
 
 async function requestAnswer(input: SearchAnswerInput, geminiKey: string): Promise<SearchAnswer | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ANSWER_TIMEOUT_MS);
-  try {
-    const payload = {
-      query: input.message,
-      filters: input.filters,
-      results: answerFacts(input.items),
-      available_cities: input.knownCities,
-    };
-    const res = await fetch(geminiGenerateUrl(GEMINI_ANSWER_MODEL, geminiKey), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: JSON.stringify(payload) }] }],
-        systemInstruction: { parts: [{ text: searchAnswerInstruction() }] },
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-    });
-    if (!res.ok) {
-      console.warn(`[searchAnswer] Gemini responded ${res.status}`);
-      return null;
-    }
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return typeof text === 'string' ? parseSearchAnswer(text) : null;
-  } finally {
-    clearTimeout(timer);
-  }
+  const payload = {
+    query: input.message,
+    filters: input.filters,
+    results: answerFacts(input.items),
+    available_cities: input.knownCities,
+  };
+
+  return geminiGenerateJson<SearchAnswer>({
+    model: GEMINI_ANSWER_MODEL,
+    key: geminiKey,
+    prompt: JSON.stringify(payload),
+    systemInstruction: searchAnswerInstruction(),
+    timeoutMs: ANSWER_TIMEOUT_MS,
+    logTag: 'searchAnswer',
+    parser: parseSearchAnswer,
+  });
 }
 
 export async function composeSearchAnswer(input: SearchAnswerInput): Promise<SearchAnswer> {

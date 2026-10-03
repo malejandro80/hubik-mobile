@@ -12,6 +12,11 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@app/(.*)$': '<rootDir>/src/app/$1',
   },
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/.kilo/',
+    '/video/',
+  ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!**/node_modules/**',

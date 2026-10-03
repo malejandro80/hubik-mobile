@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { postJson } from '../src/lib/httpFacade';
 import { SEARCH_EVAL_CASES, SearchExpectation } from './eval/searchEvalCases';
 
 dotenv.config();
@@ -12,14 +13,17 @@ interface Row {
   amenities: string[] | null;
 }
 
+interface ChatQueryResponse {
+  data?: Row[];
+  error?: string;
+}
+
 async function search(query: string): Promise<Row[]> {
-  const res = await fetch(`${supabaseUrl}/functions/v1/chat-query`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${anonKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: query }),
-  });
-  const body = await res.json();
-  if (!res.ok) throw new Error(body?.error ?? `HTTP ${res.status}`);
+  const body = await postJson<ChatQueryResponse>(
+    `${supabaseUrl}/functions/v1/chat-query`,
+    { message: query },
+    { Authorization: `Bearer ${anonKey}` }
+  );
   return body.data ?? [];
 }
 

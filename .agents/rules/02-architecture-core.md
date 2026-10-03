@@ -41,4 +41,11 @@ Before introducing any new code, stop at the first rung that satisfies the requi
 - **Semantic Naming**: Ensure all types, props, functions, constants, and variables use crystal-clear, self-explanatory domain names that eliminate any ambiguity.
 - **Self-Evident Architecture**: If code requires an explanation, refactor it into smaller, semantically named functions, pure helpers, or well-named constants.
 
+## 8. Network & Vendor Facade Pattern (Zero Raw Fetch)
+- **Prohibited Raw Fetching**: Never call raw `fetch(...)` directly inside components, custom hooks, business services, or edge function request handlers.
+- **Dedicated Facade Layer**: All outbound HTTP calls, AI/LLM vendor queries (Google Gemini, Groq), and media/blob requests must pass through dedicated facade modules (e.g., `httpFacade`, `geminiFacade`, `groqFacade`).
+- **Encapsulated Transport Concerns**: The facade layer is exclusively responsible for headers, URL formatting, abort controllers/timeouts, response verification, error translation, and JSON parsing.
+- **Unit Test Isolation**: Every network and vendor facade must be covered by unit tests verifying status handling, timeouts, parsing, and failure fallbacks.
+
+
 

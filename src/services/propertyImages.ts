@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { fetchBlob } from '../lib/httpFacade';
 import { IMAGE_UPLOAD_ATTEMPTS, RETRYABLE_UPLOAD_ERROR } from '../constants/imageUpload';
 
 export const MAX_PROPERTY_IMAGES = 10;
@@ -16,8 +17,7 @@ export async function uploadPropertyImages(draftId: string, uris: string[]): Pro
 
   for (let i = 0; i < uris.length; i++) {
     const uri = uris[i];
-    const response = await fetch(uri);
-    const picked = await response.blob();
+    const picked = await fetchBlob(uri);
     const blob = picked.slice(0, picked.size, IMAGE_CONTENT_TYPE);
     const path = await uploadWithRetry(draftId, i, blob);
 
