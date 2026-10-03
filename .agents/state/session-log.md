@@ -1939,3 +1939,13 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Verification**: rolled-back impersonation checks (ordering, token rules, anon access); typecheck clean; lint 0 errors; Jest 149/1346; advisors only the expected entries.
 - **Next Actions**: web deploy + new app build (human); push `main`.
 - **Cleanup (same day)**: the user ran the RFC 033 `DROP FUNCTION`s in the SQL editor (the auto-mode permission classifier blocks `DROP` from the assistant); verified via `pg_proc`, search smoke test OK; recorded as `20261003_drop_legacy_search_functions.sql`.
+
+---
+
+### [2026-10-03] RFC 036 view-context ask (slice 1: property detail)
+- **Scope** (approved): signed-in users ask about the listing on its detail (typed or voice), answered in place; public facts + real comparables + general area knowledge (estimate); privacy refusals; then amended with roles, a malicious-prompt security layer (logged to `ai_security_events`) and spec-driven clarifications (max 2 rounds).
+- **Code**: Edge Function `property-ask`, `_shared/propertyAsk.ts` (+constants, `requireUser`, prompt), app `propertyAskService`, `usePropertyAsk`, `resolveAskTarget`, `PropertyAskThread`, `PropertyAskPanel`; the detail no longer sends questions to the main chat.
+- **Deployed**: migration `ai_security_events`, `property-ask` v1. Anonymous → 401; behaviour validated locally with real data and real Gemini (see RFC 036 §8).
+- **Verification**: typecheck clean, lint 0 errors, Jest 158/1444 (worktree run with `--testPathIgnorePatterns /node_modules/ /.kilo/ /video/` because `jest.config.js` ignores `/.claude/`).
+- **Next Actions**: test signed in on a device (answer, clarification buttons, security log row); prompt tuning (§8); merge `feat/036-view-ask`; app build; slices 2 (Mi inmobiliaria) and 3 (shared web page).
+

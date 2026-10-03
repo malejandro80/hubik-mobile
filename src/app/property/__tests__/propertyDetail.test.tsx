@@ -3,6 +3,7 @@ import { Alert, Image, Linking } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import PropertyDetailScreen from '../[id]';
 import * as chatApi from '../../../services/chatApi';
+import { askAboutProperty } from '../../../services/propertyAskService';
 import { AuthContext } from '../../../hooks/AuthProvider';
 import { getCapabilities } from '../../../lib/roles';
 import { AuthState } from '../../../types/auth';
@@ -22,6 +23,12 @@ jest.mock('../../../services/chatApi', () => ({
   VOICE_NOTE_MIME_TYPE: 'audio/mp4',
 }));
 
+jest.mock('../../../services/propertyAskService', () => ({
+  askAboutProperty: jest.fn(),
+}));
+
+const LISTING_ID = '3f2b1c9e-8a44-4d0e-9a51-7c6d2e1b0a55';
+const askMock = askAboutProperty as jest.Mock;
 const mockNavigate = jest.fn();
 const mockStop = jest.fn();
 let mockRecorderStatus = 'idle';
@@ -187,39 +194,43 @@ describe('PropertyDetailScreen', () => {
     expect(queryByLabelText('Contactar al asesor por WhatsApp')).toBeNull();
   });
 
-  it('sends a typed question to the main chat, about this property, without a fake confirmation', async () => {
-    const { getByPlaceholderText } = render(<PropertyDetailScreen />);
+  it('answers a typed question on the detail instead of sending it to the main chat', async () => {
+    mockParams = { ...mockParams, id: LISTING_ID };
+    askMock.mockResolvedValue({ type: 'answer', answer: 'Sí, tiene garaje accesible según la ficha.', refused: false });
+    const { getByPlaceholderText, findByText } = render(
+      <AuthContext.Provider value={agentSession}>
+        <PropertyDetailScreen />
+      </AuthContext.Provider>
+    );
     await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
 
     const input = getByPlaceholderText('Escriba su consulta aquí...');
     fireEvent.changeText(input, '¿Tiene plaza de garaje accesible?');
     fireEvent(input, 'submitEditing');
 
-    expect(mockNavigate).toHaveBeenCalledWith({
-      pathname: '/',
-      params: {
-        ask: '¿Tiene plaza de garaje accesible? (sobre «Barrio de Salamanca, Madrid»)',
-        askAt: expect.any(String),
-      },
-    });
+    expect(await findByText('Sí, tiene garaje accesible según la ficha.')).toBeTruthy();
+    expect(askMock).toHaveBeenCalledWith(expect.objectContaining({ question: '¿Tiene plaza de garaje accesible?' }));
+    expect(mockNavigate).not.toHaveBeenCalled();
     expect(Alert.alert).not.toHaveBeenCalled();
   });
 
-  it('records a spoken question and sends its transcript to the main chat', async () => {
+  it('asks a spoken question on the detail with its transcript', async () => {
+    mockParams = { ...mockParams, id: LISTING_ID };
     mockRecorderStatus = 'recording';
     mockStop.mockResolvedValue({ uri: 'file:///nota.m4a', durationMs: 900 });
     (chatApi.transcribeVoiceNote as jest.Mock).mockResolvedValue('¿Admite mascotas?');
-    const { getByLabelText } = render(<PropertyDetailScreen />);
+    askMock.mockResolvedValue({ type: 'answer', answer: 'La ficha no lo indica.', refused: false });
+    const { getByLabelText } = render(
+      <AuthContext.Provider value={agentSession}>
+        <PropertyDetailScreen />
+      </AuthContext.Provider>
+    );
     await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
 
     fireEvent.press(getByLabelText('Detener grabación de nota de voz'));
 
-    await waitFor(() =>
-      expect(mockNavigate).toHaveBeenCalledWith({
-        pathname: '/',
-        params: { ask: '¿Admite mascotas? (sobre «Barrio de Salamanca, Madrid»)', askAt: expect.any(String) },
-      })
-    );
+    await waitFor(() => expect(askMock).toHaveBeenCalledWith(expect.objectContaining({ question: '¿Admite mascotas?' })));
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('navigates back when tapping header back button', async () => {

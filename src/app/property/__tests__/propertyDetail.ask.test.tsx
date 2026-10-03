@@ -69,7 +69,7 @@ describe('PropertyDetailScreen questions about the listing', () => {
 
   it('answers a signed-in user on the detail, without leaving it', async () => {
     mockAuth = { status: 'signedIn', profile: { userId: 'c1', role: 'client', agencyId: null, displayName: 'Carla' } };
-    askMock.mockResolvedValue({ answer: 'El Bosque suele ser tranquilo (estimación orientativa).', refused: false });
+    askMock.mockResolvedValue({ type: 'answer', answer: 'El Bosque suele ser tranquilo (estimación orientativa).', refused: false });
     const view = render(<PropertyDetailScreen />);
 
     fireEvent.changeText(view.getByLabelText('Campo de consulta inmobiliaria'), '¿Qué tal el tráfico?');
@@ -81,8 +81,28 @@ describe('PropertyDetailScreen questions about the listing', () => {
       question: '¿Qué tal el tráfico?',
       target: { kind: 'listing', id: LISTING_ID },
       history: [],
+      clarifications: [],
     });
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('offers predefined options when the question is ambiguous, and answers after one is chosen', async () => {
+    mockAuth = { status: 'signedIn', profile: { userId: 'c1', role: 'client', agencyId: null, displayName: 'Carla' } };
+    askMock
+      .mockResolvedValueOnce({ type: 'clarify', question: '¿Para quién sería?', options: ['Pareja', 'Familia con niños'] })
+      .mockResolvedValueOnce({ type: 'answer', answer: 'Para una familia, el jardín es un punto fuerte.', refused: false });
+    const view = render(<PropertyDetailScreen />);
+
+    fireEvent.changeText(view.getByLabelText('Campo de consulta inmobiliaria'), '¿Me conviene?');
+    fireEvent.press(view.getByLabelText('Enviar consulta'));
+
+    expect(await view.findByText('¿Para quién sería?')).toBeTruthy();
+    fireEvent.press(view.getByLabelText('Responder: Familia con niños'));
+
+    expect(await view.findByText('Para una familia, el jardín es un punto fuerte.')).toBeTruthy();
+    expect(askMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ clarifications: [{ question: '¿Para quién sería?', answer: 'Familia con niños' }] })
+    );
   });
 
   it('invites a signed-out visitor to sign in instead of showing the bar', () => {

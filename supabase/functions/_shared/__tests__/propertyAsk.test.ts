@@ -1,5 +1,4 @@
 import {
-  buildAskPayload,
   comparableFacts,
   listingFacts,
   parseAskRequest,
@@ -42,6 +41,7 @@ describe('parseAskRequest', () => {
       question: '¿Qué tal la zona?',
       target: { kind: 'listing', id: LISTING_ID },
       history: [],
+      clarifications: [],
     });
     expect(parseAskRequest({ question: 'hola', target: { kind: 'shared', token: TOKEN } })?.target).toEqual({
       kind: 'shared',
@@ -154,27 +154,6 @@ describe('comparableFacts', () => {
     const facts = comparableFacts([row, ...others.slice(0, 2)], { title: row.title, price: row.price });
 
     expect(facts.map((fact) => fact.title)).toEqual(['Casa 0', 'Casa 1']);
-  });
-});
-
-describe('buildAskPayload', () => {
-  it('serialises the question, listing, comparables and history as data', () => {
-    const payload = JSON.parse(
-      buildAskPayload({
-        question: '¿Y el tráfico?',
-        listing: listingFacts(row),
-        comparables: [],
-        history: [{ question: 'hola', answer: 'buenas' }],
-      })
-    );
-
-    expect(payload).toEqual({
-      question: '¿Y el tráfico?',
-      listing: listingFacts(row),
-      comparables: [],
-      history: [{ question: 'hola', answer: 'buenas' }],
-    });
-    expect(JSON.stringify(payload)).not.toMatch(/Calle 5|VAL-001|Ana Pérez|584141234567/);
   });
 });
 

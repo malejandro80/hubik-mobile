@@ -9,18 +9,25 @@ export interface AskRequest {
   question: string;
   target: AskTarget;
   history: AskHistoryTurn[];
+  clarifications: AskHistoryTurn[];
 }
 
-export interface AskAnswer {
-  answer: string;
-  refused: boolean;
+export interface AskClarification {
+  question: string;
+  options: string[];
 }
 
-export type AskTurnStatus = 'pending' | 'done' | 'error';
+export type AskOutcome =
+  | { type: 'answer'; answer: string; refused: boolean }
+  | ({ type: 'clarify' } & AskClarification);
+
+export type AskTurnStatus = 'pending' | 'done' | 'error' | 'clarify';
 
 export interface AskTurn {
   id: string;
   question: string;
-  answer?: string;
   status: AskTurnStatus;
+  answer?: string;
+  clarify?: AskClarification;
+  clarifications: AskHistoryTurn[];
 }

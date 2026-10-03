@@ -7,12 +7,19 @@ import {
   LISTING_ID_PATTERN,
   LISTING_TOKEN_PATTERN,
   MAX_ANSWER_LENGTH,
+  MAX_CLARIFICATION_ROUNDS,
+  MAX_CLARIFICATION_TEXT_LENGTH,
+  MAX_CLARIFY_OPTION_LENGTH,
+  MAX_CLARIFY_OPTIONS,
   MAX_COMPARABLES,
   MAX_HISTORY_ANSWER_LENGTH,
   MAX_HISTORY_TURNS,
   MAX_QUESTION_LENGTH,
+  MIN_CLARIFY_OPTIONS,
   PHONE_PATTERN,
+  SECRET_PATTERN,
   SENSITIVE_TOPIC_PATTERNS,
+  THREAT_PATTERNS,
   URL_PATTERN,
 } from './propertyAskConstants.ts';
 
@@ -29,9 +36,16 @@ export interface AskRequest {
   question: string;
   target: AskTarget;
   history: AskTurn[];
+  clarifications: AskTurn[];
 }
 
 export type SensitiveTopic = (typeof SENSITIVE_TOPIC_PATTERNS)[number][0];
+
+export type ThreatCategory = (typeof THREAT_PATTERNS)[number][0];
+
+export type AskOutcome =
+  | { type: 'answer'; answer: string; refused: boolean }
+  | { type: 'clarify'; question: string; options: string[] };
 
 export interface ScreenedAnswer {
   answer: string;
@@ -58,15 +72,14 @@ function parseTarget(value: unknown): AskTarget | null {
   return null;
 }
 
-function parseHistory(value: unknown): AskTurn[] {
+function parseTurns(value: unknown, answerMax: number): AskTurn[] {
   if (!Array.isArray(value)) return [];
-  const turns = value.flatMap((item) => {
+  return value.flatMap((item) => {
     const turn = asRecord(item);
     const question = cleanText(turn?.question, MAX_QUESTION_LENGTH);
-    const answer = cleanText(turn?.answer, MAX_HISTORY_ANSWER_LENGTH);
+    const answer = cleanText(turn?.answer, answerMax);
     return question && answer ? [{ question, answer }] : [];
   });
-  return turns.slice(-MAX_HISTORY_TURNS);
 }
 
 export function parseAskRequest(body: unknown): AskRequest | null {
@@ -74,7 +87,21 @@ export function parseAskRequest(body: unknown): AskRequest | null {
   const question = cleanText(request?.question, MAX_QUESTION_LENGTH);
   const target = parseTarget(request?.target);
   if (!question || !target) return null;
-  return { question, target, history: parseHistory(request?.history) };
+  return {
+    question,
+    target,
+    history: parseTurns(request?.history, MAX_HISTORY_ANSWER_LENGTH).slice(-MAX_HISTORY_TURNS),
+    clarifications: parseTurns(request?.clarifications, MAX_CLARIFICATION_TEXT_LENGTH).slice(0, MAX_CLARIFICATION_ROUNDS),
+  };
+}
+
+export function threatCategory(texts: string[]): ThreatCategory | null {
+  for (const text of texts) {
+    const normalized = normalizePlace(text);
+    const hit = THREAT_PATTERNS.find(([, pattern]) => pattern.test(normalized));
+    if (hit) return hit[0];
+  }
+  return null;
 }
 
 export function sensitiveTopic(question: string): SensitiveTopic | null {
@@ -101,21 +128,59 @@ export function comparableFacts(rows: Row[], self: { id?: string; title?: unknow
     });
 }
 
-export function buildAskPayload(input: { question: string; listing: Row; comparables: Row[]; history: AskTurn[] }): string {
-  return JSON.stringify({
-    question: input.question,
+export function buildAskPrompt(input: {
+  question: string;
+  listing: Row;
+  comparables: Row[];
+  history: AskTurn[];
+  clarifications: AskTurn[];
+  mustAnswer: boolean;
+}): string {
+  const data = JSON.stringify({
     listing: input.listing,
     comparables: input.comparables,
     history: input.history,
+    clarifications: input.clarifications,
+    must_answer: input.mustAnswer,
   });
+  return `DATA:\n${data}\n\nUSER_QUESTION:\n${input.question}`;
 }
+
+const leaks = (text: string): boolean =>
+  PHONE_PATTERN.test(text) || EMAIL_PATTERN.test(text) || URL_PATTERN.test(text) || SECRET_PATTERN.test(text);
 
 export function screenAnswer(text: unknown): ScreenedAnswer | null {
   if (typeof text !== 'string') return null;
   const answer = text.trim();
   if (!answer) return null;
-  if (PHONE_PATTERN.test(answer) || EMAIL_PATTERN.test(answer) || URL_PATTERN.test(answer)) {
-    return { answer: ASK_REFUSAL, refused: true };
-  }
+  if (leaks(answer)) return { answer: ASK_REFUSAL, refused: true };
   return { answer: answer.slice(0, MAX_ANSWER_LENGTH), refused: false };
 }
+
+function parseClarification(output: Row): AskOutcome | null {
+  const question = cleanText(output.question, MAX_CLARIFICATION_TEXT_LENGTH);
+  const options = Array.isArray(output.options)
+    ? output.options
+        .map((option) => cleanText(option, MAX_CLARIFY_OPTION_LENGTH))
+        .filter((option): option is string => option !== null)
+        .slice(0, MAX_CLARIFY_OPTIONS)
+    : [];
+  if (!question || options.length < MIN_CLARIFY_OPTIONS || [question, ...options].some(leaks)) return null;
+  return { type: 'clarify', question, options };
+}
+
+export function parseAskOutcome(raw: string, mustAnswer: boolean): AskOutcome | null {
+  let output: Row | null;
+  try {
+    output = asRecord(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+  if (output?.type === 'answer') {
+    const screened = screenAnswer(output.answer);
+    return screened ? { type: 'answer', ...screened } : null;
+  }
+  if (output?.type === 'clarify' && !mustAnswer) return parseClarification(output);
+  return null;
+}
+

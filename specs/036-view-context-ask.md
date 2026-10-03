@@ -1,7 +1,7 @@
 # RFC 036: Ask the AI About the Current View (slice 1: property detail)
 
 - **Author**: AI Agent (Claude Code)
-- **Status**: Under Review
+- **Status**: Deployed (Edge Function + table, 2026-10-03); app changes ship with the next app build
 - **Created**: 2026-10-03
 - **Target Release / Milestone**: MVP 1.0 - AI Real Estate Assistant
 
@@ -101,3 +101,38 @@ then the shared web page).
 - [ ] Unit (app): target resolution, service, hook, thread, detail (signed in / out, voice).
 - [ ] Live: the done signals above against the deployed function, as a signed-in client.
 - [ ] `npm run lint`, `npm test`, `npm run typecheck`; advisors unchanged (no migration).
+
+---
+
+## 7. Amendment (2026-10-03): roles, security layer and spec-driven clarifications
+Requested by the user after the first draft:
+- **Roles**: the question may ask for a perspective (architect, investor, family), tone or format. The
+  question travels apart from the DATA block (`buildAskPrompt`), so a role is honoured while listing data
+  stays data. A role never changes the privacy or security rules. Answers up to ~8 sentences.
+- **Security layer**: `threatCategory` blocks, before any model call, attempts to extract secrets or
+  environment variables, extract the system prompt, override instructions (jailbreaks), inject SQL or
+  inject code — on the question, the history and the clarifications (all client-controlled). The user
+  gets a neutral reply and the attempt is recorded in `ai_security_events` (user, surface, category,
+  time; never the text). RLS on, no grants: only the Edge Function (service role) writes it.
+  `screenAnswer` also blocks secret-looking output. Note: the model never receives credentials and the
+  question never becomes SQL, so this is defence in depth plus abuse visibility.
+- **Spec-driven clarifications**: one structured call returns either `{type:'answer'}` or
+  `{type:'clarify', question, options[2..4]}`, validated on the server. The app shows the options as
+  buttons (or a typed reply). At most 2 rounds; then `must_answer` forces an answer with stated
+  assumptions.
+
+## 8. Deployment Notes (2026-10-03)
+- Migration `ai_security_events` applied via MCP; Edge Function `property-ask` v1 (`verify_jwt: true`).
+- Anonymous call → 401. The signed-in path was exercised by running the same modules, prompt, real data
+  (Casa en alquiler en El Bosque, 7 comparables) and real Gemini locally: architect role honoured with
+  listing-only facts; traffic answered as an estimate; "¿Me conviene?" → clarification with options, and
+  after 2 clarifications a mandatory answer comparing real listings; owner phone → refused locally;
+  instruction override and SQL injection → blocked locally.
+- Not verified live: the HTTP path with a real user session and the security event insert (needs a
+  signed-in user in the app).
+- Tuning to do: comparison questions sometimes ask for a clarification although comparables suffice;
+  one area remark was not labelled as an estimate.
+- Local: typecheck clean, lint 0 errors, Jest 158 suites / 1444 tests.
+- Requirement change: the detail's "send to the main chat" tests were rewritten to the approved behaviour
+  (answered on the detail).
+

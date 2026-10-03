@@ -433,6 +433,15 @@ export const labels = {
       },
     },
   },
+  propertyAsk: {
+    thinking: 'Pensando…',
+    error: 'No pude responder ahora. Inténtalo de nuevo en unos segundos.',
+    signInPrompt: 'Inicia sesión para preguntar sobre esta propiedad',
+    signInA11y: 'Inicia sesión para preguntar sobre esta propiedad',
+    threadA11y: 'Preguntas y respuestas sobre esta propiedad',
+    optionA11y: (option: string) => `Responder: ${option}`,
+    otherHint: 'También puedes escribir tu respuesta abajo.',
+  },
   propertyDetail: {
     previewBanner: 'Vista previa: así verán su anuncio. Todavía no está publicado.',
     noAgencyFees: 'Sin honorarios de agencia',

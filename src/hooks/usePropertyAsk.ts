@@ -20,28 +20,59 @@ export function usePropertyAsk(target: AskTarget | null) {
     setTurns(next);
   }, []);
 
-  const ask = useCallback(
-    async (text: string) => {
-      const question = text.trim();
-      if (!question || !target || pendingRef.current) return;
+  const patch = useCallback(
+    (id: string, changes: Partial<AskTurn>) =>
+      update(turnsRef.current.map((turn) => (turn.id === id ? { ...turn, ...changes } : turn))),
+    [update]
+  );
 
-      const id = `${Date.now()}-${turnsRef.current.length}`;
-      const history = historyOf(turnsRef.current);
+  const send = useCallback(
+    async (turn: AskTurn, history: AskHistoryTurn[]) => {
+      if (!target) return;
       pendingRef.current = true;
       setPending(true);
-      update([...turnsRef.current, { id, question, status: 'pending' }]);
-
       try {
-        const { answer } = await askAboutProperty({ question, target, history });
-        update(turnsRef.current.map((turn) => (turn.id === id ? { ...turn, answer, status: 'done' } : turn)));
+        const outcome = await askAboutProperty({
+          question: turn.question,
+          target,
+          history,
+          clarifications: turn.clarifications,
+        });
+        if (outcome.type === 'clarify') {
+          patch(turn.id, { status: 'clarify', clarify: { question: outcome.question, options: outcome.options } });
+        } else {
+          patch(turn.id, { status: 'done', answer: outcome.answer, clarify: undefined });
+        }
       } catch {
-        update(turnsRef.current.map((turn) => (turn.id === id ? { ...turn, status: 'error' } : turn)));
+        patch(turn.id, { status: 'error', clarify: undefined });
       } finally {
         pendingRef.current = false;
         setPending(false);
       }
     },
-    [target, update]
+    [target, patch]
+  );
+
+  const ask = useCallback(
+    async (text: string) => {
+      const reply = text.trim();
+      if (!reply || !target || pendingRef.current) return;
+
+      const current = turnsRef.current;
+      const waiting = current[current.length - 1];
+      if (waiting?.status === 'clarify' && waiting.clarify) {
+        const clarifications = [...waiting.clarifications, { question: waiting.clarify.question, answer: reply }];
+        const resent = { ...waiting, status: 'pending' as const, clarify: undefined, clarifications };
+        patch(waiting.id, resent);
+        await send(resent, historyOf(current.slice(0, -1)));
+        return;
+      }
+
+      const turn: AskTurn = { id: `${Date.now()}-${current.length}`, question: reply, status: 'pending', clarifications: [] };
+      update([...current, turn]);
+      await send(turn, historyOf(current));
+    },
+    [target, patch, send, update]
   );
 
   return { turns, pending, ask };
