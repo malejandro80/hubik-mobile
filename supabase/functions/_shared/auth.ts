@@ -48,3 +48,31 @@ export async function requireAgent(
 
   return { userId: decision.userId, agencyId: decision.agencyId };
 }
+
+export interface UserIdentity {
+  userId: string;
+}
+
+export async function requireUser(
+  req: Request,
+  corsHeaders: Record<string, string>
+): Promise<UserIdentity | Response> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Supabase environment variables not configured in Edge Function');
+  }
+
+  const token = (req.headers.get('Authorization') ?? '').replace(BEARER_PREFIX, '');
+  const { data } = token ? await createClient(supabaseUrl, serviceRoleKey).auth.getUser(token) : { data: { user: null } };
+  const userId = data.user?.id ?? null;
+
+  if (!userId) {
+    return new Response(JSON.stringify({ error: 'Authentication required' }), {
+      status: 401,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+  return { userId };
+}
+

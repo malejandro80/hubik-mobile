@@ -45,4 +45,5 @@ export const EDGE_FUNCTIONS = {
   PROPERTY_INTAKE: 'property-intake',
   PROPERTY_PUBLISH: 'property-publish',
   PROPERTY_DESCRIBE: 'property-describe',
+  PROPERTY_ASK: 'property-ask',
 } as const;
