@@ -118,7 +118,7 @@ Deno.serve(async (req: Request) => {
     if (hasGeminiKey && !filters.city && !filters.place) {
       const extractedFilters = await geminiGenerateJson<PromptFilters>({
         model: GEMINI_EXTRACTION_MODEL,
-        key: geminiKey,
+        key: geminiKey!,
         prompt: effectiveMessage,
         systemInstruction: chatQueryTextInstruction(),
         logTag: 'chat-query',

@@ -1,6 +1,6 @@
 import { normalizePlace } from './cityMatch.ts';
+import { geminiGenerateJson } from './geminiFacade.ts';
 import { GEMINI_EXTRACTION_MODEL, sectorInstruction } from './prompts.ts';
-import { geminiGenerateUrl } from './searchAnswerConstants.ts';
 import { SECTOR_MAX_LENGTH, SECTOR_MIN_LENGTH, SECTOR_SOURCE_SEPARATOR, SECTOR_TIMEOUT_MS } from './sectorConstants.ts';
 
 export interface SectorSource {
@@ -24,30 +24,13 @@ export function groundSector(candidate: unknown, source: SectorSource): string |
 export async function extractSector(source: SectorSource, geminiKey: string): Promise<string | null> {
   if (!source.address && !source.title) return null;
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), SECTOR_TIMEOUT_MS);
-  try {
-    const res = await fetch(geminiGenerateUrl(GEMINI_EXTRACTION_MODEL, geminiKey), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: controller.signal,
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: JSON.stringify(source) }] }],
-        systemInstruction: { parts: [{ text: sectorInstruction() }] },
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-    });
-    if (!res.ok) {
-      console.warn(`[sector] Gemini responded ${res.status}`);
-      return null;
-    }
-    const data = await res.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return typeof text === 'string' ? groundSector(JSON.parse(text)?.sector, source) : null;
-  } catch (error) {
-    console.warn('[sector] extraction failed:', error);
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+  return geminiGenerateJson<string | null>({
+    model: GEMINI_EXTRACTION_MODEL,
+    key: geminiKey,
+    prompt: JSON.stringify(source),
+    systemInstruction: sectorInstruction(),
+    timeoutMs: SECTOR_TIMEOUT_MS,
+    logTag: 'sector',
+    parser: (text) => groundSector(JSON.parse(text)?.sector, source),
+  });
 }
