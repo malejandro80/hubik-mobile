@@ -162,8 +162,10 @@ export async function searchWithPlaceFallback(input: PlaceFallbackInput): Promis
   `DROP FUNCTION public.listing_search_tsv(text, text[], text);`
 - **Privacy**: `anon`/`authenticated` can no longer execute `jitter_coordinate`; the 25 listings
   still show jittered coordinates (max offset 0.00299°). Pins moved once, as intended.
-- **Edge Functions**: `chat-query` v23, `property-intake` v23, `property-publish` v12
-  (`verify_jwt: true`).
+- **Edge Functions**: `chat-query` v24, `property-intake` v24, `property-publish` v13
+  (`verify_jwt: true`), redeployed from the branch rebased on the facade refactor
+  (`geminiFacade`, `errorFacade`). Smoke-tested: search, place fallback, m² filter, empty
+  message → 400, anonymous intake/publish → 401.
 - **Backfill**: `npm run backfill:sectors` assigned 22/25 sectors. Naguanagua and Campo Carabobo have
   no sector in the address; "Torre Kerdell" made the model return null for Kerdell (still found
   through its title). Gemini free tier is 15 requests/min per model: the backfill hit 429s and was
