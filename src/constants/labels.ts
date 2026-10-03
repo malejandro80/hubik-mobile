@@ -441,6 +441,12 @@ export const labels = {
     threadA11y: 'Preguntas y respuestas sobre esta propiedad',
     optionA11y: (option: string) => `Responder: ${option}`,
     otherHint: 'También puedes escribir tu respuesta abajo.',
+    hide: 'Ocultar',
+    hideA11y: 'Ocultar conversación',
+    clear: 'Borrar',
+    clearA11y: 'Borrar conversación',
+    reopen: (count: number) => `Ver conversación (${count})`,
+    reopenA11y: (count: number) => `Ver conversación, ${count} ${count === 1 ? 'pregunta' : 'preguntas'}`,
   },
   propertyDetail: {
     previewBanner: 'Vista previa: así verán su anuncio. Todavía no está publicado.',

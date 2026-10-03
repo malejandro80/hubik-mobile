@@ -108,4 +108,20 @@ describe('usePropertyAsk', () => {
     });
     expect(noTarget.result.current.turns).toEqual([]);
   });
+
+  it('clears the conversation when asked, but not while a question is pending', async () => {
+    askMock.mockResolvedValueOnce(answer('Respuesta'));
+    const { result } = renderHook(() => usePropertyAsk(TARGET));
+
+    await act(async () => result.current.ask('¿Y la zona?'));
+    act(() => result.current.clear());
+    expect(result.current.turns).toEqual([]);
+
+    askMock.mockReturnValue(new Promise(() => undefined));
+    act(() => {
+      void result.current.ask('otra');
+    });
+    act(() => result.current.clear());
+    expect(result.current.turns).toHaveLength(1);
+  });
 });

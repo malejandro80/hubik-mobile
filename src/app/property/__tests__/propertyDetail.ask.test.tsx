@@ -105,6 +105,45 @@ describe('PropertyDetailScreen questions about the listing', () => {
     );
   });
 
+  it('hides the conversation to free the view, reopens it, and clears it', async () => {
+    mockAuth = { status: 'signedIn', profile: { userId: 'c1', role: 'client', agencyId: null, displayName: 'Carla' } };
+    askMock.mockResolvedValue({ type: 'answer', answer: 'Zona tranquila (estimación).', refused: false });
+    const view = render(<PropertyDetailScreen />);
+
+    fireEvent.changeText(view.getByLabelText('Campo de consulta inmobiliaria'), '¿Qué tal la zona?');
+    fireEvent.press(view.getByLabelText('Enviar consulta'));
+    expect(await view.findByText('Zona tranquila (estimación).')).toBeTruthy();
+
+    fireEvent.press(view.getByLabelText('Ocultar conversación'));
+    expect(view.queryByText('Zona tranquila (estimación).')).toBeNull();
+
+    fireEvent.press(view.getByLabelText('Ver conversación, 1 pregunta'));
+    expect(view.getByText('Zona tranquila (estimación).')).toBeTruthy();
+
+    fireEvent.press(view.getByLabelText('Borrar conversación'));
+    expect(view.queryByText('Zona tranquila (estimación).')).toBeNull();
+    expect(view.queryByLabelText('Ver conversación, 1 pregunta')).toBeNull();
+  });
+
+  it('reopens a hidden conversation when a new question is asked', async () => {
+    mockAuth = { status: 'signedIn', profile: { userId: 'c1', role: 'client', agencyId: null, displayName: 'Carla' } };
+    askMock
+      .mockResolvedValueOnce({ type: 'answer', answer: 'Primera respuesta.', refused: false })
+      .mockResolvedValueOnce({ type: 'answer', answer: 'Segunda respuesta.', refused: false });
+    const view = render(<PropertyDetailScreen />);
+
+    fireEvent.changeText(view.getByLabelText('Campo de consulta inmobiliaria'), 'Uno');
+    fireEvent.press(view.getByLabelText('Enviar consulta'));
+    expect(await view.findByText('Primera respuesta.')).toBeTruthy();
+    fireEvent.press(view.getByLabelText('Ocultar conversación'));
+
+    fireEvent.changeText(view.getByLabelText('Campo de consulta inmobiliaria'), 'Dos');
+    fireEvent.press(view.getByLabelText('Enviar consulta'));
+
+    expect(await view.findByText('Segunda respuesta.')).toBeTruthy();
+    expect(view.getByText('Primera respuesta.')).toBeTruthy();
+  });
+
   it('invites a signed-out visitor to sign in instead of showing the bar', () => {
     mockAuth = { status: 'signedOut', profile: null };
     const view = render(<PropertyDetailScreen />);

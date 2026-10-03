@@ -75,5 +75,9 @@ export function usePropertyAsk(target: AskTarget | null) {
     [target, patch, send, update]
   );
 
-  return { turns, pending, ask };
+  const clear = useCallback(() => {
+    if (!pendingRef.current) update([]);
+  }, [update]);
+
+  return { turns, pending, ask, clear };
 }

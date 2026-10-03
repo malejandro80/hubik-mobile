@@ -23,9 +23,16 @@ export function PropertyAskPanel({ target }: PropertyAskPanelProps) {
   const theme = colors[useColorScheme()];
   const styles = useMemo(() => getPropertyAskPanelStyles(theme), [theme]);
   const [draft, setDraft] = useState('');
-  const { turns, pending, ask } = usePropertyAsk(target);
+  const [expanded, setExpanded] = useState(true);
+  const { turns, pending, ask, clear } = usePropertyAsk(target);
 
-  const askHere = useCallback((question: string) => void ask(question), [ask]);
+  const askHere = useCallback(
+    (question: string) => {
+      setExpanded(true);
+      void ask(question);
+    },
+    [ask]
+  );
   const voice = useVoiceNote(askHere);
 
   const send = (text?: string) => {
@@ -50,9 +57,43 @@ export function PropertyAskPanel({ target }: PropertyAskPanelProps) {
 
   return (
     <>
-      <View style={styles.thread}>
-        <PropertyAskThread turns={turns} pending={pending} onChoose={askHere} />
-      </View>
+      {turns.length > 0 && expanded && (
+        <>
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={clear}
+              disabled={pending}
+              accessibilityRole="button"
+              accessibilityLabel={askLabels.clearA11y}
+              accessibilityState={{ disabled: pending }}
+            >
+              <Text style={styles.headerButtonText}>{askLabels.clear}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => setExpanded(false)}
+              accessibilityRole="button"
+              accessibilityLabel={askLabels.hideA11y}
+            >
+              <Text style={styles.headerButtonText}>{askLabels.hide}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.thread}>
+            <PropertyAskThread turns={turns} pending={pending} onChoose={askHere} />
+          </View>
+        </>
+      )}
+      {turns.length > 0 && !expanded && (
+        <TouchableOpacity
+          style={styles.reopen}
+          onPress={() => setExpanded(true)}
+          accessibilityRole="button"
+          accessibilityLabel={askLabels.reopenA11y(turns.length)}
+        >
+          <Text style={styles.reopenText}>{askLabels.reopen(turns.length)}</Text>
+        </TouchableOpacity>
+      )}
       <ChatInputBar
         value={draft}
         onChangeText={setDraft}
