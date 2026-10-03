@@ -5,8 +5,13 @@ import { SharedPropertyPage } from './SharedPropertyPage';
 
 export interface SharedListingRouteProps {
   value?: string;
+  opaque?: boolean;
 }
 
-export function SharedListingRoute({ value }: SharedListingRouteProps) {
-  return Platform.OS === 'web' ? <SharedPropertyPage value={value} /> : <SharedListingRedirect value={value} />;
+export function SharedListingRoute({ value, opaque = false }: SharedListingRouteProps) {
+  return Platform.OS === 'web' ? (
+    <SharedPropertyPage value={value} opaque={opaque} />
+  ) : (
+    <SharedListingRedirect value={value} opaque={opaque} />
+  );
 }

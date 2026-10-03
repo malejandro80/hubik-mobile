@@ -1,7 +1,9 @@
 import type { Metadata } from 'expo-server';
 import { SHARE_BASE_URL } from '../constants/share';
-import { buildListingMetadata, buildUnavailableMetadata } from '../lib/listingMetadata';
+import { buildListingMetadata, buildOpaqueListingMetadata, buildUnavailableMetadata } from '../lib/listingMetadata';
 import { parseListingRef } from '../lib/listingSlug';
+import { isShareToken } from '../lib/shareLink';
+import { fetchSharedListingByToken } from './listingShareLinks';
 import { fetchSharedPropertyByRef } from './sharedProperty';
 
 export function resolveOrigin(requestUrl: string, configured: string = SHARE_BASE_URL): string {
@@ -16,6 +18,17 @@ export async function resolveSharedMetadata(value: string | undefined, origin: s
   try {
     const property = await fetchSharedPropertyByRef(ref);
     return property ? buildListingMetadata(property, origin) : buildUnavailableMetadata();
+  } catch {
+    return buildUnavailableMetadata();
+  }
+}
+
+export async function resolveOpaqueSharedMetadata(token: string | undefined, origin: string): Promise<Metadata> {
+  if (!isShareToken(token)) return buildUnavailableMetadata();
+
+  try {
+    const property = await fetchSharedListingByToken(token);
+    return property ? buildOpaqueListingMetadata(property, origin) : buildUnavailableMetadata();
   } catch {
     return buildUnavailableMetadata();
   }

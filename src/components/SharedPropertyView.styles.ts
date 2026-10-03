@@ -99,4 +99,18 @@ export const getSharedPropertyViewStyles = (theme: ThemeColors) =>
       color: theme.textSecondary,
       marginTop: 20,
     },
+      contactButton: {
+      minHeight: spacing.touchMin,
+      paddingHorizontal: 24,
+      borderRadius: shapes.full,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: theme.primary,
+      marginTop: 16,
+    },
+    contactText: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: theme.onPrimary,
+    },
   });

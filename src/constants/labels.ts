@@ -84,6 +84,8 @@ export const labels = {
     shareA11y: (title: string) => `Compartir ${title}`,
     shareMessage: (title: string, price: string, city: string, address: string | null) =>
       `Mira esta propiedad en Hubik: ${title} por ${price} en ${city}.${address ? `\nDirección: ${address}` : ''}`,
+    shareLinkErrorTitle: 'No se pudo compartir',
+    shareLinkErrorMessage: 'No pudimos crear el enlace para tu cliente. Inténtalo de nuevo en unos segundos.',
   },
   photoGrid: {
     add: 'Añadir',

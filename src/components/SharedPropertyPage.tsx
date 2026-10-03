@@ -9,8 +9,8 @@ import { useColorScheme } from '../hooks/useColorScheme';
 import { useInstallPrompt } from '../hooks/useInstallPrompt';
 import { useOpenApp } from '../hooks/useOpenApp';
 import { useLabels } from '../hooks/useLabels';
-import { useSharedProperty } from '../hooks/useSharedProperty';
-import { buildAppLink } from '../lib/appLink';
+import { useSharedListing } from '../hooks/useSharedProperty';
+import { buildAppLink, buildOpaqueAppLink } from '../lib/appLink';
 import { resolveStoreUrl } from '../lib/storeLinks';
 import { colors } from '../theme';
 import { getSharedPageStyles } from './SharedPropertyPage.styles';
@@ -21,16 +21,20 @@ const readUserAgent = (): string => (typeof navigator !== 'undefined' && navigat
 
 export interface SharedPropertyPageProps {
   value?: string;
+  opaque?: boolean;
 }
 
-export function SharedPropertyPage({ value }: SharedPropertyPageProps) {
+export function SharedPropertyPage({ value, opaque = false }: SharedPropertyPageProps) {
   const { sharedProperty } = useLabels();
   const colorScheme = useColorScheme();
   const theme = colors[colorScheme];
   const styles = useMemo(() => getSharedPageStyles(theme), [theme]);
   const prompt = useInstallPrompt();
-  const { status, property, retry } = useSharedProperty(value);
-  const appLink = useMemo(() => (property ? buildAppLink(property) : null), [property]);
+  const { status, property, retry } = useSharedListing(value, opaque);
+  const appLink = useMemo(() => {
+    if (!property) return null;
+    return opaque && value ? buildOpaqueAppLink(value) : buildAppLink(property);
+  }, [property, opaque, value]);
   const openApp = useOpenApp(appLink);
   const storeUrl = useMemo(() => resolveStoreUrl(readUserAgent(), IOS_STORE_URL, ANDROID_STORE_URL), []);
 

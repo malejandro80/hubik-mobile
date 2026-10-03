@@ -22,7 +22,7 @@ import { PropertyLandlordSection } from '../../components/PropertyLandlordSectio
 import { PropertyDescriptionSection } from '../../components/PropertyDescriptionSection';
 import { PropertyMapPreview } from '../../components/PropertyMapPreview';
 import { PropertyStatsBar } from '../../components/PropertyStatsBar';
-import { PREVIEW_PARAM_VALUE } from '../../constants/listingPreview';
+import { PREVIEW_PARAM_VALUE, SHARED_LISTING_PARAM_VALUE } from '../../constants/listingPreview';
 import { useAppMenu } from '../../hooks/useAppMenu';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { useLabels } from '../../hooks/useLabels';
@@ -80,6 +80,7 @@ export default function PropertyDetailScreen() {
         ? labels.propertyDetail.operationSale
         : undefined;
   const isPreview = params.preview === PREVIEW_PARAM_VALUE;
+  const isSharedLink = params.shared === SHARED_LISTING_PARAM_VALUE;
   const isAddressMasked = isPreview || !params.address;
   const address = isAddressMasked ? labels.propertyDetail.approximateLocation : params.address;
   const attribution = useListingAttribution(isPreview, params.agency_name, params.agent_name);
@@ -257,7 +258,7 @@ export default function PropertyDetailScreen() {
             </View>
           )}
 
-          {!isPreview && params.id ? <PropertyLandlordSection propertyId={params.id} /> : null}
+          {!isPreview && !isSharedLink && params.id ? <PropertyLandlordSection propertyId={params.id} /> : null}
 
           <PropertyAgentCard
             agencyName={attribution.agencyName}

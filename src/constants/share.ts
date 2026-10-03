@@ -2,6 +2,8 @@ export const SHARE_BASE_URL = process.env.EXPO_PUBLIC_SHARE_BASE_URL ?? '';
 
 export const SHARE_PAGE_PATH = '/p';
 
+export const OPAQUE_SHARE_PATH = '/s';
+
 export const SHARE_QUERY_PARAM = 'id';
 
 export const INSTALL_SHEET_MAX_WIDTH = 560;

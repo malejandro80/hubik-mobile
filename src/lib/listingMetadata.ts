@@ -1,6 +1,6 @@
 import type { Metadata } from 'expo-server';
 import { labels } from '../constants/labels';
-import { SHARE_PAGE_PATH } from '../constants/share';
+import { OPAQUE_SHARE_PATH, SHARE_PAGE_PATH } from '../constants/share';
 import { Property } from '../types/property';
 import { buildListingSlug } from './listingSlug';
 import { formatPrice } from './propertyDetail';
@@ -16,22 +16,27 @@ export function buildListingUrl(property: Property, origin: string): string {
   return `${origin.trim().replace(/\/+$/, '')}${SHARE_PAGE_PATH}/${buildListingSlug(property.title, property.id)}`;
 }
 
-export function buildListingMetadata(property: Property, origin: string): Metadata {
+interface ListingMetadataOptions {
+  url: string;
+  location: string;
+  indexable: boolean;
+}
+
+function buildMetadata(property: Property, { url, location, indexable }: ListingMetadataOptions): Metadata {
   const { sharedProperty } = labels;
   const title = `${property.title} · ${formatPrice(String(property.price))}`;
   const description = [
     sharedProperty.bedrooms(property.bedrooms),
     sharedProperty.bathrooms(property.bathrooms),
     sharedProperty.area(property.square_meters),
-    `${property.address}, ${property.city}`,
+    location,
   ].join(' · ');
-  const url = buildListingUrl(property, origin);
   const image = pickCoverImage(property);
 
   return {
     title,
     description,
-    robots: { index: true, follow: true },
+    robots: { index: indexable, follow: indexable },
     alternates: { canonical: url },
     openGraph: {
       title,
@@ -49,6 +54,22 @@ export function buildListingMetadata(property: Property, origin: string): Metada
       ...(image ? { images: [image] } : {}),
     },
   };
+}
+
+export function buildListingMetadata(property: Property, origin: string): Metadata {
+  return buildMetadata(property, {
+    url: buildListingUrl(property, origin),
+    location: `${property.address}, ${property.city}`,
+    indexable: true,
+  });
+}
+
+export function buildOpaqueListingMetadata(property: Property, origin: string): Metadata {
+  return buildMetadata(property, {
+    url: `${origin.trim().replace(/\/+$/, '')}${OPAQUE_SHARE_PATH}/${property.id}`,
+    location: property.city,
+    indexable: false,
+  });
 }
 
 export function buildUnavailableMetadata(): Metadata {

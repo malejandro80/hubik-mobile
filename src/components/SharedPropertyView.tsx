@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { Image, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Text, TouchableOpacity, View } from 'react-native';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { usePhotoGallery } from '../hooks/usePhotoGallery';
 import { useLabels } from '../hooks/useLabels';
 import { formatPrice } from '../lib/propertyDetail';
+import { normalizeWhatsApp, whatsAppUrl } from '../lib/whatsapp';
 import { colors } from '../theme';
 import { Property } from '../types/property';
 import { PhotoGallery } from './PhotoGallery';
@@ -18,6 +19,11 @@ export const SharedPropertyView: React.FC<SharedPropertyViewProps> = ({ property
   const { galleryVisible, openGallery, closeGallery } = usePhotoGallery();
   const colorScheme = useColorScheme();
   const styles = useMemo(() => getSharedPropertyViewStyles(colors[colorScheme]), [colorScheme]);
+
+  const contactPhone = property.contact_whatsapp ? normalizeWhatsApp(property.contact_whatsapp) : null;
+  const contact = () => {
+    if (contactPhone) Linking.openURL(whatsAppUrl(contactPhone, propertyDetail.whatsappMessage(property.title))).catch(() => undefined);
+  };
 
   const images = property.images ?? [];
   const cover = images[0] || property.image_url;
@@ -60,7 +66,7 @@ export const SharedPropertyView: React.FC<SharedPropertyViewProps> = ({ property
       <Text style={styles.title} accessibilityRole="header">
         {property.title}
       </Text>
-      <Text style={styles.address}>{`${property.address}, ${property.city}`}</Text>
+      <Text style={styles.address}>{[property.address, property.city].filter(Boolean).join(', ')}</Text>
 
       <View style={styles.facts}>
         <View style={styles.fact}>
@@ -83,6 +89,17 @@ export const SharedPropertyView: React.FC<SharedPropertyViewProps> = ({ property
 
       {property.agency_name ? (
         <Text style={styles.listedBy}>{auth.listedBy(property.agency_name, property.agent_name)}</Text>
+      ) : null}
+
+      {contactPhone ? (
+        <TouchableOpacity
+          style={styles.contactButton}
+          onPress={contact}
+          accessibilityRole="button"
+          accessibilityLabel={propertyDetail.contactWhatsApp}
+        >
+          <Text style={styles.contactText}>{propertyDetail.contactWhatsApp}</Text>
+        </TouchableOpacity>
       ) : null}
     </View>
   );

@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import {
+  Alert,
   Image,
   Share,
   Text,
@@ -12,7 +13,9 @@ import { useAuth } from '../hooks/useAuth';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { useLabels } from '../hooks/useLabels';
 import { formatPrice } from '../lib/propertyDetail';
-import { buildShareUrl } from '../lib/shareLink';
+import { buildOpaqueShareUrl, buildShareUrl } from '../lib/shareLink';
+import { needsOpaqueShareLink } from '../lib/sharePolicy';
+import { createListingShareLink } from '../services/listingShareLinks';
 import { colors } from '../theme';
 import { getPropertyCardStyles } from './PropertyCard.styles';
 
@@ -49,7 +52,7 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
   const formattedPrice = formatPrice(String(property.price), property.currency);
   const formattedArea = Number(property.square_meters).toLocaleString('en-US');
 
-  const handleShare = async () => {
+  const shareWith = async (link: string | null) => {
     try {
       const message = labels.propertyCard.shareMessage(
         property.title,
@@ -57,13 +60,32 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
         property.city,
         property.address
       );
-      const link = buildShareUrl(property);
       await Share.share({
         title: property.title,
         message: link ?? message,
       });
     } catch {
     }
+  };
+
+  const shareOpaque = async () => {
+    const token = await createListingShareLink(property.id).catch(() => null);
+    const link = token ? buildOpaqueShareUrl(token) : null;
+    if (link) {
+      await shareWith(link);
+      return;
+    }
+    Alert.alert(labels.propertyCard.shareLinkErrorTitle, labels.propertyCard.shareLinkErrorMessage, [
+      { text: labels.common.understood },
+    ]);
+  };
+
+  const handleShare = () => {
+    if (needsOpaqueShareLink(profile, property)) {
+      shareOpaque();
+      return;
+    }
+    shareWith(buildShareUrl(property));
   };
 
   return (

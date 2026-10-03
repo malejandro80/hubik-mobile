@@ -21,6 +21,7 @@ export interface Property {
   bathrooms: number;
   square_meters: number;
   city: string;
+  sector?: string | null;
   address: string | null;
   latitude?: number;
   longitude?: number;

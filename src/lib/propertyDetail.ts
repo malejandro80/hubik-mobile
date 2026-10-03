@@ -24,6 +24,7 @@ export type PropertyDetailRouteParams = {
   agency_name?: string;
   agent_name?: string;
   preview?: string;
+  shared?: string;
   whatsapp?: string;
 };
 
