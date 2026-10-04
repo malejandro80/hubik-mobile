@@ -43,11 +43,14 @@ After a session with non-trivial changes, append an entry to `.agents/state/sess
 `antigravity/instructions.md` and `scripts/architecture-team/` describe a mandatory 8-phase pipeline with named personas (Mobile Lead, Systems Architect, Security Specialist, QA, Gatekeeper) run as a LangGraph graph — that's Antigravity/Kilo tooling, not something Claude Code invokes. The spirit still applies: explore before touching code, get the spec agreed before implementing, review before shipping. Use the `Agent` tool for a genuinely independent second opinion, parallel research, or an isolated multi-step task — not as a required step on every change; over-spawning subagents for small tasks is worse than just doing the work directly.
 
 ## Supabase deploys (Claude owns these)
-Claude takes over every Supabase deploy: SQL migrations, Edge Functions and their verification. The route is the project skill `.agents/skills/supabase/SKILL.md` (read it first): the Supabase MCP server (`execute_sql` / `apply_migration`, `deploy_edge_function`, `get_advisors`), not ad-hoc CLI commands.
+Claude takes over every Supabase deploy: SQL migrations, Edge Functions and their verification. Read the project skill `.agents/skills/supabase/SKILL.md` first. Pick the route by speed:
+- **Edge Functions → Supabase CLI.** Deploy with `supabase functions deploy <name> --project-ref wbzfeqzvwfglirwlpzpy`, run from the checkout that holds the code. The CLI bundles the local files, `_shared/` included, so nothing is copied inline; the MCP `deploy_edge_function` needs every file pasted into the call and is the fallback only. Keep JWT verification on (never `--no-verify-jwt` unless the function already had it off). Deploy from a branch that is up to date with `main`, or the shared modules ship stale.
+- **Anything else that is slow through MCP → CLI too**: work that means pasting large content or many files into a tool call (e.g. `supabase functions download`, `supabase gen types --project-id wbzfeqzvwfglirwlpzpy`, storage uploads). Always pass the project ref explicitly.
+- **Stays on MCP**: migrations (`apply_migration`), SQL checks (`execute_sql`), logs and `get_advisors`. They are fast there, and the migration history rule below forbids `supabase db push`.
 - Target project is `wbzfeqzvwfglirwlpzpy` ("hubik mobile"). The account's other project, `xbirlummltqnesuzdlov` ("houseApp"), is a different app; never deploy there.
 - Before applying: scan `https://supabase.com/changelog.md` for breaking changes and walk the skill's security checklist (views `security_invoker`, `SECURITY DEFINER` functions, RLS, storage policies).
 - After applying: verify with a test query and run advisors. Remote migration history has timestamped versions that differ from the local date-only filenames (applied through MCP), so do not use `supabase db push`.
-- If the MCP tools are not visible in a session, the user must authenticate the Supabase MCP server (OAuth in the browser) and reload the session; do not fall back to the CLI.
+- If the MCP tools are not visible in a session, the user must authenticate the Supabase MCP server (OAuth in the browser) and reload the session; do not run migrations through the CLI instead.
 - `git push` and releases remain the human's call.
 
 ## MCP servers configured for this project
