@@ -80,7 +80,7 @@ async function publishPropertyDirect(draft: PropertyDraft): Promise<Property> {
   const { data, error } = await supabase
     .from('properties')
     .insert({
-      catastro: draft.catastro,
+      catastro: draft.catastro || null,
       title: draft.title || generatePropertyTitle(draft),
       property_type: draft.property_type,
       operation_type: draft.operation_type,

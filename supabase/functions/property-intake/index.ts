@@ -14,6 +14,7 @@ import { buildAssistantMessage, type IntakeField } from '../_shared/intakeMessag
 import { geminiGenerateJson } from '../_shared/geminiFacade.ts';
 import { groqChatJson } from '../_shared/groqFacade.ts';
 import { ErrorCode, handleErrorResponse } from '../_shared/errorFacade.ts';
+import { extractCatastroSkip } from '../_shared/catastroSkip.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,6 +27,7 @@ type OperationType = 'sale' | 'rent';
 
 interface PropertyDraft {
   catastro?: string;
+  catastro_skipped?: boolean;
   title?: string;
   property_type?: PropertyType;
   operation_type?: OperationType;
@@ -182,8 +184,20 @@ function heuristicExtract(message: string, known: PropertyDraft, knownCities: st
   const lower = message.toLowerCase();
   const extracted: PropertyDraft = {};
 
+  const isOnlyCatastroRemaining =
+    known.catastro === undefined &&
+    !known.catastro_skipped &&
+    REQUIRED_FIELDS.every((f) => f === 'catastro' || known[f] !== undefined);
+
+  if (extractCatastroSkip(message, isOnlyCatastroRemaining)) {
+    extracted.catastro_skipped = true;
+  }
+
   const catastro = extractCatastro(message, known.catastro !== undefined);
-  if (catastro) extracted.catastro = catastro;
+  if (catastro) {
+    extracted.catastro = catastro;
+    extracted.catastro_skipped = false;
+  }
 
   const propertyType = extractPropertyType(lower);
   if (propertyType) extracted.property_type = propertyType;
@@ -216,6 +230,7 @@ function sanitizeGeminiFields(raw: any): Partial<PropertyDraft> {
   const clean: Partial<PropertyDraft> = {};
   if (!raw || typeof raw !== 'object') return clean;
 
+  if (typeof raw.catastro_skipped === 'boolean') clean.catastro_skipped = raw.catastro_skipped;
   if (typeof raw.catastro === 'string' && raw.catastro.trim()) clean.catastro = raw.catastro.trim().toUpperCase();
   if (typeof raw.title === 'string' && raw.title.trim()) clean.title = raw.title.trim();
   if (PROPERTY_TYPES.includes(raw.property_type)) clean.property_type = raw.property_type;
@@ -297,7 +312,15 @@ Deno.serve(async (req: Request) => {
     const heuristicAmenityHits = extractAmenityKeywords(effectiveMessage);
     data.amenities = normalizeAmenities([...(data.amenities ?? []), ...heuristicAmenityHits]);
 
-    const requiredMissing = REQUIRED_FIELDS.some((field) => data[field] === undefined);
+    const computeMissingFields = (current: PropertyDraft): (keyof PropertyDraft)[] =>
+      REQUIRED_FIELDS.filter((field) => {
+        if (field === 'catastro') {
+          return !current.catastro && !current.catastro_skipped;
+        }
+        return current[field] === undefined;
+      });
+
+    const requiredMissing = computeMissingFields(data).length > 0;
     const amenitySignal = !requiredMissing && hasAmenitySignal(effectiveMessage);
 
     if (requiredMissing || amenitySignal) {
@@ -356,7 +379,7 @@ Deno.serve(async (req: Request) => {
 
           if (existing) {
             data = { ...data, catastro: undefined };
-            const missing_fields = REQUIRED_FIELDS.filter((field) => data[field] === undefined);
+            const missing_fields = computeMissingFields(data);
             return new Response(
               JSON.stringify({
                 data,
@@ -378,7 +401,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const missing_fields = REQUIRED_FIELDS.filter((field) => data[field] === undefined);
+    const missing_fields = computeMissingFields(data);
     const ready_to_confirm = missing_fields.length === 0;
 
     return new Response(

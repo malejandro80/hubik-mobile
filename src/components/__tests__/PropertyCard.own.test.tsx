@@ -54,3 +54,12 @@ describe('PropertyCard ownership badge', () => {
     expect(renderAs().queryByText('Tuya')).toBeNull();
   });
 });
+
+describe('PropertyCard duplicate review', () => {
+  it('shows "En revisión" instead of the status while the listing is under duplicate review', () => {
+    const { getByText, queryByText } = render(<PropertyCard property={{ ...listing, under_review: true }} />);
+
+    expect(getByText('En revisión')).toBeTruthy();
+    expect(queryByText('Disponible')).toBeNull();
+  });
+});

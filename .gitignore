@@ -40,7 +40,7 @@ brain/
 !.graphify/studio/
 
 # Node / TypeScript / JavaScript
-node_modules/
+node_modules
 dist/
 dist-*/
 build/

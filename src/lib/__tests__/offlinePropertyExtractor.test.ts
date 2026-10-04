@@ -1,6 +1,7 @@
 import {
   buildAssistantMessage,
   extractCatastro,
+  extractCatastroSkip,
   extractOperationType,
   extractPrice,
   generatePropertyTitle,
@@ -163,6 +164,75 @@ describe('offlinePropertyExtractor', () => {
       expect(result.data.city).toBe('Madrid');
       expect(result.data.price).toBe(1500);
       expect(result.data.bedrooms).toBe(2);
+    });
+
+    it('marks ready to confirm when user explicitly indicates they have no catastro', () => {
+      const message = 'Vendo piso en Valencia calle Colón 10 con 3 habitaciones, 2 baños, 110 m2 por 220 mil euros no tengo catastro';
+      const result = parsePropertyDraft(message, {});
+
+      expect(result.data.property_type).toBe('Apartment');
+      expect(result.data.catastro).toBeUndefined();
+      expect(result.data.catastro_skipped).toBe(true);
+      expect(result.ready_to_confirm).toBe(true);
+      expect(result.missing_fields).toHaveLength(0);
+    });
+
+    it('resolves remaining catastro requirement when user replies saying they do not have it', () => {
+      const known = {
+        property_type: 'Apartment' as const,
+        operation_type: 'sale' as const,
+        price: 180000,
+        bedrooms: 3,
+        bathrooms: 2,
+        square_meters: 90,
+        city: 'Valencia',
+        address: 'Calle Colón 12',
+      };
+      const result = parsePropertyDraft('no lo tengo', known);
+
+      expect(result.data.catastro).toBeUndefined();
+      expect(result.data.catastro_skipped).toBe(true);
+      expect(result.ready_to_confirm).toBe(true);
+      expect(result.missing_fields).toEqual([]);
+    });
+
+    it('allows providing catastro after having previously skipped it', () => {
+      const known = {
+        property_type: 'Apartment' as const,
+        operation_type: 'sale' as const,
+        price: 180000,
+        bedrooms: 3,
+        bathrooms: 2,
+        square_meters: 90,
+        city: 'Valencia',
+        address: 'Calle Colón 12',
+        catastro_skipped: true,
+      };
+      const result = parsePropertyDraft('9872023VH5797S0001WX', known);
+
+      expect(result.data.catastro).toBe('9872023VH5797S0001WX');
+      expect(result.data.catastro_skipped).toBe(false);
+      expect(result.ready_to_confirm).toBe(true);
+      expect(result.missing_fields).toEqual([]);
+    });
+  });
+
+  describe('extractCatastroSkip', () => {
+    it('detects explicit catastro skip phrases', () => {
+      expect(extractCatastroSkip('no tengo catastro', false)).toBe(true);
+      expect(extractCatastroSkip('sin catastro', false)).toBe(true);
+      expect(extractCatastroSkip('no tengo cédula catastral', false)).toBe(true);
+      expect(extractCatastroSkip('omitir catastro', false)).toBe(true);
+      expect(extractCatastroSkip('no dispongo de catastro', false)).toBe(true);
+    });
+
+    it('detects contextual skip only when catastro is the sole remaining field', () => {
+      expect(extractCatastroSkip('no tengo', true)).toBe(true);
+      expect(extractCatastroSkip('no lo tengo', true)).toBe(true);
+      expect(extractCatastroSkip('omitir', true)).toBe(true);
+      expect(extractCatastroSkip('paso', true)).toBe(true);
+      expect(extractCatastroSkip('no tengo', false)).toBe(false);
+      expect(extractCatastroSkip('gracias', true)).toBe(false);
     });
   });
 });

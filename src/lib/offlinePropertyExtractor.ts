@@ -16,6 +16,9 @@ import {
 } from '../constants/intakeMessages';
 import { DRAFT_CITIES } from '../constants/chatApi';
 import { extractPropertyType } from './promptFilters';
+import { extractCatastroSkip } from '../../supabase/functions/_shared/catastroSkip';
+
+export { extractCatastroSkip };
 
 export interface PropertyIntakeResponse {
   data: PropertyDraft;
@@ -154,8 +157,20 @@ export function parsePropertyDraft(message: string, known: PropertyDraft): Prope
   const lower = message.toLowerCase();
   const extracted: PropertyDraft = {};
 
+  const isOnlyCatastroRemaining =
+    known.catastro === undefined &&
+    !known.catastro_skipped &&
+    REQUIRED_PROPERTY_DRAFT_FIELDS.every((f) => f === 'catastro' || known[f] !== undefined);
+
+  if (extractCatastroSkip(message, isOnlyCatastroRemaining)) {
+    extracted.catastro_skipped = true;
+  }
+
   const catastro = extractCatastro(message, known.catastro !== undefined);
-  if (catastro) extracted.catastro = catastro;
+  if (catastro) {
+    extracted.catastro = catastro;
+    extracted.catastro_skipped = false;
+  }
 
   const propertyType = extractPropertyType(lower);
   if (propertyType) extracted.property_type = propertyType;
@@ -187,7 +202,12 @@ export function parsePropertyDraft(message: string, known: PropertyDraft): Prope
 
   const data: PropertyDraft = { ...known, ...extracted };
   data.amenities = normalizeAmenities([...(known.amenities ?? []), ...extractAmenityKeywords(message)]);
-  const missing_fields = REQUIRED_PROPERTY_DRAFT_FIELDS.filter((field) => data[field] === undefined);
+  const missing_fields = REQUIRED_PROPERTY_DRAFT_FIELDS.filter((field) => {
+    if (field === 'catastro') {
+      return !data.catastro && !data.catastro_skipped;
+    }
+    return data[field] === undefined;
+  });
   const catastroJustProvided = Boolean(extracted.catastro) && extracted.catastro !== known.catastro;
 
   return {

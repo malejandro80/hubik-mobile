@@ -1,4 +1,4 @@
-# RFC 037: Strict Search Filters (operation, property type) and Verified No-Result Suggestions
+# RFC 039: Strict Search Filters (operation, property type) and Verified No-Result Suggestions
 
 - **Author**: AI Agent (Claude Code)
 - **Status**: Deployed (2026-10-04); old overloads pending manual DROP

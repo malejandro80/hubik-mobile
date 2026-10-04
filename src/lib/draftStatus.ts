@@ -21,6 +21,7 @@ export interface FieldStatusEntry {
 }
 
 export function isFieldFilled(draft: PropertyDraft, field: keyof PropertyDraft): boolean {
+  if (field === 'catastro' && draft.catastro_skipped) return true;
   const value = draft[field];
   if (value === undefined || value === null) return false;
   if (typeof value === 'string') return value.trim() !== '';

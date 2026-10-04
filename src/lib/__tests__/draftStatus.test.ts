@@ -85,6 +85,13 @@ describe('missing fields and readiness', () => {
   it('does not require photos or a pin to be ready', () => {
     expect(isReadyToPublish({ ...COMPLETE, images: [], latitude: undefined })).toBe(true);
   });
+
+  it('is ready when catastro is omitted but marked as skipped', () => {
+    const withoutCatastro = { ...COMPLETE, catastro: undefined, catastro_skipped: true };
+    expect(isReadyToPublish(withoutCatastro)).toBe(true);
+    expect(getMissingCount(withoutCatastro)).toBe(0);
+    expect(getMissingFields(withoutCatastro)).toEqual([]);
+  });
 });
 
 describe('getSuggestions', () => {

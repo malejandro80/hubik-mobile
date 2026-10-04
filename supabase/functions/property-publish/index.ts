@@ -42,7 +42,6 @@ const PROPERTY_TYPES: PropertyType[] = ['Apartment', 'Single Family', 'Townhouse
 const OPERATION_TYPES: OperationType[] = ['sale', 'rent'];
 
 const REQUIRED_FIELDS: (keyof PropertyDraft)[] = [
-  'catastro',
   'property_type',
   'operation_type',
   'price',
@@ -177,15 +176,20 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const { data: existing } = await supabase
-      .from('properties')
-      .select('id')
-      .eq('catastro', property.catastro)
-      .limit(1)
-      .maybeSingle();
+    const rawCatastro = typeof property.catastro === 'string' ? property.catastro.trim() : null;
+    const catastro = rawCatastro && rawCatastro.length > 0 ? rawCatastro.toUpperCase() : null;
 
-    if (existing) {
-      throw AppError.conflict('Ya existe una propiedad registrada con esa referencia catastral');
+    if (catastro) {
+      const { data: existing } = await supabase
+        .from('properties')
+        .select('id')
+        .eq('catastro', catastro)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing) {
+        throw AppError.conflict('Ya existe una propiedad registrada con esa referencia catastral');
+      }
     }
 
     const amenities = normalizeAmenities(property.amenities);
@@ -205,7 +209,7 @@ Deno.serve(async (req: Request) => {
     const { data, error } = await supabase
       .from('properties')
       .insert({
-        catastro: property.catastro,
+        catastro,
         title,
         property_type: property.property_type,
         operation_type: property.operation_type,
@@ -249,7 +253,10 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(
-      JSON.stringify({ property: data }),
+      JSON.stringify({
+        property: data,
+        duplicate_flagged: data.under_review === true,
+      }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error: unknown) {
