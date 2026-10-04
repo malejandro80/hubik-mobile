@@ -31,9 +31,14 @@ export const SORT_EXPENSIVE_REGEX =
   /(?:most expensive|highest price|luxury|más caro|mas caro|más cara|mas cara|más costoso|mas costoso|más costosa|mas costosa|mayor precio|lujo|lujoso|lujosa)/i;
 
 export const PROPERTY_TYPE_KEYWORDS = [
-  ['Apartment', ['apartamento', 'departamento', 'piso', 'flat', 'apartment']],
-  ['Condo', ['condominio', 'condo']],
-  ['Townhouse', ['adosada', 'townhouse', 'townhome']],
   ['Studio', ['estudio', 'monoambiente', 'studio']],
+  ['Townhouse', ['adosada', 'townhouse', 'townhome']],
+  ['Condo', ['condominio', 'condo']],
+  ['Apartment', ['apartamento', 'departamento', 'piso', 'flat', 'apartment']],
   ['Single Family', ['casa', 'vivienda', 'chalet', 'house', 'home', 'single family']],
+] as const;
+
+export const OPERATION_TYPE_PATTERNS = [
+  ['rent', /\b(alquiler(es)?|alquila(r|n|mos)?|alquilo|renta(r|s)?|rento|arriendos?|arrendar|for rent|to rent|rental|rent)\b/],
+  ['sale', /\b(ventas?|vende(r|n|mos)?|vendo|compra(r|mos)?|compro|for sale|to buy|buy|sale)\b/],
 ] as const;

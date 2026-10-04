@@ -14,8 +14,8 @@ module.exports = {
   },
   testPathIgnorePatterns: [
     '/node_modules/',
-    '/.kilo/',
-    '/.claude/',
+    '<rootDir>/.kilo/',
+    '<rootDir>/.claude/',
     '/video/',
   ],
   collectCoverageFrom: [

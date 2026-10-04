@@ -214,5 +214,5 @@ own future feature.
   `main`'s newer `auth.ts`, `prompts.ts`, `hybridSearchConstants.ts` (branch is behind `main`).
 - `chat-query` search unchanged ("casas en alquiler" 3 rent). Advisors: no new findings.
 - Manual approval SQL: see session log.
-- Numbering: `main` also has `specs/037-strict-search-filters.md`; rename that one to 038 when
-  merging this branch.
+- Numbering: the strict search RFC, also written as 037, was renumbered to
+  `specs/039-strict-search-filters.md` when `main` was merged (038 was taken).
