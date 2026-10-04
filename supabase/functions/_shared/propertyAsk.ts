@@ -1,4 +1,3 @@
-import { normalizePlace } from './cityMatch.ts';
 import {
   ASK_REFUSAL,
   COMPARABLE_FACT_FIELDS,
@@ -18,8 +17,6 @@ import {
   MIN_CLARIFY_OPTIONS,
   PHONE_PATTERN,
   SECRET_PATTERN,
-  SENSITIVE_TOPIC_PATTERNS,
-  THREAT_PATTERNS,
   URL_PATTERN,
 } from './propertyAskConstants.ts';
 
@@ -38,10 +35,6 @@ export interface AskRequest {
   history: AskTurn[];
   clarifications: AskTurn[];
 }
-
-export type SensitiveTopic = (typeof SENSITIVE_TOPIC_PATTERNS)[number][0];
-
-export type ThreatCategory = (typeof THREAT_PATTERNS)[number][0];
 
 export type AskOutcome =
   | { type: 'answer'; answer: string; refused: boolean }
@@ -93,20 +86,6 @@ export function parseAskRequest(body: unknown): AskRequest | null {
     history: parseTurns(request?.history, MAX_HISTORY_ANSWER_LENGTH).slice(-MAX_HISTORY_TURNS),
     clarifications: parseTurns(request?.clarifications, MAX_CLARIFICATION_TEXT_LENGTH).slice(0, MAX_CLARIFICATION_ROUNDS),
   };
-}
-
-export function threatCategory(texts: string[]): ThreatCategory | null {
-  for (const text of texts) {
-    const normalized = normalizePlace(text);
-    const hit = THREAT_PATTERNS.find(([, pattern]) => pattern.test(normalized));
-    if (hit) return hit[0];
-  }
-  return null;
-}
-
-export function sensitiveTopic(question: string): SensitiveTopic | null {
-  const text = normalizePlace(question);
-  return SENSITIVE_TOPIC_PATTERNS.find(([, pattern]) => pattern.test(text))?.[0] ?? null;
 }
 
 const pick = (row: Row, fields: readonly string[]): Row =>

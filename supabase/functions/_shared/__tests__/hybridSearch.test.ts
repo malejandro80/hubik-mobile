@@ -1,5 +1,5 @@
-import { buildHybridSearch, contentTerms } from '../hybridSearch';
-import { MIN_SIMILARITY, NEARBY_RADIUS_KM, SIMILARITY_WINDOW } from '../hybridSearchConstants';
+import { buildHybridSearch, contentTerms, suggestionSearchParams } from '../hybridSearch';
+import { MIN_SIMILARITY, NEARBY_RADIUS_KM, SIMILARITY_WINDOW, SUGGESTION_COUNT_LIMIT } from '../hybridSearchConstants';
 
 const cities = ['Valencia', 'San Diego'];
 
@@ -46,6 +46,7 @@ describe('buildHybridSearch', () => {
       p_place: null,
       p_city: 'Valencia',
       p_property_type: 'Single Family',
+      p_operation_type: null,
       p_min_price: null,
       p_max_price: 200000,
       p_min_bedrooms: null,
@@ -57,6 +58,20 @@ describe('buildHybridSearch', () => {
       p_sort: null,
       match_count: 5,
     });
+  });
+
+  it('sends the operation as a hard filter to every search', () => {
+    const { params, cityParams, nearbyParams } = buildHybridSearch({
+      message: 'apartamentos en alquiler en Prebo',
+      filters: { city: 'Valencia', place: 'Prebo', operation_type: 'rent' },
+      knownCities: cities,
+      knownSectors: ['Prebo'],
+      embedding,
+    });
+
+    expect(params.p_operation_type).toBe('rent');
+    expect(cityParams.p_operation_type).toBe('rent');
+    expect(nearbyParams?.p_operation_type).toBe('rent');
   });
 
   it('sends area bounds as hard filters', () => {
@@ -99,6 +114,7 @@ describe('buildHybridSearch', () => {
       p_place: 'Prebo',
       p_radius_km: NEARBY_RADIUS_KM,
       p_property_type: 'Apartment',
+      p_operation_type: null,
       p_min_price: null,
       p_max_price: 50000,
       p_min_bedrooms: null,
@@ -183,5 +199,30 @@ describe('buildHybridSearch', () => {
 
     expect(params.query_embedding).toBeNull();
     expect(params.p_query).toBe('jardin');
+  });
+});
+
+describe('suggestionSearchParams', () => {
+  it('searches only the structured filters, without relevance, place or sort', () => {
+    expect(
+      suggestionSearchParams({ city: 'Valencia', property_type: 'Apartment', operation_type: 'sale', max_price: 80000, min_bedrooms: 2 })
+    ).toEqual({
+      query_embedding: null,
+      p_query: null,
+      p_place: null,
+      p_city: 'Valencia',
+      p_property_type: 'Apartment',
+      p_operation_type: 'sale',
+      p_min_price: null,
+      p_max_price: 80000,
+      p_min_bedrooms: 2,
+      p_max_bedrooms: null,
+      p_min_square_meters: null,
+      p_max_square_meters: null,
+      p_min_similarity: null,
+      p_similarity_window: null,
+      p_sort: null,
+      match_count: SUGGESTION_COUNT_LIMIT,
+    });
   });
 });

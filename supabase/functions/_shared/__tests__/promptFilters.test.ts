@@ -1,4 +1,4 @@
-import { extractPropertyType, parsePromptFilters } from '../promptFilters';
+import { extractOperationType, extractPropertyType, parsePromptFilters } from '../promptFilters';
 
 const cities = ['Ciudad de México', 'Bogotá', 'Valencia'];
 
@@ -11,12 +11,46 @@ describe('extractPropertyType', () => {
     expect(extractPropertyType('family home')).toBe('Single Family');
   });
 
+  it('prefers the most specific type when several are mentioned', () => {
+    expect(extractPropertyType('apartamento estudio en el centro')).toBe('Studio');
+    expect(extractPropertyType('casas adosadas')).toBe('Townhouse');
+    expect(extractPropertyType('apartamento en condominio')).toBe('Condo');
+  });
+
   it('returns undefined when no property type is present', () => {
     expect(extractPropertyType('propiedad en valencia')).toBeUndefined();
   });
 });
 
+describe('extractOperationType', () => {
+  it.each([
+    ['casas en alquiler', 'rent'],
+    ['quiero alquilar un piso', 'rent'],
+    ['apartamento en renta', 'rent'],
+    ['busco arriendo', 'rent'],
+    ['house for rent', 'rent'],
+    ['casas en venta', 'sale'],
+    ['quiero comprar un apartamento', 'sale'],
+    ['se vende casa', 'sale'],
+    ['apartment for sale', 'sale'],
+  ])('reads %p as %p', (text, operation) => {
+    expect(extractOperationType(text)).toBe(operation);
+  });
+
+  it.each(['casa con ventanas grandes', 'casas en Valencia', 'alquiler o venta en Valencia'])('applies no operation to %p', (text) => {
+    expect(extractOperationType(text)).toBeUndefined();
+  });
+});
+
 describe('parsePromptFilters', () => {
+  it('adds the operation to the filters', () => {
+    expect(parsePromptFilters('apartamentos en alquiler en Valencia', cities)).toEqual({
+      city: 'Valencia',
+      property_type: 'Apartment',
+      operation_type: 'rent',
+    });
+  });
+
   it('matches a known city regardless of accents and returns its stored spelling', () => {
     expect(parsePromptFilters('pisos en bogota', cities).city).toBe('Bogotá');
     expect(parsePromptFilters('casas en CIUDAD DE MEXICO', cities).city).toBe('Ciudad de México');

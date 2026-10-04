@@ -5,6 +5,7 @@ export function chatQueryTextInstruction(): string {
     'You are an expert real estate search assistant. Extract search filters from the ' +
     "user's message (in Spanish or English) as a JSON object with these optional keys: " +
     'city (string), property_type (one of: Apartment, Single Family, Townhouse, Studio, Condo), ' +
+    'operation_type (rent when the user wants to rent, sale when the user wants to buy; omit it when unclear), ' +
     'min_price (number), max_price (number), min_bedrooms (number), max_bedrooms (number), ' +
     'min_square_meters (number), max_square_meters (number), limit (number), ' +
     'sort_by (price_asc, price_desc), amenities (array of short lowercase strings for any ' +

@@ -2,6 +2,7 @@ import { createClient, SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import { requireUser } from '../_shared/auth.ts';
 import { AppError, ErrorCode, handleErrorResponse } from '../_shared/errorFacade.ts';
 import { geminiGenerateJson } from '../_shared/geminiFacade.ts';
+import { promptGuard } from '../_shared/promptGuardProvider.ts';
 import { propertyAskInstruction } from '../_shared/prompts.ts';
 import {
   AskOutcome,
@@ -12,8 +13,6 @@ import {
   listingFacts,
   parseAskOutcome,
   parseAskRequest,
-  sensitiveTopic,
-  threatCategory,
 } from '../_shared/propertyAsk.ts';
 import {
   ASK_BLOCKED,
@@ -34,10 +33,8 @@ const corsHeaders = {
 
 const refusal = (answer: string): AskOutcome => ({ type: 'answer', answer, refused: true });
 
-const requestTexts = (request: AskRequest): string[] => [
-  request.question,
-  ...[...request.history, ...request.clarifications].flatMap((turn) => [turn.question, turn.answer]),
-];
+const requestContext = (request: AskRequest): string[] =>
+  [...request.history, ...request.clarifications].flatMap((turn) => [turn.question, turn.answer]);
 
 async function recordSecurityEvent(userId: string, category: string): Promise<void> {
   const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
@@ -65,6 +62,7 @@ async function loadComparables(client: SupabaseClient, listing: Record<string, u
   const { data, error } = await client.rpc('search_listings', {
     p_city: listing.city,
     p_property_type: listing.property_type,
+    p_operation_type: listing.operation_type ?? null,
     match_count: COMPARABLE_FETCH_COUNT,
   });
   return error || !Array.isArray(data) ? [] : data;
@@ -84,13 +82,12 @@ Deno.serve(async (req: Request) => {
     const request = parseAskRequest(await req.json().catch(() => null));
     if (!request) throw AppError.badRequest('Pregunta inválida');
 
-    const threat = threatCategory(requestTexts(request));
-    if (threat) {
-      await recordSecurityEvent(identity.userId, threat);
+    const verdict = await promptGuard.inspect({ question: request.question, context: requestContext(request) });
+    if (!verdict.allowed && verdict.reason === 'threat') {
+      await recordSecurityEvent(identity.userId, verdict.category);
       return json(refusal(ASK_BLOCKED));
     }
-
-    if (sensitiveTopic(request.question)) return json(refusal(ASK_REFUSAL));
+    if (!verdict.allowed) return json(refusal(ASK_REFUSAL));
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
     if (!geminiKey) throw AppError.upstream(ASK_UNAVAILABLE);

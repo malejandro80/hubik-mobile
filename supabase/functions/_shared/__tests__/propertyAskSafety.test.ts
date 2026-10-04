@@ -1,4 +1,5 @@
-import { buildAskPrompt, parseAskOutcome, parseAskRequest, screenAnswer, threatCategory } from '../propertyAsk';
+import { buildAskPrompt, parseAskOutcome, parseAskRequest, screenAnswer } from '../propertyAsk';
+import { threatCategory } from '../regexPromptGuard';
 import { ASK_REFUSAL, MAX_CLARIFICATION_ROUNDS, MAX_CLARIFY_OPTIONS } from '../propertyAskConstants';
 
 const LISTING_ID = '3f2b1c9e-8a44-4d0e-9a51-7c6d2e1b0a55';

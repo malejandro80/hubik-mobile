@@ -8,7 +8,9 @@ import {
   NON_LETTER_PATTERN,
   PRICE_SORTS,
   SIMILARITY_WINDOW,
+  SUGGESTION_COUNT_LIMIT,
 } from './hybridSearchConstants.ts';
+import type { SuggestionFilters } from './searchSuggestions.ts';
 
 type Filters = Record<string, unknown>;
 
@@ -26,6 +28,7 @@ export interface HybridSearchParams {
   p_place: string | null;
   p_city: string | null;
   p_property_type: string | null;
+  p_operation_type: string | null;
   p_min_price: number | null;
   p_max_price: number | null;
   p_min_bedrooms: number | null;
@@ -42,6 +45,7 @@ export interface NearbySearchParams {
   p_place: string;
   p_radius_km: number;
   p_property_type: string | null;
+  p_operation_type: string | null;
   p_min_price: number | null;
   p_max_price: number | null;
   p_min_bedrooms: number | null;
@@ -87,6 +91,7 @@ export function buildHybridSearch({ message, filters, knownCities, knownSectors 
 
   const hardFilters = {
     p_property_type: stringOrNull(filters.property_type),
+    p_operation_type: stringOrNull(filters.operation_type),
     p_min_price: numberOrNull(filters.min_price),
     p_max_price: numberOrNull(filters.max_price),
     p_min_bedrooms: numberOrNull(filters.min_bedrooms),
@@ -118,4 +123,25 @@ export function buildHybridSearch({ message, filters, knownCities, knownSectors 
     : null;
 
   return { params, cityParams, nearbyParams, filters: effectiveFilters };
+}
+
+export function suggestionSearchParams(filters: SuggestionFilters): HybridSearchParams {
+  return {
+    query_embedding: null,
+    p_query: null,
+    p_place: null,
+    p_city: filters.city ?? null,
+    p_property_type: filters.property_type ?? null,
+    p_operation_type: filters.operation_type ?? null,
+    p_min_price: filters.min_price ?? null,
+    p_max_price: filters.max_price ?? null,
+    p_min_bedrooms: filters.min_bedrooms ?? null,
+    p_max_bedrooms: null,
+    p_min_square_meters: null,
+    p_max_square_meters: null,
+    p_min_similarity: null,
+    p_similarity_window: null,
+    p_sort: null,
+    match_count: SUGGESTION_COUNT_LIMIT,
+  };
 }

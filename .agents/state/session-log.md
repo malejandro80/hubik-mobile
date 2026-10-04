@@ -1949,3 +1949,22 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Verification**: typecheck clean, lint 0 errors, Jest 158/1444 (worktree run with `--testPathIgnorePatterns /node_modules/ /.kilo/ /video/` because `jest.config.js` ignores `/.claude/`).
 - **Next Actions**: test signed in on a device (answer, clarification buttons, security log row); prompt tuning (§8); merge `feat/036-view-ask`; app build; slices 2 (Mi inmobiliaria) and 3 (shared web page).
 
+
+---
+
+### [2026-10-04] Prompt security abstraction (RFC 036 follow-up)
+- **Scope**: decouple the client-prompt security check from `property-ask` so the detector can be swapped for another service; no behaviour change.
+- **Code**: port `_shared/promptGuard.ts` (`PromptGuard.inspect({ question, context }) → Promise<PromptVerdict>`), regex adapter `_shared/regexPromptGuard.ts` (moved `threatCategory`/`sensitiveTopic` + patterns into `promptGuardConstants.ts`), single swap point `_shared/promptGuardProvider.ts`; `property-ask/index.ts` only consumes the verdict (threat → logged + `ASK_BLOCKED`, sensitive → `ASK_REFUSAL`). Output leak screening (`screenAnswer`) left in `propertyAsk.ts`. Two test files had only their import paths updated; no assertions touched.
+- **Verification**: Jest 159/1454 (worktree run with `--testPathIgnorePatterns /node_modules/`), `tsc` clean (app + standalone check of the `_shared` modules), eslint clean on touched files except the pre-existing `jsr:` import resolution in `index.ts`.
+- **Next Actions**: redeploy `property-ask` (not done yet); `chat-query` and `property-intake` do not use the guard yet.
+- **Note**: worktrees do not get `.env` (gitignored); Metro run from a worktree without it bundles `placeholder-anon-key` → "Invalid API key". Copied `.env` into `036-view-ask`.
+
+---
+
+### [2026-10-04] RFC 037 strict search filters + verified no-result suggestions
+- **Scope** (approved): rent/sale and property type are hard filters; zero results → up to 3 suggestions, each relaxing one filter, only with results and their count; never show non-matching listings.
+- **Code**: `operation_type` in `promptFilters` (word-boundary, both → none) and the Gemini prompt; specific-first type order; `extractedFilters.ts` sanitizes Gemini output; `p_operation_type` in `hybridSearch` + `suggestionSearchParams`; `searchSuggestions.ts` (`describeSearch` round-trips through the parser, `findAlternatives`, `alternativesAnswer`); `chat-query` wiring and table fallback; `property-ask` comparables by operation; client `querySupabaseDirectly` filters operation.
+- **DB**: `20261004_search_operation_filter.sql` adds overloads with a required `p_operation_type` (no `DROP`); validated in a rolled-back `DO` block, not applied.
+- **Verification**: Jest 161/1490, `tsc` clean (app + standalone `_shared`), lint clean on touched files except pre-existing `jsr:` / unused var.
+- **Deployed**: migration `search_operation_filter`, `chat-query` v26, `property-ask` v2; smoke OK, advisors unchanged (RFC 037 §8).
+- **Next Actions**: user drops the old overloads `search_listings(vector, …)` and `search_properties_nearby(text, double precision, text, …)` without `p_operation_type`; commit `feat/036-view-ask`; test on device.

@@ -73,6 +73,20 @@ describe('directSearchService', () => {
       expect(result.answer).toContain('No encontré propiedades');
     });
 
+    it('filters by the operation the user asked for', async () => {
+      const mockChain: any = {};
+      mockChain.select = jest.fn().mockReturnValue(mockChain);
+      mockChain.eq = jest.fn().mockReturnValue(mockChain);
+      mockChain.order = jest.fn().mockReturnValue(mockChain);
+      mockChain.limit = jest.fn().mockResolvedValueOnce({ data: [], error: null });
+      (supabase.from as jest.Mock).mockReturnValue(mockChain);
+
+      await querySupabaseDirectly('apartamentos en alquiler');
+
+      expect(mockChain.eq).toHaveBeenCalledWith('property_type', 'Apartment');
+      expect(mockChain.eq).toHaveBeenCalledWith('operation_type', 'rent');
+    });
+
     it('returns formatted results and dynamic suggestions when matching properties exist', async () => {
       const mockProperties = [
         {

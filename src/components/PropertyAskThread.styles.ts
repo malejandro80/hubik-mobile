@@ -72,4 +72,10 @@ export const getPropertyAskThreadStyles = (theme: ThemeColors) =>
       ...typography.label,
       color: theme.onSecondaryContainer,
     },
+    paragraphSpacing: {
+      marginBottom: spacing.xs,
+    },
+    highlightedText: {
+      fontWeight: '700',
+    },
   });

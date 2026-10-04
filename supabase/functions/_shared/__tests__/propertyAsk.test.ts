@@ -3,8 +3,8 @@ import {
   listingFacts,
   parseAskRequest,
   screenAnswer,
-  sensitiveTopic,
 } from '../propertyAsk';
+import { sensitiveTopic } from '../regexPromptGuard';
 import { ASK_REFUSAL, MAX_ANSWER_LENGTH, MAX_COMPARABLES, MAX_HISTORY_TURNS } from '../propertyAskConstants';
 
 const LISTING_ID = '3f2b1c9e-8a44-4d0e-9a51-7c6d2e1b0a55';
