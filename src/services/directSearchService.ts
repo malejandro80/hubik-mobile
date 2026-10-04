@@ -64,6 +64,9 @@ export async function querySupabaseDirectly(message: string): Promise<ChatRespon
   if (filters.property_type) {
     query = query.eq('property_type', filters.property_type);
   }
+  if (filters.operation_type) {
+    query = query.eq('operation_type', filters.operation_type);
+  }
   if (filters.min_price !== undefined) {
     query = query.gte('price', filters.min_price);
   }

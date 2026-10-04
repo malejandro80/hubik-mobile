@@ -6,6 +6,8 @@ export const DEFAULT_MATCH_COUNT = 10;
 
 export const NEARBY_RADIUS_KM = 3;
 
+export const SUGGESTION_COUNT_LIMIT = 50;
+
 export const NEAR_REQUEST_PATTERN = /\b(?:cerca de|cerca del|cercan[oa]s? a|alrededor de|near)\b/i;
 
 export const PRICE_SORTS = ['price_asc', 'price_desc'] as const;
@@ -28,7 +30,7 @@ export const GENERIC_SEARCH_WORDS = new Set([
   'bonito', 'bonita', 'bello', 'bella', 'perfecto', 'perfecta', 'ideal', 'zona', 'zonas',
   'casa', 'casas', 'piso', 'pisos', 'apartamento', 'apartamentos', 'departamento', 'departamentos', 'apto',
   'vivienda', 'viviendas', 'propiedad', 'propiedades', 'inmueble', 'inmuebles', 'estudio', 'estudios',
-  'monoambiente', 'townhouse', 'townhouses', 'condominio', 'condominios', 'chalet', 'chalets', 'adosada',
+  'monoambiente', 'townhouse', 'townhouses', 'condominio', 'condominios', 'chalet', 'chalets', 'adosada', 'adosadas',
   'venta', 'vender', 'compra', 'comprar', 'alquiler', 'alquilar', 'renta', 'rentar', 'arriendo',
   'habitacion', 'habitaciones', 'hab', 'cuarto', 'cuartos', 'dormitorio', 'dormitorios', 'recamara', 'recamaras',
   'bano', 'banos', 'metros', 'cuadrados',

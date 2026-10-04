@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   Alert,
   Image,
@@ -14,10 +14,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { BurgerMenu } from '../../components/BurgerMenu';
-import { ChatInputBar } from '../../components/ChatInputBar';
 import { Header } from '../../components/Header';
 import { PhotoGallery } from '../../components/PhotoGallery';
 import { PropertyAgentCard } from '../../components/PropertyAgentCard';
+import { PropertyAskPanel } from '../../components/PropertyAskPanel';
 import { PropertyLandlordSection } from '../../components/PropertyLandlordSection';
 import { PropertyDescriptionSection } from '../../components/PropertyDescriptionSection';
 import { PropertyMapPreview } from '../../components/PropertyMapPreview';
@@ -26,12 +26,12 @@ import { PREVIEW_PARAM_VALUE, SHARED_LISTING_PARAM_VALUE } from '../../constants
 import { useAppMenu } from '../../hooks/useAppMenu';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { useLabels } from '../../hooks/useLabels';
-import { useVoiceNote } from '../../hooks/useVoiceNote';
 import { useAuth } from '../../hooks/useAuth';
 import { canContactAgents, normalizeWhatsApp, whatsAppUrl } from '../../lib/whatsapp';
 import { useLegacyDescription } from '../../hooks/useLegacyDescription';
 import { useListingAttribution } from '../../hooks/useListingAttribution';
 import { usePhotoGallery } from '../../hooks/usePhotoGallery';
+import { resolveAskTarget } from '../../lib/askTarget';
 import {
   formatPrice,
   parsePropertyAmenities,
@@ -57,7 +57,6 @@ export default function PropertyDetailScreen() {
   );
   const menu = useAppMenu();
   const { galleryVisible, openGallery, closeGallery } = usePhotoGallery();
-  const [quickQuestion, setQuickQuestion] = useState('');
 
   const city = params.city || 'Madrid';
   const title = params.title || `Barrio de Salamanca, ${city}`;
@@ -81,6 +80,10 @@ export default function PropertyDetailScreen() {
         : undefined;
   const isPreview = params.preview === PREVIEW_PARAM_VALUE;
   const isSharedLink = params.shared === SHARED_LISTING_PARAM_VALUE;
+  const askTarget = useMemo(
+    () => resolveAskTarget({ id: params.id, preview: params.preview, shared: params.shared }),
+    [params.id, params.preview, params.shared]
+  );
   const isAddressMasked = isPreview || !params.address;
   const address = isAddressMasked ? labels.propertyDetail.approximateLocation : params.address;
   const attribution = useListingAttribution(isPreview, params.agency_name, params.agent_name);
@@ -132,24 +135,6 @@ export default function PropertyDetailScreen() {
         [{ text: labels.common.understood }]
       );
     });
-  };
-
-  const askInChat = useCallback(
-    (question: string) => {
-      router.navigate({
-        pathname: '/',
-        params: { ask: labels.propertyDetail.askAbout(question, title), askAt: String(Date.now()) },
-      });
-    },
-    [router, labels, title]
-  );
-  const voice = useVoiceNote(askInChat);
-
-  const handleQuickQuestion = (text?: string) => {
-    const question = (text ?? quickQuestion).trim();
-    if (!question) return;
-    setQuickQuestion('');
-    askInChat(question);
   };
 
   return (
@@ -286,16 +271,7 @@ export default function PropertyDetailScreen() {
             </TouchableOpacity>
           )}
 
-          {!isPreview && (
-            <ChatInputBar
-              value={quickQuestion}
-              onChangeText={setQuickQuestion}
-              onSend={handleQuickQuestion}
-              onMicPress={() => void voice.onMicPress()}
-              isRecording={voice.isRecording}
-              loading={voice.busy}
-            />
-          )}
+          {!isPreview && <PropertyAskPanel target={askTarget} />}
         </View>
       </KeyboardAvoidingView>
 

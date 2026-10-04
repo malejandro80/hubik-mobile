@@ -1,5 +1,5 @@
 import { extractAmenityKeywords } from './amenities.ts';
-import { matchCityInText } from './cityMatch.ts';
+import { matchCityInText, normalizePlace } from './cityMatch.ts';
 import {
   AREA_SIGNAL_REGEX,
   BEDROOMS_REGEX,
@@ -8,6 +8,7 @@ import {
   MAX_PRICE_REGEX,
   MIN_AREA_REGEX,
   MIN_PRICE_REGEX,
+  OPERATION_TYPE_PATTERNS,
   PROPERTY_TYPE_KEYWORDS,
   SORT_CHEAPEST_REGEX,
   SORT_EXPENSIVE_REGEX,
@@ -18,10 +19,13 @@ import {
 
 export type FilterPropertyType = (typeof PROPERTY_TYPE_KEYWORDS)[number][0];
 
+export type FilterOperationType = (typeof OPERATION_TYPE_PATTERNS)[number][0];
+
 export interface PromptFilters {
   city?: string;
   place?: string;
   property_type?: FilterPropertyType;
+  operation_type?: FilterOperationType;
   min_price?: number;
   max_price?: number;
   min_bedrooms?: number;
@@ -49,6 +53,12 @@ export function extractPropertyType(lower: string): FilterPropertyType | undefin
   return PROPERTY_TYPE_KEYWORDS.find(([, keywords]) => keywords.some((keyword) => lower.includes(keyword)))?.[0];
 }
 
+export function extractOperationType(text: string): FilterOperationType | undefined {
+  const normalized = normalizePlace(text);
+  const hits = OPERATION_TYPE_PATTERNS.filter(([, pattern]) => pattern.test(normalized));
+  return hits.length === 1 ? hits[0][0] : undefined;
+}
+
 export function parsePromptFilters(
   message: string,
   knownCities: readonly string[],
@@ -68,6 +78,9 @@ export function parsePromptFilters(
 
   const propertyType = extractPropertyType(lower);
   if (propertyType) filters.property_type = propertyType;
+
+  const operationType = extractOperationType(message);
+  if (operationType) filters.operation_type = operationType;
 
   const maxPriceMatch = lower.match(MAX_PRICE_REGEX);
   if (maxPriceMatch) filters.max_price = parsePriceValue(maxPriceMatch[1]);

@@ -2,11 +2,13 @@ import { createClient, SupabaseClient } from 'jsr:@supabase/supabase-js@2';
 import { isAudioPayload } from '../_shared/audioPayload.ts';
 import { fetchKnownPlaces } from '../_shared/cities.ts';
 import { embedText } from '../_shared/geminiEmbedding.ts';
-import { buildHybridSearch } from '../_shared/hybridSearch.ts';
+import { sanitizeExtractedFilters } from '../_shared/extractedFilters.ts';
+import { buildHybridSearch, suggestionSearchParams } from '../_shared/hybridSearch.ts';
 import { NEAR_REQUEST_PATTERN } from '../_shared/hybridSearchConstants.ts';
 import { searchWithPlaceFallback } from '../_shared/placeFallback.ts';
 import { parsePromptFilters, PromptFilters } from '../_shared/promptFilters.ts';
-import { composeSearchAnswer } from '../_shared/searchAnswer.ts';
+import { composeSearchAnswer, fallbackSearchAnswer, SearchAnswer } from '../_shared/searchAnswer.ts';
+import { alternativesAnswer, findAlternatives, suggestionFilters } from '../_shared/searchSuggestions.ts';
 import { chatQueryTextInstruction, GEMINI_EXTRACTION_MODEL } from '../_shared/prompts.ts';
 import { transcribeAudio } from '../_shared/groqAudio.ts';
 import { geminiGenerateJson } from '../_shared/geminiFacade.ts';
@@ -17,6 +19,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers':
     'authorization, x-client-info, apikey, content-type',
 };
+
+async function noResultsAnswer(
+  client: SupabaseClient,
+  message: string,
+  filters: PromptFilters,
+  answerFilters: Record<string, unknown>,
+  knownCities: string[]
+): Promise<SearchAnswer> {
+  const wanted = suggestionFilters(filters, knownCities);
+  const alternatives = await findAlternatives({
+    filters: wanted,
+    knownCities,
+    search: (candidate) => rpcRows(client, 'search_listings', suggestionSearchParams(candidate)),
+  });
+  return alternatives.length > 0 ? alternativesAnswer(message, alternatives) : fallbackSearchAnswer([], answerFilters, knownCities);
+}
 
 async function rpcRows(
   client: SupabaseClient,
@@ -116,7 +134,7 @@ Deno.serve(async (req: Request) => {
     let filters: PromptFilters = parsePromptFilters(effectiveMessage, knownCities, knownSectors);
 
     if (hasGeminiKey && !filters.city && !filters.place) {
-      const extractedFilters = await geminiGenerateJson<PromptFilters>({
+      const extractedFilters = await geminiGenerateJson<unknown>({
         model: GEMINI_EXTRACTION_MODEL,
         key: geminiKey!,
         prompt: effectiveMessage,
@@ -125,7 +143,7 @@ Deno.serve(async (req: Request) => {
       });
 
       if (extractedFilters) {
-        filters = { ...extractedFilters, ...filters };
+        filters = { ...sanitizeExtractedFilters(extractedFilters), ...filters };
       }
     }
 
@@ -182,6 +200,9 @@ Deno.serve(async (req: Request) => {
       if (filters.property_type) {
         query = query.eq('property_type', filters.property_type);
       }
+      if (filters.operation_type) {
+        query = query.eq('operation_type', filters.operation_type);
+      }
       if (filters.min_price !== undefined) {
         query = query.gte('price', filters.min_price);
       }
@@ -218,13 +239,16 @@ Deno.serve(async (req: Request) => {
       items = properties || [];
     }
 
-    const { answer, suggestions } = await composeSearchAnswer({
-      message: effectiveMessage,
-      items,
-      filters: answerFilters,
-      knownCities,
-      geminiKey: hasGeminiKey ? geminiKey : undefined,
-    });
+    const { answer, suggestions } =
+      items.length === 0
+        ? await noResultsAnswer(callerSupabase, effectiveMessage, filters, answerFilters, knownCities)
+        : await composeSearchAnswer({
+            message: effectiveMessage,
+            items,
+            filters: answerFilters,
+            knownCities,
+            geminiKey: hasGeminiKey ? geminiKey : undefined,
+          });
 
     return new Response(
       JSON.stringify({
