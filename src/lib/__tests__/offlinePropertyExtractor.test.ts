@@ -131,6 +131,24 @@ describe('offlinePropertyExtractor', () => {
   });
 
   describe('parsePropertyDraft', () => {
+    it('asks for the catastro without "finishing" wording while photos and the map pin are missing', () => {
+      const known = {
+        property_type: 'Single Family' as const,
+        operation_type: 'sale' as const,
+        price: 30000,
+        bedrooms: 2,
+        bathrooms: 1,
+        square_meters: 80,
+        city: 'Valencia',
+        address: 'Avenida Soublette',
+      };
+      const result = parsePropertyDraft('gracias', known);
+
+      expect(result.missing_fields).toEqual(['catastro']);
+      expect(result.assistant_message).not.toMatch(/para terminar|último dato|ya casi está/i);
+      expect(result.assistant_message).toContain('fotos y la ubicación en el mapa');
+    });
+
     it('extracts all relevant details into draft structure', () => {
       const message = 'Vendo piso en Valencia calle Colón 10 con 3 habitaciones, 2 baños, 110 m2 por 220 mil euros ref 9872023VH5797S0001WX piscina';
       const result = parsePropertyDraft(message, {});
