@@ -11,6 +11,10 @@ describe.each([
     expect(variant).not.toMatch(COUNTRY_SPECIFIC);
     expect(variant.toLowerCase()).toContain('catastral');
   });
+
+  it.each(variants.map((variant) => [variant]))('tells the agent how to continue without it: %s', (variant) => {
+    expect(variant).toContain('«no tengo catastro»');
+  });
 });
 
 describe('catastro request copies', () => {

@@ -16,6 +16,9 @@ import {
 } from '../constants/intakeMessages';
 import { DRAFT_CITIES } from '../constants/chatApi';
 import { extractPropertyType } from './promptFilters';
+import { extractCatastroSkip } from '../../supabase/functions/_shared/catastroSkip';
+
+export { extractCatastroSkip };
 
 export interface PropertyIntakeResponse {
   data: PropertyDraft;
@@ -148,25 +151,6 @@ export function buildAssistantMessage(missing: (keyof PropertyDraft)[], catastro
       ? labels[0]
       : `${labels.slice(0, -1).join(', ')} y ${labels[labels.length - 1]}`;
   return `${prefix}${pickVariant(MISSING_FIELDS_PREFIX_VARIANTS)}${joined}. ${pickVariant(MISSING_FIELDS_SUFFIX_VARIANTS)}`;
-}
-
-export function extractCatastroSkip(text: string, isOnlyCatastroRemaining: boolean): boolean {
-  const lower = text.toLowerCase().trim();
-  const explicitSkip =
-    /\b(no\s+tengo\s+(el\s+)?catastro|no\s+tengo\s+(la\s+)?(c[eé]dula|ficha|referencia)(\s+catastral)?|sin\s+catastro|sin\s+(c[eé]dula|ficha|referencia)(\s+catastral)?|no\s+(dispongo|poseo)\s+de\s+catastro|omitir\s+catastro|no\s+hay\s+catastro|no\s+cuenta\s+con\s+catastro|no\s+posee\s+catastro)\b/i.test(
-      lower
-    );
-  if (explicitSkip) return true;
-
-  if (isOnlyCatastroRemaining) {
-    const contextualSkip =
-      /^(no(\s+tengo|\s+lo\s+tengo|\s+la\s+tengo|\s+dispongo|\s+poseo)?|omitir|paso|despu[eé]s|luego|ningun[oa]|no\s+aplica)$/i.test(
-        lower
-      );
-    if (contextualSkip) return true;
-  }
-
-  return false;
 }
 
 export function parsePropertyDraft(message: string, known: PropertyDraft): PropertyIntakeResponse {

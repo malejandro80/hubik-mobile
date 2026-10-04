@@ -192,30 +192,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    let isSuspectDuplicate = false;
-    let suspectDuplicateId: string | null = null;
-    let matchDistance: number | null = null;
-
-    if (!catastro && property.latitude !== undefined && property.longitude !== undefined) {
-      const { data: duplicateMatches, error: rpcError } = await supabase.rpc('check_property_duplicate', {
-        p_latitude: property.latitude,
-        p_longitude: property.longitude,
-        p_property_type: property.property_type,
-        p_bedrooms: property.bedrooms,
-        p_bathrooms: property.bathrooms,
-        p_square_meters: property.square_meters,
-      });
-
-      if (!rpcError && Array.isArray(duplicateMatches) && duplicateMatches.length > 0) {
-        const topMatch = duplicateMatches[0];
-        if (topMatch?.duplicate_id) {
-          isSuspectDuplicate = true;
-          suspectDuplicateId = topMatch.duplicate_id;
-          matchDistance = topMatch.distance_meters;
-        }
-      }
-    }
-
     const amenities = normalizeAmenities(property.amenities);
 
     const geminiKey = Deno.env.get('GEMINI_API_KEY');
@@ -229,8 +205,6 @@ Deno.serve(async (req: Request) => {
       textToEmbed && hasGeminiKey
         ? await embedText(textToEmbed, geminiKey!, 'RETRIEVAL_DOCUMENT')
         : null;
-
-    const status = isSuspectDuplicate ? 'Pending' : 'Available';
 
     const { data, error } = await supabase
       .from('properties')
@@ -250,7 +224,7 @@ Deno.serve(async (req: Request) => {
         latitude: property.latitude,
         longitude: property.longitude,
         description: property.description,
-        status,
+        status: 'Available',
         images: property.images || [],
         image_url: property.images?.[0] || null,
         amenities,
@@ -268,28 +242,6 @@ Deno.serve(async (req: Request) => {
       throw new Error(`Database insert error: ${error.message}`);
     }
 
-    if (isSuspectDuplicate && suspectDuplicateId) {
-      const { error: logError } = await supabase.from('property_duplicate_logs').insert({
-        property_id: data.id,
-        suspected_duplicate_of: suspectDuplicateId,
-        agent_id: identity.userId,
-        agency_id: identity.agencyId,
-        distance_meters: matchDistance ?? 0,
-        match_details: {
-          property_type: property.property_type,
-          bedrooms: property.bedrooms,
-          bathrooms: property.bathrooms,
-          square_meters: property.square_meters,
-          latitude: property.latitude,
-          longitude: property.longitude,
-        },
-        status: 'flagged',
-      });
-      if (logError) {
-        throw new Error(`Duplicate log insert error: ${logError.message}`);
-      }
-    }
-
     if (landlord.landlordId) {
       const { error: linkError } = await supabase
         .from('property_landlords')
@@ -303,7 +255,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         property: data,
-        duplicate_flagged: isSuspectDuplicate,
+        duplicate_flagged: data.under_review === true,
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

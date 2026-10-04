@@ -47,7 +47,9 @@ export const PropertyCard: React.FC<PropertyCardProps> = React.memo(({
     [labels]
   );
 
-  const statusLabel = statusLabels[property.status] ?? property.status;
+  const statusLabel = property.under_review
+    ? labels.propertyCard.underReview
+    : statusLabels[property.status] ?? property.status;
 
   const formattedPrice = formatPrice(String(property.price), property.currency);
   const formattedArea = Number(property.square_meters).toLocaleString('en-US');

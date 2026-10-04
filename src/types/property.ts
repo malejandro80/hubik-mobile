@@ -26,6 +26,7 @@ export interface PropertySummary {
   latitude?: number;
   longitude?: number;
   status: PropertyStatus;
+  under_review?: boolean;
   image_url: string;
   images: string[];
 }

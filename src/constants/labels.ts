@@ -66,6 +66,7 @@ export const labels = {
   },
   propertyCard: {
     ownListing: 'Tuya',
+    underReview: 'En revisión',
     status: {
       available: 'Disponible',
       pending: 'Pendiente',

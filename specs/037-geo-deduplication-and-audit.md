@@ -1,7 +1,7 @@
 # RFC 037: Geo-Spatial Deduplication, Optional Catastro & Duplicate Audit Trail
 
 - **Author**: AI Agent
-- **Status**: Draft
+- **Status**: Deployed (2026-10-04), redesigned after review (§7)
 - **Created**: 2026-10-03
 - **Target Release / Milestone**: MVP 1.0 - AI Real Estate Assistant
 
@@ -172,3 +172,47 @@ $$;
 3. **Database Migration Checks**:
    - Verification of `properties.catastro` nullable constraint.
    - Verification of `check_property_duplicate` RPC precision.
+
+---
+
+## 7. Review & Redesign (2026-10-04)
+The first implementation (commit `2556476`) was reviewed before deploy and changed:
+- **Quarantine did not work**: `property_listings` (and every search RPC built on it) does not
+  filter by `status`, and `properties` had a public read policy, so `'Pending'` listings stayed
+  visible. `'Pending'` also already means "Pendiente" (a business status shown on the card).
+  → New column `properties.under_review boolean`; `status` is untouched. The read policy became
+  `NOT under_review OR viewer_has_agency_access(agency_id)` (`ALTER POLICY`, no `DROP`); the view is
+  `security_invoker`, so search, nearby search and agency lists all inherit it.
+- **Location oracle**: `check_property_duplicate` was `SECURITY DEFINER`, executable by
+  `authenticated`, and returned the match id, agency and distance to 0.1 m — enough to triangulate
+  exact coordinates that RFC 033 hides. → Replaced by `find_property_duplicate` (EXECUTE revoked
+  from `PUBLIC`, `anon`, `authenticated`) used only by triggers.
+- **Client-side dedup**: `publishPropertyDirect` ran the check and wrote the audit log from the app
+  (no insert policy exists, so it never worked, and it trusted the client). → Removed; the app only
+  sends `catastro: null`.
+- **Enforcement in the database**: `BEFORE INSERT` trigger `properties_flag_duplicate` sets
+  `under_review` when `catastro IS NULL` and a listing matches (≤ 40 m, same type and bedrooms,
+  bathrooms ± 1, area ± 10 %); `AFTER INSERT` trigger `properties_log_duplicate` writes
+  `property_duplicate_logs` (no coordinates stored). Works for every insert path.
+- `property-publish` no longer checks duplicates; it returns `duplicate_flagged` from
+  `under_review`. The card shows "En revisión" (own agency only can see it).
+- The intake now tells the agent they can answer «no tengo catastro»; the skip regex moved to
+  `_shared/catastroSkip.ts` (+ constants), used by the Edge Function and the app fallback.
+- `toolchain.env` lint/test overrides reverted (they bypassed the project ESLint config).
+
+Decisions (user, 2026-10-04): a flagged listing is visible only to its own agency; approval is
+manual in the database for now — duplicates also happen across agencies, so resolution needs its
+own future feature.
+
+## 8. Deployment (2026-10-04)
+- Migration `geo_deduplication_and_audit` applied via MCP. Validated before applying in a
+  rolled-back block and after with impersonation: duplicate 22 m away flagged and logged against
+  the original, a listing 1 km away not flagged; `anon` and another agency cannot see it, its own
+  agency sees it with `under_review`; `anon` cannot read logs nor execute `find_property_duplicate`
+  (HTTP 401 / 42501).
+- Edge Functions: `property-publish` v14, `property-intake` v25 (`verify_jwt: true`), built with
+  `main`'s newer `auth.ts`, `prompts.ts`, `hybridSearchConstants.ts` (branch is behind `main`).
+- `chat-query` search unchanged ("casas en alquiler" 3 rent). Advisors: no new findings.
+- Manual approval SQL: see session log.
+- Numbering: `main` also has `specs/037-strict-search-filters.md`; rename that one to 038 when
+  merging this branch.

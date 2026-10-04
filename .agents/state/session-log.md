@@ -1967,3 +1967,14 @@ This file records the chronological record of agent sessions to ensure continuit
     - Secret scanner: Clean.
 - **Next Actions**: Ready for human lead to apply migration `20261003_geo_deduplication_and_audit.sql`, deploy Edge Functions (`property-publish`, `property-intake`), and merge branch `feat/037-geo-deduplication` into `main`.
 
+
+---
+
+### [2026-10-04] RFC 037 geo-deduplication — review, redesign and deploy
+- **Review found** (before deploy): `'Pending'` was not hidden (view has no status filter, public read policy) and collides with the "Pendiente" business status; `check_property_duplicate` was a definer RPC open to `authenticated` returning distance to 0.1 m (coordinate oracle vs RFC 033); client-side dedup/log in `publishPropertyDirect` never worked and trusted the client; `toolchain.env` bypassed ESLint config.
+- **Redesign**: `properties.under_review` + triggers (`properties_flag_duplicate` BEFORE, `properties_log_duplicate` AFTER) over private `find_property_duplicate`; read policy `NOT under_review OR viewer_has_agency_access(agency_id)`; view exposes `under_review`; card shows "En revisión"; publish returns `duplicate_flagged`; intake offers «no tengo catastro»; skip regex shared in `_shared/catastroSkip.ts`.
+- **Decisions (user)**: flagged listings visible only to their agency; approval manual in DB (cross-agency resolution = future feature).
+- **Deployed**: migration `geo_deduplication_and_audit`, `property-publish` v14, `property-intake` v25. Verified with rolled-back inserts + impersonation (RFC 037 geo §8). Advisors unchanged.
+- **Verification**: Jest 152/1380 + new tests, `tsc` clean, ESLint clean on touched files (pre-existing `jsr:`/unused vars only, run with `--no-eslintrc -c .eslintrc.json` because the main checkout's `node_modules` is a self-referencing symlink since 14:23 — not created by this session; this worktree got its own `npm ci --ignore-scripts`).
+- **Manual approval SQL**: list `SELECT * FROM property_duplicate_logs WHERE status = 'flagged';` · clear `UPDATE properties SET under_review = false WHERE id = '<id>'; UPDATE property_duplicate_logs SET status = 'cleared' WHERE property_id = '<id>';` · confirm `UPDATE property_duplicate_logs SET status = 'confirmed_duplicate' WHERE property_id = '<id>';` (stays hidden).
+- **Next Actions**: merge `main` into `feat/037-geo-deduplication` (branch is behind; rename `specs/037-strict-search-filters.md` → 038), commit, test on device, fix main checkout `node_modules`.

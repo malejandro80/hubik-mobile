@@ -14,6 +14,7 @@ import { buildAssistantMessage, type IntakeField } from '../_shared/intakeMessag
 import { geminiGenerateJson } from '../_shared/geminiFacade.ts';
 import { groqChatJson } from '../_shared/groqFacade.ts';
 import { ErrorCode, handleErrorResponse } from '../_shared/errorFacade.ts';
+import { extractCatastroSkip } from '../_shared/catastroSkip.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -177,25 +178,6 @@ function extractCatastro(text: string, alreadyProvided: boolean): string | undef
   }
 
   return undefined;
-}
-
-function extractCatastroSkip(text: string, isOnlyCatastroRemaining: boolean): boolean {
-  const lower = text.toLowerCase().trim();
-  const explicitSkip =
-    /\b(no\s+tengo\s+(el\s+)?catastro|no\s+tengo\s+(la\s+)?(c[eé]dula|ficha|referencia)(\s+catastral)?|sin\s+catastro|sin\s+(c[eé]dula|ficha|referencia)(\s+catastral)?|no\s+(dispongo|poseo)\s+de\s+catastro|omitir\s+catastro|no\s+hay\s+catastro|no\s+cuenta\s+con\s+catastro|no\s+posee\s+catastro)\b/i.test(
-      lower
-    );
-  if (explicitSkip) return true;
-
-  if (isOnlyCatastroRemaining) {
-    const contextualSkip =
-      /^(no(\s+tengo|\s+lo\s+tengo|\s+la\s+tengo|\s+dispongo|\s+poseo)?|omitir|paso|despu[eé]s|luego|ningun[oa]|no\s+aplica)$/i.test(
-        lower
-      );
-    if (contextualSkip) return true;
-  }
-
-  return false;
 }
 
 function heuristicExtract(message: string, known: PropertyDraft, knownCities: string[]): PropertyDraft {
