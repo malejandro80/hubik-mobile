@@ -10,7 +10,7 @@ import {
   propertyIntakeTextInstruction,
 } from '../_shared/prompts.ts';
 import { transcribeAudio } from '../_shared/groqAudio.ts';
-import { buildAssistantMessage, type IntakeField } from '../_shared/intakeMessage.ts';
+import { buildAssistantMessage, type IntakeField, pendingExtras } from '../_shared/intakeMessage.ts';
 import { geminiGenerateJson } from '../_shared/geminiFacade.ts';
 import { groqChatJson } from '../_shared/groqFacade.ts';
 import { ErrorCode, handleErrorResponse } from '../_shared/errorFacade.ts';
@@ -408,7 +408,12 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         data,
         missing_fields,
-        assistant_message: buildAssistantMessage(missing_fields as IntakeField[], catastroStatus),
+        assistant_message: buildAssistantMessage(
+          missing_fields as IntakeField[],
+          catastroStatus,
+          undefined,
+          pendingExtras(known)
+        ),
         ready_to_confirm,
         ...(transcript ? { transcript } : {}),
       }),

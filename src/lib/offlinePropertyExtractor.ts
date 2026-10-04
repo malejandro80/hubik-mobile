@@ -1,19 +1,16 @@
 import {
   OperationType,
   PropertyDraft,
-  PROPERTY_DRAFT_FIELD_LABELS,
   PROPERTY_TYPE_LABEL_ES,
   REQUIRED_PROPERTY_DRAFT_FIELDS,
 } from '../types/property';
 import { extractAmenityKeywords, normalizeAmenities } from './amenities';
 import {
-  CATASTRO_JUST_PROVIDED_PREFIX,
-  CATASTRO_LAST_VARIANTS,
-  DESCRIBE_INVITE_VARIANTS,
-  MISSING_FIELDS_PREFIX_VARIANTS,
-  MISSING_FIELDS_SUFFIX_VARIANTS,
-  READY_TO_CONFIRM_VARIANTS,
-} from '../constants/intakeMessages';
+  buildAssistantMessage as buildIntakeMessage,
+  IntakeField,
+  PendingExtra,
+  pendingExtras,
+} from '../../supabase/functions/_shared/intakeMessage';
 import { DRAFT_CITIES } from '../constants/chatApi';
 import { extractPropertyType } from './promptFilters';
 import { extractCatastroSkip } from '../../supabase/functions/_shared/catastroSkip';
@@ -126,31 +123,12 @@ export function extractCatastro(text: string, alreadyProvided: boolean): string 
   return undefined;
 }
 
-function pickVariant(variants: readonly string[] | string[]): string {
-  return variants[Math.floor(Math.random() * variants.length)];
-}
-
-export function buildAssistantMessage(missing: (keyof PropertyDraft)[], catastroJustProvided?: boolean): string {
-  const prefix = catastroJustProvided
-    ? CATASTRO_JUST_PROVIDED_PREFIX
-    : '';
-
-  if (missing.length === 0) {
-    return `${prefix}${pickVariant(READY_TO_CONFIRM_VARIANTS)}`;
-  }
-  if (missing.length >= REQUIRED_PROPERTY_DRAFT_FIELDS.length) {
-    return pickVariant(DESCRIBE_INVITE_VARIANTS);
-  }
-  const askable = missing.filter((field) => field !== 'catastro');
-  if (askable.length === 0) {
-    return `${prefix}${pickVariant(CATASTRO_LAST_VARIANTS)}`;
-  }
-  const labels = askable.map((field) => PROPERTY_DRAFT_FIELD_LABELS[field as keyof typeof PROPERTY_DRAFT_FIELD_LABELS]);
-  const joined =
-    labels.length === 1
-      ? labels[0]
-      : `${labels.slice(0, -1).join(', ')} y ${labels[labels.length - 1]}`;
-  return `${prefix}${pickVariant(MISSING_FIELDS_PREFIX_VARIANTS)}${joined}. ${pickVariant(MISSING_FIELDS_SUFFIX_VARIANTS)}`;
+export function buildAssistantMessage(
+  missing: (keyof PropertyDraft)[],
+  catastroJustProvided?: boolean,
+  pending: PendingExtra[] = []
+): string {
+  return buildIntakeMessage(missing as IntakeField[], catastroJustProvided ? 'unverified' : undefined, undefined, pending);
 }
 
 export function parsePropertyDraft(message: string, known: PropertyDraft): PropertyIntakeResponse {
@@ -213,7 +191,7 @@ export function parsePropertyDraft(message: string, known: PropertyDraft): Prope
   return {
     data,
     missing_fields,
-    assistant_message: buildAssistantMessage(missing_fields, catastroJustProvided),
+    assistant_message: buildAssistantMessage(missing_fields, catastroJustProvided, pendingExtras(known)),
     ready_to_confirm: missing_fields.length === 0,
   };
 }

@@ -43,3 +43,26 @@ export const CATASTRO_LAST_VARIANTS = [
   'Último dato: la referencia catastral de la propiedad. Suele figurar en la escritura, en el recibo del impuesto sobre la propiedad o en la oficina de catastro de su municipio. La verifico enseguida. Si no la tiene, responda «no tengo catastro» y seguimos.',
   'Para terminar necesito la referencia catastral, el código que identifica el inmueble en la escritura o en el recibo del impuesto sobre la propiedad. La compruebo antes de publicar. Si no la tiene, responda «no tengo catastro» y seguimos.',
 ];
+
+export const PENDING_EXTRA_LABELS = {
+  photos: 'fotos',
+  location: 'la ubicación en el mapa',
+} as const;
+
+export const CATASTRO_REQUEST_VARIANTS = [
+  (extras: string) =>
+    `Me falta la referencia catastral de la propiedad, también llamada número catastral (aparece en la escritura o en el recibo del impuesto sobre la propiedad). La verificaré antes de publicar. Si no la tiene, responda «no tengo catastro» y seguimos. Cuando quiera, también puede añadir ${extras}.`,
+  (extras: string) =>
+    `Necesito la referencia catastral de la propiedad. Suele figurar en la escritura, en el recibo del impuesto sobre la propiedad o en la oficina de catastro de su municipio. Si no la tiene, responda «no tengo catastro» y seguimos. Mientras tanto, puede ir añadiendo ${extras}.`,
+  (extras: string) =>
+    `¿Tiene la referencia catastral? Es el código que identifica el inmueble en la escritura o en el recibo del impuesto sobre la propiedad, y la compruebo antes de publicar. Si no la tiene, responda «no tengo catastro» y seguimos. También le recomiendo añadir ${extras}.`,
+];
+
+export const READY_WITH_EXTRAS_VARIANTS = [
+  (extras: string) =>
+    `Ya tengo todos los datos obligatorios y puede publicar cuando quiera. Para que el anuncio destaque, le recomiendo añadir ${extras}.`,
+  (extras: string) =>
+    `Los datos obligatorios están completos. Antes de publicar, le sugiero añadir ${extras} para que el anuncio se vea completo.`,
+  (extras: string) =>
+    `¡Listo con los datos! Puede publicar ya, aunque el anuncio lucirá mejor si añade ${extras}.`,
+];

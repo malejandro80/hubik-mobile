@@ -2006,3 +2006,12 @@ This file records the chronological record of agent sessions to ensure continuit
 - **Verification**: Jest 152/1380 + new tests, `tsc` clean, ESLint clean on touched files (pre-existing `jsr:`/unused vars only, run with `--no-eslintrc -c .eslintrc.json` because the main checkout's `node_modules` is a self-referencing symlink since 14:23 — not created by this session; this worktree got its own `npm ci --ignore-scripts`).
 - **Manual approval SQL**: list `SELECT * FROM property_duplicate_logs WHERE status = 'flagged';` · clear `UPDATE properties SET under_review = false WHERE id = '<id>'; UPDATE property_duplicate_logs SET status = 'cleared' WHERE property_id = '<id>';` · confirm `UPDATE property_duplicate_logs SET status = 'confirmed_duplicate' WHERE property_id = '<id>';` (stays hidden).
 - **Next Actions**: merge `main` into `feat/037-geo-deduplication` (branch is behind; rename `specs/037-strict-search-filters.md` → 039), commit, test on device, fix main checkout `node_modules`.
+
+---
+
+### [2026-10-04] Dynamic property-intake copy (photos / map pin aware)
+- **Problem**: with only the catastro missing the assistant said "Para terminar / Último dato / Ya casi está" even when no photos or map pin had been added; three places shaped this copy (server builder, a client offline copy, and a string-matching `withMediaGate` in the hook that only acted when both photos and pin were missing).
+- **Change**: `_shared/intakeMessage.ts` gets `pendingExtras(draft)` and a `pending` argument; catastro-only + pending extras → `CATASTRO_REQUEST_VARIANTS` (no "last step" wording, names what is pending); ready + pending → `READY_WITH_EXTRAS_VARIANTS` (can publish, recommends what is pending). The server computes pending from `known` (the app already sends images and coordinates); the offline fallback delegates to the shared builder; `src/constants/intakeMessages.ts` re-exports the shared copy; `withMediaGate` and `READY_NEEDS_MEDIA_VARIANTS` removed (its two hook tests replaced: the hook now forwards the intake message and sends photos/pin — requirement change).
+- **Deployed**: `property-intake` v26 via CLI (`supabase functions deploy`, 1.8 s; `verify_jwt` true, anon 401).
+- **Verification**: Jest 164/1533, `tsc` clean, lint clean on app files, standalone `tsc` on the shared builder.
+- **Next Actions**: commit branch `feat/dynamic-intake-copy`; check on device.

@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { usePropertyRegistrationChat } from '../usePropertyRegistrationChat';
 import * as chatApi from '../../services/chatApi';
 import * as propertyImages from '../../services/propertyImages';
-import { READY_NEEDS_MEDIA_VARIANTS, READY_TO_CONFIRM_VARIANTS } from '../../constants/intakeMessages';
+import { READY_TO_CONFIRM_VARIANTS, READY_WITH_EXTRAS_VARIANTS } from '../../constants/intakeMessages';
 import { VOICE_NOTE_MIME_TYPE } from '../../constants/chatApi';
 import { PropertyDraft } from '../../types/property';
 
@@ -227,8 +227,9 @@ describe('usePropertyRegistrationChat', () => {
       });
     });
 
-    it('replaces the "ready to confirm" message with a media prompt when there are no photos and no pin', async () => {
-      intake.mockResolvedValueOnce(intakeResponse(COMPLETE, { assistant_message: READY_TO_CONFIRM_VARIANTS[0] }));
+    it('shows the intake message as it comes, since the intake already accounts for photos and the pin', async () => {
+      const message = READY_WITH_EXTRAS_VARIANTS[0]('fotos y la ubicación en el mapa');
+      intake.mockResolvedValueOnce(intakeResponse(COMPLETE, { assistant_message: message }));
       const { result } = startComposer();
 
       let outcome: any;
@@ -236,25 +237,25 @@ describe('usePropertyRegistrationChat', () => {
         outcome = await result.current.processMessage('todos los datos');
       });
 
-      expect(outcome.readyToConfirm).toBe(true);
-      expect(outcome.assistantMessage).not.toBe(READY_TO_CONFIRM_VARIANTS[0]);
-      expect(READY_NEEDS_MEDIA_VARIANTS).toContain(outcome.assistantMessage);
+      expect(outcome.assistantMessage).toBe(message);
     });
 
-    it('preserves a message prefix (e.g. the catastro-verified note) when swapping in the media prompt', async () => {
-      const prefix = '✅ Referencia catastral verificada: no está duplicada.\n\n';
-      intake.mockResolvedValueOnce(
-        intakeResponse(COMPLETE, { assistant_message: `${prefix}${READY_TO_CONFIRM_VARIANTS[2]}` })
-      );
+    it('sends the current photos and pin to the intake so its message knows what is still pending', async () => {
       const { result } = startComposer();
+      act(() => {
+        result.current.addPhotos(['file://a.jpg']);
+      });
+      act(() => result.current.setLocation(40.4, -3.7));
+      intake.mockResolvedValueOnce(intakeResponse(COMPLETE, { assistant_message: READY_TO_CONFIRM_VARIANTS[0] }));
 
-      let outcome: any;
       await act(async () => {
-        outcome = await result.current.processMessage('todos los datos');
+        await result.current.processMessage('todos los datos');
       });
 
-      expect(outcome.assistantMessage.startsWith(prefix)).toBe(true);
-      expect(READY_NEEDS_MEDIA_VARIANTS).toContain(outcome.assistantMessage.slice(prefix.length));
+      expect(intake).toHaveBeenLastCalledWith(
+        'todos los datos',
+        expect.objectContaining({ images: ['file://a.jpg'], latitude: 40.4, longitude: -3.7 })
+      );
     });
 
     it('keeps the "ready to confirm" message unchanged once a photo has already been added', async () => {
