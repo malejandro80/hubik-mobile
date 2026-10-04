@@ -36,6 +36,45 @@ describe('SharedPropertyView', () => {
     expect(getByText('Un piso reformado junto al parque.')).toBeTruthy();
   });
 
+  it('shows the price per m² and how long ago the listing was published', () => {
+    const threeDaysAgo = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    const { getByText } = render(<SharedPropertyView property={{ ...PROPERTY, created_at: threeDaysAgo }} />);
+
+    expect(getByText('$4,667/m²')).toBeTruthy();
+    expect(getByText('Publicado hace 3 días')).toBeTruthy();
+  });
+
+  it('shows the price in its currency and per month for a rental', () => {
+    const rental = { ...PROPERTY, price: 900, currency: 'EUR', operation_type: 'rent' as const };
+    const { getByText, queryByText } = render(<SharedPropertyView property={rental} />);
+
+    expect(getByText('900 €/mes')).toBeTruthy();
+    expect(getByText('10 €/m² al mes')).toBeTruthy();
+    expect(queryByText(/Publicado/)).toBeNull();
+  });
+
+  it('shows only the city when the address is hidden, never "null"', () => {
+    const { getByText, queryByText } = render(<SharedPropertyView property={{ ...PROPERTY, address: null }} />);
+
+    expect(getByText('Madrid')).toBeTruthy();
+    expect(queryByText(/null/)).toBeNull();
+  });
+
+  it('lists the amenities of the listing', () => {
+    const { getByText } = render(
+      <SharedPropertyView property={{ ...PROPERTY, amenities: ['ascensor', 'garaje', 'tanque de agua'] }} />
+    );
+
+    expect(getByText('Comodidades')).toBeTruthy();
+    expect(getByText('ascensor')).toBeTruthy();
+    expect(getByText('garaje')).toBeTruthy();
+    expect(getByText('tanque de agua')).toBeTruthy();
+  });
+
+  it('hides the amenities section when there are none', () => {
+    expect(render(<SharedPropertyView property={PROPERTY} />).queryByText('Comodidades')).toBeNull();
+  });
+
   it('shows the cover photo and how many photos there are', () => {
     const { getByTestId, getByText } = render(<SharedPropertyView property={PROPERTY} />);
 

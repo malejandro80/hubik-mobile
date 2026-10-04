@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { Property } from '../types/property';
 
 export const SHARED_PROPERTY_COLUMNS =
-  'id, title, property_type, operation_type, price, bedrooms, bathrooms, square_meters, city, address, description, status, image_url, images, amenities, agency_name, agent_name';
+  'id, title, property_type, operation_type, price, currency, bedrooms, bathrooms, square_meters, city, address, description, status, image_url, images, amenities, agency_name, agent_name, created_at';
 
 export async function fetchSharedProperty(id: string): Promise<Property | null> {
   if (!isPropertyId(id)) return null;
