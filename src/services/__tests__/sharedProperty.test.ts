@@ -40,7 +40,7 @@ describe('fetchSharedProperty', () => {
     const columns = SHARED_PROPERTY_COLUMNS.split(',').map((column) => column.trim());
 
     expect(columns).toEqual(
-      expect.arrayContaining(['id', 'title', 'price', 'city', 'address', 'description', 'images', 'agency_name', 'agent_name'])
+      expect.arrayContaining(['id', 'title', 'price', 'currency', 'city', 'address', 'description', 'images', 'agency_name', 'agent_name', 'created_at'])
     );
     ['embedding', 'created_by', 'latitude', 'longitude', 'agency_id', '*'].forEach((forbidden) => {
       expect(columns).not.toContain(forbidden);

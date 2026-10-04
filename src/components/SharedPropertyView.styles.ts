@@ -49,6 +49,7 @@ export const getSharedPropertyViewStyles = (theme: ThemeColors) =>
       ...typography.label,
       fontSize: 32,
       fontWeight: '800',
+      marginBottom: 8,
       color: theme.primary,
     },
     title: {
@@ -87,6 +88,22 @@ export const getSharedPropertyViewStyles = (theme: ThemeColors) =>
       color: theme.text,
       marginTop: 24,
       marginBottom: 8,
+    },
+    amenities: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    amenity: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: shapes.full,
+      borderWidth: 1,
+      borderColor: theme.outline,
+    },
+    amenityText: {
+      fontSize: 15,
+      color: theme.text,
     },
     description: {
       ...typography.body,

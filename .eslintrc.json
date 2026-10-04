@@ -4,7 +4,18 @@
   "rules": {
     "react-hooks/exhaustive-deps": "warn",
     "react-hooks/refs": "warn",
-    "react-hooks/set-state-in-effect": "warn"
+    "react-hooks/set-state-in-effect": "warn",
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "@expo/vector-icons",
+            "message": "Import each icon set from its own path (e.g. @expo/vector-icons/Ionicons); the barrel import is undefined on device."
+          }
+        ]
+      }
+    ]
   },
   "overrides": [
     {

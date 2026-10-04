@@ -77,38 +77,6 @@ export const getPropertyDetailStyles = (theme: ThemeColors) => ({
       marginBottom: 8,
       color: theme.primary,
     },
-    agencyBadge: {
-      alignSelf: 'flex-start',
-      paddingHorizontal: 12,
-      paddingVertical: 5,
-      borderRadius: shapes.sm,
-      backgroundColor: theme.secondaryContainer,
-    },
-    agencyBadgeText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: theme.onSecondaryContainer,
-    },
-    badgeRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 8,
-      marginBottom: 16,
-    },
-    typeBadge: {
-      alignSelf: 'flex-start',
-      paddingHorizontal: 12,
-      paddingVertical: 5,
-      borderRadius: shapes.sm,
-      borderWidth: 1.5,
-      backgroundColor: theme.surfaceContainer,
-      borderColor: theme.outline,
-    },
-    typeBadgeText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: theme.text,
-    },
     locationRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',

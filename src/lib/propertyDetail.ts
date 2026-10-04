@@ -26,6 +26,7 @@ export type PropertyDetailRouteParams = {
   preview?: string;
   shared?: string;
   whatsapp?: string;
+  created_at?: string;
 };
 
 function parseStringArrayParam(param?: string): string[] {
@@ -48,6 +49,11 @@ export function parsePropertyAmenities(amenitiesParam?: string): string[] {
   return parseStringArrayParam(amenitiesParam);
 }
 
+export function formatAmount(amount: number, currency?: string): string {
+  const symbol = currency && currency !== 'USD' ? CURRENCY_SYMBOLS[currency] : undefined;
+  return symbol ? `${amount.toLocaleString('es-ES')} ${symbol}` : `$${amount.toLocaleString('en-US')}`;
+}
+
 export function formatPrice(
   rawPrice?: string,
   currency?: string,
@@ -55,9 +61,7 @@ export function formatPrice(
   labels: Labels = defaultLabels
 ): string {
   if (!rawPrice) return '—';
-  const amount = Number(rawPrice);
-  const symbol = currency && currency !== 'USD' ? CURRENCY_SYMBOLS[currency] : undefined;
-  const baseFormatted = symbol ? `${amount.toLocaleString('es-ES')} ${symbol}` : `$${amount.toLocaleString('en-US')}`;
+  const baseFormatted = formatAmount(Number(rawPrice), currency);
   if (operationType === 'rent') {
     return `${baseFormatted}${labels.propertyDetail.rentSuffix}`;
   }

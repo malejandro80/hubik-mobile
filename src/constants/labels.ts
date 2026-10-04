@@ -453,7 +453,6 @@ export const labels = {
   },
   propertyDetail: {
     previewBanner: 'Vista previa: así verán su anuncio. Todavía no está publicado.',
-    noAgencyFees: 'Sin honorarios de agencia',
     descriptionSectionTitle: 'Descripción de la vivienda',
     contactWhatsApp: 'Contactar por WhatsApp',
     contactWhatsAppA11y: 'Contactar al asesor por WhatsApp',
@@ -463,10 +462,18 @@ export const labels = {
     askAbout: (question: string, title: string) => `${question} (sobre «${title}»)`,
     errorGeneratingDescription: 'No se pudo generar la descripción en este momento.',
     featuresSectionTitle: 'Comodidades',
-    operationSale: 'En venta',
-    operationRent: 'En alquiler',
     approximateLocation: 'Ubicación aproximada',
     rentSuffix: '/mes',
+    pricePerSquareMeter: (amount: string) => `${amount}/m²`,
+    pricePerSquareMeterRent: (amount: string) => `${amount}/m² al mes`,
+    published: {
+      today: 'Publicado hoy',
+      yesterday: 'Publicado ayer',
+      days: (count: number) => `Publicado hace ${count} días`,
+      weeks: (count: number) => `Publicado hace ${count} ${count === 1 ? 'semana' : 'semanas'}`,
+      months: (count: number) => `Publicado hace ${count} ${count === 1 ? 'mes' : 'meses'}`,
+      overAYear: 'Publicado hace más de un año',
+    },
     stats: {
       bedrooms: (value: string | number) => `${value} hab.`,
       bathrooms: (value: string | number) => `${value} baños`,

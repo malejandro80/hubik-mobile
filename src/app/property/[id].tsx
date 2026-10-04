@@ -15,6 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { BurgerMenu } from '../../components/BurgerMenu';
 import { Header } from '../../components/Header';
+import { ListingTags } from '../../components/ListingTags';
 import { PhotoGallery } from '../../components/PhotoGallery';
 import { PropertyAgentCard } from '../../components/PropertyAgentCard';
 import { PropertyAskPanel } from '../../components/PropertyAskPanel';
@@ -30,6 +31,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { canContactAgents, normalizeWhatsApp, whatsAppUrl } from '../../lib/whatsapp';
 import { useLegacyDescription } from '../../hooks/useLegacyDescription';
 import { useListingAttribution } from '../../hooks/useListingAttribution';
+import { useListingPublishedAt } from '../../hooks/useListingPublishedAt';
 import { usePhotoGallery } from '../../hooks/usePhotoGallery';
 import { resolveAskTarget } from '../../lib/askTarget';
 import {
@@ -40,7 +42,7 @@ import {
   resolvePhotoCountLabel,
 } from '../../lib/propertyDetail';
 import { colors } from '../../theme';
-import { PROPERTY_TYPE_LABEL_ES, PropertyType } from '../../types/property';
+import { PropertyType } from '../../types/property';
 import { getPropertyDetailStyles } from './[id].styles';
 
 export default function PropertyDetailScreen() {
@@ -69,21 +71,13 @@ export default function PropertyDetailScreen() {
   const squareMeters = params.square_meters || '120';
   const realImages = useMemo(() => parsePropertyImages(params.images), [params.images]);
   const realAmenities = useMemo(() => parsePropertyAmenities(params.amenities), [params.amenities]);
-  const propertyTypeLabel = params.property_type
-    ? PROPERTY_TYPE_LABEL_ES[params.property_type as PropertyType]
-    : undefined;
-  const operationLabel =
-    params.operation_type === 'rent'
-      ? labels.propertyDetail.operationRent
-      : params.operation_type === 'sale'
-        ? labels.propertyDetail.operationSale
-        : undefined;
   const isPreview = params.preview === PREVIEW_PARAM_VALUE;
   const isSharedLink = params.shared === SHARED_LISTING_PARAM_VALUE;
   const askTarget = useMemo(
     () => resolveAskTarget({ id: params.id, preview: params.preview, shared: params.shared }),
     [params.id, params.preview, params.shared]
   );
+  const publishedAt = useListingPublishedAt(askTarget?.kind === 'listing' ? askTarget.id : null, params.created_at);
   const isAddressMasked = isPreview || !params.address;
   const address = isAddressMasked ? labels.propertyDetail.approximateLocation : params.address;
   const attribution = useListingAttribution(isPreview, params.agency_name, params.agent_name);
@@ -176,21 +170,13 @@ export default function PropertyDetailScreen() {
           <View style={styles.priceLocationBlock}>
             <Text style={styles.priceText}>{price}</Text>
 
-            <View style={styles.badgeRow}>
-              <View style={styles.agencyBadge}>
-                <Text style={styles.agencyBadgeText}>{labels.propertyDetail.noAgencyFees}</Text>
-              </View>
-              {propertyTypeLabel && (
-                <View style={styles.typeBadge}>
-                  <Text style={styles.typeBadgeText}>{propertyTypeLabel}</Text>
-                </View>
-              )}
-              {operationLabel && (
-                <View style={styles.typeBadge}>
-                  <Text style={styles.typeBadgeText}>{operationLabel}</Text>
-                </View>
-              )}
-            </View>
+            <ListingTags
+              price={params.price}
+              squareMeters={squareMeters}
+              currency={params.currency}
+              operationType={params.operation_type}
+              publishedAt={publishedAt}
+            />
 
             <PropertyStatsBar
               propertyType={params.property_type as PropertyType | undefined}

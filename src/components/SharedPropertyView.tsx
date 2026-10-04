@@ -7,6 +7,7 @@ import { formatPrice } from '../lib/propertyDetail';
 import { normalizeWhatsApp, whatsAppUrl } from '../lib/whatsapp';
 import { colors } from '../theme';
 import { Property } from '../types/property';
+import { ListingTags } from './ListingTags';
 import { PhotoGallery } from './PhotoGallery';
 import { getSharedPropertyViewStyles } from './SharedPropertyView.styles';
 
@@ -62,7 +63,14 @@ export const SharedPropertyView: React.FC<SharedPropertyViewProps> = ({ property
       )}
       <PhotoGallery visible={galleryVisible} images={photos} onClose={closeGallery} />
 
-      <Text style={styles.price}>{formatPrice(String(property.price))}</Text>
+      <Text style={styles.price}>{formatPrice(String(property.price), property.currency, property.operation_type)}</Text>
+      <ListingTags
+        price={String(property.price)}
+        squareMeters={String(property.square_meters)}
+        currency={property.currency}
+        operationType={property.operation_type}
+        publishedAt={property.created_at}
+      />
       <Text style={styles.title} accessibilityRole="header">
         {property.title}
       </Text>
@@ -84,6 +92,19 @@ export const SharedPropertyView: React.FC<SharedPropertyViewProps> = ({ property
         <>
           <Text style={styles.sectionTitle}>{sharedProperty.descriptionTitle}</Text>
           <Text style={styles.description}>{property.description}</Text>
+        </>
+      ) : null}
+
+      {property.amenities && property.amenities.length > 0 ? (
+        <>
+          <Text style={styles.sectionTitle}>{propertyDetail.featuresSectionTitle}</Text>
+          <View style={styles.amenities}>
+            {property.amenities.map((amenity) => (
+              <View key={amenity} style={styles.amenity}>
+                <Text style={styles.amenityText}>{amenity}</Text>
+              </View>
+            ))}
+          </View>
         </>
       ) : null}
 

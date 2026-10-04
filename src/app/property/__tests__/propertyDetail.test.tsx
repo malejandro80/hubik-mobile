@@ -27,6 +27,10 @@ jest.mock('../../../services/propertyAskService', () => ({
   askAboutProperty: jest.fn(),
 }));
 
+jest.mock('../../../services/listingPublishedAt', () => ({
+  fetchListingPublishedAt: jest.fn().mockResolvedValue(new Date().toISOString()),
+}));
+
 const LISTING_ID = '3f2b1c9e-8a44-4d0e-9a51-7c6d2e1b0a55';
 const askMock = askAboutProperty as jest.Mock;
 const mockNavigate = jest.fn();
@@ -58,6 +62,7 @@ let mockParams: {
   operation_type?: string;
   amenities?: string;
   description?: string;
+  created_at?: string;
   images?: string;
   lat?: string;
   lng?: string;
@@ -111,15 +116,31 @@ describe('PropertyDetailScreen', () => {
     jest.restoreAllMocks();
   });
 
-  it('renders hero photo badge, price, and agency badge correctly', async () => {
-    const { getByText } = render(<PropertyDetailScreen />);
+  it('renders hero photo badge, price and the price per m² tag, without the agency-fees badge', async () => {
+    const { getByText, queryByText } = render(<PropertyDetailScreen />);
     await waitFor(() => expect(chatApi.generatePropertyDescription).toHaveBeenCalled());
 
     expect(getByText('1 de 8 fotos')).toBeTruthy();
     expect(getByText('$485,000')).toBeTruthy();
-    expect(getByText('Sin honorarios de agencia')).toBeTruthy();
+    expect(getByText('$4,042/m²')).toBeTruthy();
+    expect(queryByText('Sin honorarios de agencia')).toBeNull();
     expect(getByText('Barrio de Salamanca, Madrid')).toBeTruthy();
     expect(getByText('Calle Claudio Coello')).toBeTruthy();
+  });
+
+  it('shows how long ago the listing was published', async () => {
+    mockParams = { ...mockParams, id: LISTING_ID };
+    const { findByText } = render(<PropertyDetailScreen />);
+
+    expect(await findByText('Publicado hoy')).toBeTruthy();
+  });
+
+  it('uses the publication date carried by the route when there is one', async () => {
+    const threeDaysAgo = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    mockParams = { ...mockParams, id: LISTING_ID, created_at: threeDaysAgo };
+    const { findByText } = render(<PropertyDetailScreen />);
+
+    expect(await findByText('Publicado hace 3 días')).toBeTruthy();
   });
 
   it('never shows the fabricated accessibility or nearby-places sections, for a legacy listing or otherwise', async () => {
@@ -259,7 +280,7 @@ describe('PropertyDetailScreen', () => {
     expect(queryByText(/Vivienda totalmente exterior y luminosa/)).toBeNull();
   });
 
-  it('shows the real property type and operation as badges when provided', () => {
+  it('shows the monthly price per m² for a rental instead of type and operation badges', () => {
     mockParams = {
       ...mockParams,
       description: 'Piso luminoso.',
@@ -267,10 +288,11 @@ describe('PropertyDetailScreen', () => {
       operation_type: 'rent',
     };
 
-    const { getByText } = render(<PropertyDetailScreen />);
+    const { getByText, queryByText } = render(<PropertyDetailScreen />);
 
-    expect(getByText('Piso')).toBeTruthy();
-    expect(getByText('En alquiler')).toBeTruthy();
+    expect(getByText('$4,042/m² al mes')).toBeTruthy();
+    expect(queryByText('Piso')).toBeNull();
+    expect(queryByText('En alquiler')).toBeNull();
   });
 
   it('does not show type/operation badges when they were not provided', () => {
